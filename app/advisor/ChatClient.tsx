@@ -69,11 +69,10 @@ export default function ChatClient() {
                         key={i}
                         initial={{ opacity: 0, y: 6 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className={`max-w-[80%] rounded-lg border px-3 py-2 text-sm ${
-                            m.role === "user"
+                        className={`max-w-[80%] rounded-lg border px-3 py-2 text-sm ${m.role === "user"
                                 ? "self-end border-cyan-400/20 bg-cyan-400/10 text-cyan-50"
                                 : "self-start border-white/10 bg-white/5 text-slate-100"
-                        }`}
+                            }`}
                     >
                         {m.text}
                     </motion.div>
