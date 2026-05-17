@@ -14,6 +14,10 @@ export async function updateGoal(id: string, patch: Partial<{ title: string; tar
     return prisma.goal.update({ where: { id }, data });
 }
 
+export async function deleteGoal(id: string) {
+    return prisma.goal.delete({ where: { id } });
+}
+
 export function recommendMonthlyContribution(currentAmount: number, targetAmount: number, monthsLeft: number) {
     if (monthsLeft <= 0) return targetAmount - currentAmount;
     return Math.max(0, (targetAmount - currentAmount) / monthsLeft);

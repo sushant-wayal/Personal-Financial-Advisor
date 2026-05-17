@@ -36,7 +36,7 @@ export async function generateInsights(limit = 50) {
     if (txs.length > 10 && process.env.GEMINI_API_KEY) {
         const prompt = `Summarize user's recent transactions and provide 3 concrete insights and one recommended action. Transactions: ${JSON.stringify(txs.slice(0, 50))}`;
         try {
-            const resp = await generateText(prompt, { temperature: 0.1, maxTokens: 400 });
+            const resp = await generateText(prompt, { temperature: 0.1, maxTokens: 400, complexity: "simple" });
             await prisma.financialInsight.create({ data: { type: "ai_summary", message: resp.text, meta: resp.raw ? JSON.stringify(resp.raw) : null } });
             insights.push({ type: "ai_summary", message: resp.text });
         } catch (e) {

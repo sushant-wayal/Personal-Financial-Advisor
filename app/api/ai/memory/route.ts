@@ -14,7 +14,8 @@ export async function POST(req: Request) {
     try {
         const body = await req.json();
         if (!body.key || !body.value) return NextResponse.json({ error: "missing fields" }, { status: 400 });
-        const created = await prisma.aIMemory.create({ data: { key: body.key, value: body.value, tags: body.tags || [] } });
+        const tags = Array.isArray(body.tags) ? JSON.stringify(body.tags) : body.tags || "[]";
+        const created = await prisma.aIMemory.create({ data: { key: body.key, value: body.value, tags } });
         return NextResponse.json({ ok: true, memory: created });
     } catch (e: any) {
         return NextResponse.json({ error: String(e) }, { status: 500 });

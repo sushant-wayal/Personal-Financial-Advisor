@@ -11,7 +11,7 @@ export async function GET(req: Request) {
     try {
         const tokens = await exchangeCodeForTokens(code, redirectUri);
         await storeTokens(tokens);
-        return NextResponse.json({ ok: true });
+        return NextResponse.redirect(new URL("/?gmail=connected", req.url));
     } catch (e: any) {
         return NextResponse.json({ error: e.message || String(e) }, { status: 500 });
     }

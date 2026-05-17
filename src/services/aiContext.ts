@@ -13,11 +13,12 @@ export async function buildFinancialContext(limit = 100) {
 
 export async function askAdvisor(question: string) {
     const context = await buildFinancialContext(200);
+    console.log('Financial context for advisor:', context);
     const system = `You are a disciplined, analytical personal finance advisor. Use only the provided financial context and deterministic calculations. Do not hallucinate. Provide clear numeric analysis.`;
     const userMessage = `Context: ${JSON.stringify(context)}\n\nQuestion: ${question}`;
     const resp = await generateText([
         { role: 'system', content: system },
         { role: 'user', content: userMessage }
-    ], { temperature: 0.05, maxTokens: 1200 });
+    ], { temperature: 0.05, maxTokens: 1200, complexity: "complex" });
     return resp;
 }

@@ -1,6 +1,7 @@
 import React from "react";
 import ThemeToggle from "../../src/components/ThemeToggle";
 import Button from "../../src/components/ui/Button";
+import GmailControls from "./GmailControls";
 
 export default function Header() {
     const dateLabel = new Date().toLocaleString("default", { month: "long", year: "numeric" });
@@ -20,6 +21,7 @@ export default function Header() {
                     <div className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-300">
                         {dateLabel}
                     </div>
+                    <GmailControls />
                     <Button variant="outline" size="sm">
                         New transaction
                     </Button>

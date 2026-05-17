@@ -1,0 +1,291 @@
+"use client";
+
+import React, { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import Card from "../../src/components/ui/Card";
+import Button from "../../src/components/ui/Button";
+import Input from "../../src/components/ui/Input";
+
+type Goal = {
+    id: string;
+    title: string;
+    targetAmount: number;
+    currentAmount: number;
+    monthlyTarget?: number | null;
+    priority: number;
+    targetDate?: string | null;
+    notes?: string | null;
+};
+
+async function fetchGoals(): Promise<Goal[]> {
+    const res = await fetch("/api/goals");
+    if (!res.ok) throw new Error("Failed to load goals");
+    const data = await res.json();
+    return data.goals || [];
+}
+
+export default function GoalsManager() {
+    const queryClient = useQueryClient();
+    const { data: goals = [], isLoading } = useQuery({ queryKey: ["goals"], queryFn: fetchGoals });
+
+    const [form, setForm] = useState({
+        title: "",
+        targetAmount: "",
+        targetDate: "",
+        priority: "3",
+        notes: "",
+    });
+
+    const [editing, setEditing] = useState<Record<string, Partial<Goal>>>({});
+
+    function buildPatch(patch: Partial<Goal>) {
+        const cleaned: Record<string, unknown> = {};
+        Object.entries(patch).forEach(([key, value]) => {
+            if (value === undefined) return;
+            if (typeof value === "string" && value.trim() === "") return;
+            cleaned[key] = value;
+        });
+        return cleaned;
+    }
+
+    const createMutation = useMutation({
+        mutationFn: async () => {
+            const payload = {
+                title: form.title.trim(),
+                targetAmount: Number(form.targetAmount),
+                targetDate: form.targetDate || undefined,
+                priority: form.priority ? Number(form.priority) : undefined,
+                notes: form.notes || undefined,
+            };
+            const res = await fetch("/api/goals", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+            });
+            if (!res.ok) throw new Error("Failed to create goal");
+            return res.json();
+        },
+        onSuccess: () => {
+            setForm({ title: "", targetAmount: "", targetDate: "", priority: "3", notes: "" });
+            queryClient.invalidateQueries({ queryKey: ["goals"] });
+        },
+    });
+
+    const updateMutation = useMutation({
+        mutationFn: async ({ id, patch }: { id: string; patch: Partial<Goal> }) => {
+            const res = await fetch(`/api/goals/${id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(patch),
+            });
+            if (!res.ok) throw new Error("Failed to update goal");
+            return res.json();
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["goals"] });
+        },
+    });
+
+    const deleteMutation = useMutation({
+        mutationFn: async (id: string) => {
+            const res = await fetch(`/api/goals/${id}`, { method: "DELETE" });
+            if (!res.ok) throw new Error("Failed to delete goal");
+            return res.json();
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["goals"] });
+        },
+    });
+
+    const totalGoals = useMemo(() => goals.length, [goals.length]);
+
+    return (
+        <div className="space-y-6">
+            <Card>
+                <div>
+                    <div className="text-sm font-semibold text-white">Create a goal</div>
+                    <div className="text-xs text-slate-400">Track a target and the timeline you want</div>
+                </div>
+                <div className="mt-4 grid gap-3 md:grid-cols-2">
+                    <Input
+                        label="Title"
+                        value={form.title}
+                        onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
+                        placeholder="Emergency fund"
+                    />
+                    <Input
+                        label="Target amount"
+                        type="number"
+                        value={form.targetAmount}
+                        onChange={(e) => setForm((prev) => ({ ...prev, targetAmount: e.target.value }))}
+                        placeholder="250000"
+                    />
+                    <Input
+                        label="Target date"
+                        type="date"
+                        value={form.targetDate}
+                        onChange={(e) => setForm((prev) => ({ ...prev, targetDate: e.target.value }))}
+                    />
+                    <Input
+                        label="Priority"
+                        type="number"
+                        min={1}
+                        max={5}
+                        value={form.priority}
+                        onChange={(e) => setForm((prev) => ({ ...prev, priority: e.target.value }))}
+                        placeholder="3"
+                    />
+                    <Input
+                        label="Notes"
+                        value={form.notes}
+                        onChange={(e) => setForm((prev) => ({ ...prev, notes: e.target.value }))}
+                        placeholder="6 months of expenses"
+                    />
+                </div>
+                <div className="mt-4 flex items-center justify-between">
+                    <div className="text-xs text-slate-500">{totalGoals} goals tracked</div>
+                    <Button
+                        onClick={() => createMutation.mutate()}
+                        disabled={!form.title.trim() || !form.targetAmount || createMutation.isPending}
+                        variant="secondary"
+                    >
+                        {createMutation.isPending ? "Saving..." : "Add goal"}
+                    </Button>
+                </div>
+            </Card>
+
+            <div className="grid gap-4">
+                {isLoading && <div className="text-sm text-slate-400">Loading goals...</div>}
+                {!isLoading && goals.length === 0 && (
+                    <div className="text-sm text-slate-500">No goals yet. Create one above to get started.</div>
+                )}
+                {goals.map((goal) => {
+                    const progress = Math.round((goal.currentAmount / Math.max(1, goal.targetAmount)) * 100);
+                    const clamped = Math.min(progress, 100);
+                    const edit = editing[goal.id] || {};
+                    const patch = buildPatch(edit);
+                    const hasChanges = Object.keys(patch).length > 0;
+
+                    return (
+                        <Card key={goal.id}>
+                            <details className="group">
+                                <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-4">
+                                    <div>
+                                        <div className="font-semibold text-slate-100">{goal.title}</div>
+                                        <div className="text-xs text-slate-500">Target: ₹ {goal.targetAmount}</div>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="text-xs text-slate-400">Progress</div>
+                                        <div className="text-lg font-semibold text-white">{progress}%</div>
+                                    </div>
+                                    <div className="w-full">
+                                        <div className="mt-3 h-2 w-full rounded-full bg-white/5">
+                                            <div className="h-2 rounded-full bg-emerald-400" style={{ width: `${clamped}%` }} />
+                                        </div>
+                                        <div className="mt-2 text-xs text-slate-500 transition group-open:text-slate-300">
+                                            Click to view details
+                                        </div>
+                                    </div>
+                                </summary>
+
+                                <div className="mt-4 grid gap-3 md:grid-cols-2">
+                                    <Input
+                                        label="Title"
+                                        value={edit.title ?? goal.title}
+                                        onChange={(e) =>
+                                            setEditing((prev) => ({
+                                                ...prev,
+                                                [goal.id]: { ...prev[goal.id], title: e.target.value },
+                                            }))
+                                        }
+                                    />
+                                    <Input
+                                        label="Target amount"
+                                        type="number"
+                                        value={String(edit.targetAmount ?? goal.targetAmount)}
+                                        onChange={(e) =>
+                                            setEditing((prev) => ({
+                                                ...prev,
+                                                [goal.id]: { ...prev[goal.id], targetAmount: Number(e.target.value) },
+                                            }))
+                                        }
+                                    />
+                                    <Input
+                                        label="Current amount"
+                                        type="number"
+                                        value={String(edit.currentAmount ?? goal.currentAmount)}
+                                        onChange={(e) =>
+                                            setEditing((prev) => ({
+                                                ...prev,
+                                                [goal.id]: { ...prev[goal.id], currentAmount: Number(e.target.value) },
+                                            }))
+                                        }
+                                    />
+                                    <Input
+                                        label="Priority"
+                                        type="number"
+                                        min={1}
+                                        max={5}
+                                        value={String(edit.priority ?? goal.priority)}
+                                        onChange={(e) =>
+                                            setEditing((prev) => ({
+                                                ...prev,
+                                                [goal.id]: { ...prev[goal.id], priority: Number(e.target.value) },
+                                            }))
+                                        }
+                                    />
+                                    <Input
+                                        label="Target date"
+                                        type="date"
+                                        value={(edit.targetDate ?? goal.targetDate ?? "").slice(0, 10)}
+                                        onChange={(e) =>
+                                            setEditing((prev) => ({
+                                                ...prev,
+                                                [goal.id]: { ...prev[goal.id], targetDate: e.target.value },
+                                            }))
+                                        }
+                                    />
+                                    <Input
+                                        label="Notes"
+                                        value={edit.notes ?? goal.notes ?? ""}
+                                        onChange={(e) =>
+                                            setEditing((prev) => ({
+                                                ...prev,
+                                                [goal.id]: { ...prev[goal.id], notes: e.target.value },
+                                            }))
+                                        }
+                                    />
+                                </div>
+                                <div className="mt-4 flex flex-wrap items-center gap-2">
+                                    <Button
+                                        variant="secondary"
+                                        size="sm"
+                                        onClick={() => updateMutation.mutate({ id: goal.id, patch })}
+                                        disabled={updateMutation.isPending || !hasChanges}
+                                    >
+                                        {updateMutation.isPending ? "Saving..." : "Save changes"}
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => setEditing((prev) => ({ ...prev, [goal.id]: {} }))}
+                                    >
+                                        Reset
+                                    </Button>
+                                    <Button
+                                        variant="destructive"
+                                        size="sm"
+                                        onClick={() => deleteMutation.mutate(goal.id)}
+                                        disabled={deleteMutation.isPending}
+                                    >
+                                        Delete
+                                    </Button>
+                                </div>
+                            </details>
+                        </Card>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}

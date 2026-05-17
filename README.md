@@ -56,7 +56,8 @@ See `.env.example` for the full list.
 
 - `DATABASE_URL` - SQLite database path.
 - `GEMINI_API_KEY` - required for AI advisor and streaming.
-- `GEMINI_API_URL` - optional override for the Gemini endpoint.
+- `GEMINI_FLASH_MODEL` - optional model override for simple tasks (defaults to `gemini-2.5-flash`).
+- `GEMINI_PRO_MODEL` - optional model override for complex analysis (defaults to `gemini-2.5-pro`).
 - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` - Gmail OAuth credentials.
 - `GOOGLE_REDIRECT_URI` - OAuth callback URL.
 

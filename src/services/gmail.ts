@@ -77,9 +77,10 @@ export function buildAuthUrl(redirectUri: string, scope = "https://www.googleapi
     return url.toString();
 }
 
-export async function fetchUnreadFinancialEmails(accessToken: string, maxResults = 20, afterDate?: string) {
-    // search query focuses on common financial keywords; support incremental via after:YYYY/MM/DD
-    let q = "(bank OR credited OR debited OR transaction OR UPI OR payment OR statement OR refund) is:unread";
+export async function fetchUnreadFinancialEmails(accessToken: string, senders: string[], maxResults = 20, afterDate?: string) {
+    // search only from explicitly configured senders; support incremental via after:YYYY/MM/DD
+    const fromQuery = senders.map((s) => `from:${s}`).join(" OR ");
+    let q = senders.length > 1 ? `(${fromQuery})` : fromQuery;
     if (afterDate) {
         // Gmail search accepts after:YYYY/MM/DD
         const d = new Date(afterDate);
