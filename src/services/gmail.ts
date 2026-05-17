@@ -1,0 +1,109 @@
+import axios from "axios";
+import { prisma } from "../lib/prisma";
+
+const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
+const GMAIL_API_BASE = "https://gmail.googleapis.com/gmail/v1";
+
+export async function exchangeCodeForTokens(code: string, redirectUri: string) {
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    if (!clientId || !clientSecret) throw new Error("Google OAuth client not configured");
+
+    const params = new URLSearchParams();
+    params.append("code", code);
+    params.append("client_id", clientId);
+    params.append("client_secret", clientSecret);
+    params.append("redirect_uri", redirectUri);
+    params.append("grant_type", "authorization_code");
+
+    const res = await axios.post(GOOGLE_TOKEN_URL, params.toString(), {
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    });
+
+    return res.data;
+}
+
+export async function refreshAccessToken(refreshToken: string) {
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    const params = new URLSearchParams();
+    params.append("refresh_token", refreshToken);
+    params.append("client_id", clientId || "");
+    params.append("client_secret", clientSecret || "");
+    params.append("grant_type", "refresh_token");
+
+    const res = await axios.post(GOOGLE_TOKEN_URL, params.toString(), {
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    });
+    return res.data;
+}
+
+export async function storeTokens(tokens: any) {
+    const key = "gmail_oauth_tokens";
+    const mem = await prisma.aIMemory.findFirst({ where: { key } });
+    const payload = {
+        access_token: tokens.access_token,
+        refresh_token: tokens.refresh_token,
+        scope: tokens.scope,
+        expires_in: tokens.expires_in,
+        token_type: tokens.token_type,
+    };
+    if (mem) {
+        await prisma.aIMemory.update({ where: { id: mem.id }, data: { value: JSON.stringify(payload) } });
+    } else {
+        await prisma.aIMemory.create({ data: { key, value: JSON.stringify(payload), tags: JSON.stringify(["gmail"]) } });
+    }
+    return payload;
+}
+
+export async function getStoredTokens() {
+    const key = "gmail_oauth_tokens";
+    const mem = await prisma.aIMemory.findFirst({ where: { key } });
+    if (!mem) return null;
+    try {
+        return JSON.parse(mem.value || "{}");
+    } catch (e) { return null; }
+}
+
+export function buildAuthUrl(redirectUri: string, scope = "https://www.googleapis.com/auth/gmail.readonly") {
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
+    url.searchParams.set("client_id", clientId || "");
+    url.searchParams.set("redirect_uri", redirectUri);
+    url.searchParams.set("response_type", "code");
+    url.searchParams.set("access_type", "offline");
+    url.searchParams.set("scope", scope);
+    url.searchParams.set("prompt", "consent");
+    return url.toString();
+}
+
+export async function fetchUnreadFinancialEmails(accessToken: string, maxResults = 20, afterDate?: string) {
+    // search query focuses on common financial keywords; support incremental via after:YYYY/MM/DD
+    let q = "(bank OR credited OR debited OR transaction OR UPI OR payment OR statement OR refund) is:unread";
+    if (afterDate) {
+        // Gmail search accepts after:YYYY/MM/DD
+        const d = new Date(afterDate);
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, "0");
+        const day = String(d.getDate()).padStart(2, "0");
+        q += ` after:${y}/${m}/${day}`;
+    }
+    const url = `${GMAIL_API_BASE}/users/me/messages?q=${encodeURIComponent(q)}&maxResults=${maxResults}`;
+    const res = await axios.get(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+    const messages = res.data.messages || [];
+    const out: Array<{ id: string; snippet?: string; internalDate?: string }> = [];
+    for (const m of messages) {
+        try {
+            const r = await axios.get(`${GMAIL_API_BASE}/users/me/messages/${m.id}?format=full`, { headers: { Authorization: `Bearer ${accessToken}` } });
+            out.push({ id: m.id, snippet: r.data.snippet, internalDate: r.data.internalDate });
+        } catch (e) {
+            // skip
+        }
+    }
+    return out;
+}
+
+export async function markMessageAsRead(accessToken: string, messageId: string) {
+    const url = `${GMAIL_API_BASE}/users/me/messages/${messageId}/modify`;
+    await axios.post(url, { removeLabelIds: ["UNREAD"] }, { headers: { Authorization: `Bearer ${accessToken}` } });
+}

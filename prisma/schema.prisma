@@ -1,0 +1,98 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Transaction {
+  id            String   @id @default(cuid())
+  amount        Float
+  merchant      String
+  categoryId    String?  
+  category      Category? @relation(fields: [categoryId], references: [id])
+  timestamp     DateTime @default(now())
+  source        String
+  account       String?
+  type          String
+  notes         String?
+  confidence    Float    @default(1.0)
+  parsedAt      DateTime @default(now())
+  raw           String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Category {
+  id          String        @id @default(cuid())
+  name        String        @unique
+  description String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  transactions Transaction[]
+}
+
+model Goal {
+  id               String   @id @default(cuid())
+  title            String
+  targetAmount     Float
+  currentAmount    Float    @default(0)
+  monthlyTarget    Float?
+  priority         Int      @default(3)
+  targetDate       DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  notes            String?
+}
+
+model FinancialProfile {
+  id               String   @id @default(cuid())
+  ownerName        String?
+  currency         String   @default("INR")
+  emergencyFund    Float    @default(0)
+  monthlyIncome    Float    @default(0)
+  monthlyExpenses  Float    @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model AIMemory {
+  id          String   @id @default(cuid())
+  key         String
+  value       String
+  tags        String   @default("[]")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Subscription {
+  id           String   @id @default(cuid())
+  merchant     String
+  amount       Float
+  interval     String
+  nextCharge   DateTime?
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model RecurringPattern {
+  id          String   @id @default(cuid())
+  description String
+  lastSeen    DateTime
+  frequency   String
+  estimatedAmount Float
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model FinancialInsight {
+  id        String   @id @default(cuid())
+  type      String
+  message   String
+  score     Float?   
+  meta      String?
+  createdAt DateTime @default(now())
+}

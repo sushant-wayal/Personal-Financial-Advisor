@@ -1,0 +1,54 @@
+{
+    "amazon": {
+        "merchant": "Amazon",
+        "category": "Shopping"
+    },
+    "flipkart": {
+        "merchant": "Flipkart",
+        "category": "Shopping"
+    },
+    "zomato": {
+        "merchant": "Zomato",
+        "category": "Food"
+    },
+    "swiggy": {
+        "merchant": "Swiggy",
+        "category": "Food"
+    },
+    "google pay": {
+        "merchant": "Google Pay",
+        "category": "Transfer"
+    },
+    "phonepe": {
+        "merchant": "PhonePe",
+        "category": "Transfer"
+    },
+    "paytm": {
+        "merchant": "Paytm",
+        "category": "Transfer"
+    },
+    "ola": {
+        "merchant": "Ola",
+        "category": "Travel"
+    },
+    "uber": {
+        "merchant": "Uber",
+        "category": "Travel"
+    },
+    "spotify": {
+        "merchant": "Spotify",
+        "category": "Subscription"
+    },
+    "netflix": {
+        "merchant": "Netflix",
+        "category": "Subscription"
+    },
+    "hdfc": {
+        "merchant": "HDFC Bank",
+        "category": "Bank"
+    },
+    "icici": {
+        "merchant": "ICICI Bank",
+        "category": "Bank"
+    }
+}
