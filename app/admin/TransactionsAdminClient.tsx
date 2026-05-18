@@ -380,7 +380,7 @@ export default function TransactionsAdminClient() {
                 </div>
             </CardHeader>
             <CardContent>
-                <div className="space-y-3">
+                <div className="space-y-3 max-h-[600px] overflow-y-auto scrollbar-thin scrollbar-thumb-rounded scrollbar-thumb-border/50">
                     <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/70 pb-3">
                         <label className="flex items-center gap-2 text-sm text-muted-foreground">
                             <input

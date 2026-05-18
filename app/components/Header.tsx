@@ -1,10 +1,14 @@
-import React from "react";
+"use client";
+
+import React, { useState } from "react";
 import ThemeToggle from "../../src/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import GmailControls from "./GmailControls";
+import NewTransactionDialog from "./NewTransactionDialog";
 
 export default function Header() {
     const dateLabel = new Date().toLocaleString("default", { month: "long", year: "numeric" });
+    const [isNewTransactionOpen, setIsNewTransactionOpen] = useState(false);
 
     return (
         <header className="sticky top-0 z-10 border-b border-border bg-background/95 px-8 py-5 backdrop-blur" role="banner">
@@ -22,12 +26,13 @@ export default function Header() {
                         {dateLabel}
                     </div>
                     <GmailControls />
-                    <Button size="sm" className={"rounded-lg"}>
+                    <Button size="sm" className={"rounded-lg"} onClick={() => setIsNewTransactionOpen(true)}>
                         New transaction
                     </Button>
                     <ThemeToggle />
                 </div>
             </div>
+            <NewTransactionDialog open={isNewTransactionOpen} onOpenChange={setIsNewTransactionOpen} />
         </header>
     );
 }

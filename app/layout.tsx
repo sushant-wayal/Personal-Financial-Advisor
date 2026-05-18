@@ -1,21 +1,9 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Noto_Sans, Playfair_Display } from "next/font/google";
+import { Noto_Sans } from "next/font/google";
 import "./globals.css";
 import ReactQueryProvider from "../src/providers/ReactQueryProvider";
 
-const playfairDisplayHeading = Playfair_Display({ subsets: ['latin'], variable: '--font-heading' });
-
 const notoSans = Noto_Sans({ subsets: ['latin'], variable: '--font-sans' });
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: "Personal Finance OS",
@@ -27,7 +15,7 @@ import Header from "./components/Header";
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} ${notoSans.variable} ${playfairDisplayHeading.variable} h-full antialiased dark`}>
+    <html lang="en" className={`${notoSans.variable} h-full antialiased dark`}>
       <body className="h-full overflow-hidden bg-background text-foreground">
         <a
           href="#main"
