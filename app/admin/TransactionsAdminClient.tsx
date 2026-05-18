@@ -2,15 +2,15 @@
 import React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import useStore from "../../src/store/useStore";
-import Card from "../../src/components/ui/Card";
-import Button from "../../src/components/ui/Button";
-import Input from "../../src/components/ui/Input";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 
 type Tx = {
     id: string;
     merchant: string;
     amount: number;
-    category?: string;
+    category?: { name?: string } | null;
     timestamp: string;
 };
 
@@ -50,48 +50,55 @@ export default function TransactionsAdminClient() {
 
     return (
         <Card>
-            <div className="flex flex-wrap items-center justify-between gap-4">
-                <div>
-                    <div className="text-sm font-semibold text-white">Transactions Admin</div>
-                    <div className="text-xs text-slate-400">Triage and recategorize transactions</div>
-                </div>
-                <Button variant="outline" size="sm" onClick={() => queryClient.invalidateQueries({ queryKey: ["transactions"] })}>
-                    Refresh
-                </Button>
-            </div>
-            <div className="mt-4 space-y-3">
-                {txs.map((tx) => (
-                    <div key={tx.id} className="rounded-lg border border-white/10 bg-white/5 p-3">
-                        <div className="flex flex-wrap items-center justify-between gap-4">
-                            <div>
-                                <div className="font-medium text-slate-100">{tx.merchant} — ₹{tx.amount}</div>
-                                <div className="text-xs text-slate-500">{new Date(tx.timestamp).toLocaleString()}</div>
-                            </div>
-                            <div className="flex flex-wrap items-center gap-2">
-                                <Input
-                                    defaultValue={tx.category || ""}
-                                    placeholder="Category"
-                                    id={`cat-${tx.id}`}
-                                    className="h-9 w-40"
-                                />
-                                <Button
-                                    variant="secondary"
-                                    size="sm"
-                                    onClick={() => {
-                                        const val = (document.getElementById(`cat-${tx.id}`) as HTMLInputElement).value;
-                                        mutation.mutate({ id: tx.id, category: val });
-                                    }}
-                                >
-                                    Save
-                                </Button>
-                                <Button variant="ghost" size="sm" onClick={() => setSelected(tx.id)}>
-                                    Select
-                                </Button>
-                            </div>
-                        </div>
+            <CardHeader>
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div>
+                        <CardTitle>Transactions Admin</CardTitle>
+                        <CardDescription>Triage and recategorize transactions</CardDescription>
                     </div>
-                ))}
-            </div>
+                    <Button className={"rounded-lg"} variant="outline" size="sm" onClick={() => queryClient.invalidateQueries({ queryKey: ["transactions"] })}>
+                        Refresh
+                    </Button>
+                </div>
+            </CardHeader>
+            <CardContent>
+                <div className="space-y-3">
+                    {txs.map((tx) => (
+                        <Card key={tx.id} size="sm" className="bg-muted/40">
+                            <CardContent className="px-4 py-4">
+                                <div className="flex flex-wrap items-center justify-between gap-4">
+                                    <div>
+                                        <div className="font-medium text-foreground">{tx.merchant} — ₹{tx.amount}</div>
+                                        <div className="text-xs text-muted-foreground">{new Date(tx.timestamp).toLocaleString()}</div>
+                                    </div>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <Input
+                                            defaultValue={tx.category?.name || ""}
+                                            placeholder="Category"
+                                            id={`cat-${tx.id}`}
+                                            className="h-9 w-40"
+                                        />
+                                        <Button
+                                            variant="secondary"
+                                            size="sm"
+                                            onClick={() => {
+                                                const val = (document.getElementById(`cat-${tx.id}`) as HTMLInputElement).value;
+                                                mutation.mutate({ id: tx.id, category: val });
+                                            }}
+                                            className={"rounded-lg"}
+                                        >
+                                            Save
+                                        </Button>
+                                        <Button className={"rounded-lg"} variant="ghost" size="sm" onClick={() => setSelected(tx.id)}>
+                                            Select
+                                        </Button>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    ))}
+                </div>
+            </CardContent>
         </Card>
     );
 }

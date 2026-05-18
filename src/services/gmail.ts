@@ -45,7 +45,7 @@ export async function storeTokens(tokens: any) {
         access_token: tokens.access_token,
         refresh_token: tokens.refresh_token,
         scope: tokens.scope,
-        expires_in: tokens.expires_in,
+        expires_at: new Date().getTime() + (tokens.expires_in - 60) * 1000, // 60s buffer
         token_type: tokens.token_type,
     };
     if (mem) {
@@ -61,8 +61,40 @@ export async function getStoredTokens() {
     const mem = await prisma.aIMemory.findFirst({ where: { key } });
     if (!mem) return null;
     try {
-        return JSON.parse(mem.value || "{}");
+        const tokens = JSON.parse(mem.value || "{}");
+        // check expiry
+        if (tokens.expires_at && new Date().getTime() > tokens.expires_at) {
+            console.log("[gmail] token expired, attempting refresh");
+            const newTokens = await refreshAccessToken(tokens.refresh_token);
+            return await storeTokens({ ...tokens, ...newTokens });
+        }
+        return tokens;
     } catch (e) { return null; }
+}
+
+export async function withGmailAuth<T>(callback: (accessToken: string) => Promise<T>): Promise<T> {
+    let tokens = await getStoredTokens();
+    if (!tokens?.access_token) {
+        throw new Error("Not authenticated with Google");
+    }
+
+    try {
+        return await callback(tokens.access_token);
+    } catch (error: any) {
+        if (error.response && error.response.status === 401) {
+            console.log("[gmail] Access token failed, refreshing...");
+            const newTokens = await refreshAccessToken(tokens.refresh_token);
+            tokens = await storeTokens({ ...tokens, ...newTokens });
+            if (!tokens?.access_token) {
+                throw new Error("Failed to refresh access token");
+            }
+            // Retry the callback with the new token
+            return await callback(tokens.access_token);
+        } else {
+            // Re-throw other errors
+            throw error;
+        }
+    }
 }
 
 export function buildAuthUrl(redirectUri: string, scope = "https://www.googleapis.com/auth/gmail.readonly") {

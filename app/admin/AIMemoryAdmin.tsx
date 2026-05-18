@@ -1,8 +1,8 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import Card from "../../src/components/ui/Card";
-import Button from "../../src/components/ui/Button";
-import Input from "../../src/components/ui/Input";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 
 export default function AIMemoryAdmin() {
     const [items, setItems] = useState<any[]>([]);
@@ -37,32 +37,36 @@ export default function AIMemoryAdmin() {
 
     return (
         <Card>
-            <div>
-                <div className="text-sm font-semibold text-white">AI Memory</div>
-                <div className="text-xs text-slate-400">Saved notes used for future responses</div>
-            </div>
-            <div className="mt-4 grid gap-3 md:grid-cols-[1fr_2fr_auto]">
-                <Input value={key} onChange={(e) => setKey(e.target.value)} placeholder="Key" />
-                <Input value={value} onChange={(e) => setValue(e.target.value)} placeholder="Value" />
-                <Button onClick={create} variant="secondary">
-                    Save
-                </Button>
-            </div>
-            <div className="mt-4 space-y-2">
-                {items.map((it) => (
-                    <div key={it.id} className="rounded-lg border border-white/10 bg-white/5 p-3">
-                        <div className="flex items-start justify-between gap-4">
-                            <div>
-                                <div className="font-medium text-slate-100">{it.key}</div>
-                                <div className="text-xs text-slate-500">{it.value}</div>
-                            </div>
-                            <Button variant="ghost" size="sm" onClick={() => remove(it.id)}>
-                                Delete
-                            </Button>
-                        </div>
-                    </div>
-                ))}
-            </div>
+            <CardHeader>
+                <CardTitle>AI Memory</CardTitle>
+                <CardDescription>Saved notes used for future responses</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="grid gap-3 md:grid-cols-[1fr_2fr_auto]">
+                    <Input value={key} onChange={(e) => setKey(e.target.value)} placeholder="Key" />
+                    <Input value={value} onChange={(e) => setValue(e.target.value)} placeholder="Value" />
+                    <Button onClick={create} variant="secondary" className={"rounded-lg"}>
+                        Save
+                    </Button>
+                </div>
+                <div className="mt-4 space-y-2">
+                    {items.map((it) => (
+                        <Card key={it.id} size="sm" className="bg-muted/40">
+                            <CardContent className="px-4 py-4">
+                                <div className="flex items-start justify-between gap-4">
+                                    <div>
+                                        <div className="font-medium text-foreground">{it.key}</div>
+                                        <div className="text-xs text-muted-foreground">{it.value}</div>
+                                    </div>
+                                    <Button variant="destructive" size="sm" onClick={() => remove(it.id)} className={"rounded-lg"}>
+                                        Delete
+                                    </Button>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    ))}
+                </div>
+            </CardContent>
         </Card>
     );
 }

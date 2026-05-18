@@ -1,8 +1,9 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import Card from "../../src/components/ui/Card";
-import Input from "../../src/components/ui/Input";
-import Button from "../../src/components/ui/Button";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export default function AffordabilityWidget({ price = 0 }: { price?: number }) {
     const [result, setResult] = useState<any>(null);
@@ -29,25 +30,32 @@ export default function AffordabilityWidget({ price = 0 }: { price?: number }) {
 
     return (
         <Card>
-            <div>
-                <div className="text-sm font-semibold text-white">Affordability checker</div>
-                <div className="text-xs text-slate-400">Stress-test a large purchase</div>
-            </div>
-            <div className="mt-4 flex flex-col gap-3">
-                <Input value={value} onChange={(e) => setValue(e.target.value)} label="Price" />
-                <Button onClick={evaluate} disabled={loading} variant="secondary">
-                    {loading ? "Checking..." : "Run analysis"}
-                </Button>
-            </div>
-            {result && (
-                <div className="mt-4 rounded-lg border border-white/10 bg-white/5 p-3 text-sm text-slate-200">
-                    <div>Affordability score: {result.affordabilityScore ?? "-"}</div>
-                    <div>
-                        Impact on runway (months):{" "}
-                        {result.impactOnRunway?.toFixed ? result.impactOnRunway.toFixed(2) : result.impactOnRunway}
+            <CardHeader>
+                <CardTitle>Affordability checker</CardTitle>
+                <CardDescription>Stress-test a large purchase</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="flex flex-col gap-3">
+                    <div className="space-y-2">
+                        <Label htmlFor="affordability-price">Price</Label>
+                        <Input id="affordability-price" value={value} onChange={(e) => setValue(e.target.value)} />
                     </div>
+                    <Button className={"rounded-lg"} onClick={evaluate} disabled={loading} variant="secondary">
+                        {loading ? "Checking..." : "Run analysis"}
+                    </Button>
+                    {result && (
+                        <Card size="sm" className="bg-muted/40">
+                            <CardContent className="px-4 py-4 text-sm">
+                                <div>Affordability score: {result.affordabilityScore ?? "-"}</div>
+                                <div>
+                                    Impact on runway (months):{" "}
+                                    {result.impactOnRunway?.toFixed ? result.impactOnRunway.toFixed(2) : result.impactOnRunway}
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
                 </div>
-            )}
+            </CardContent>
         </Card>
     );
 }

@@ -1,6 +1,9 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import Button from "../../src/components/ui/Button";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 export default function SettingsClient() {
     const [input, setInput] = useState("");
@@ -50,33 +53,37 @@ export default function SettingsClient() {
     }
 
     return (
-        <div className="space-y-4">
-            <div>
-                <div className="text-sm font-semibold text-white">Gmail Senders</div>
-                <div className="text-xs text-slate-400">
+        <Card>
+            <CardHeader>
+                <CardTitle>Gmail Senders</CardTitle>
+                <CardDescription>
                     Enter the email addresses that send your bank debit and credit alerts.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="space-y-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="gmail-senders">Allowed senders</Label>
+                        <Textarea
+                            id="gmail-senders"
+                            value={input}
+                            onChange={(e) => setInput(e.target.value)}
+                            rows={4}
+                            placeholder="alerts@bank.com, noreply@bank.com"
+                        />
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <Button onClick={save} disabled={status === "saving"} className={"rounded-lg"}>
+                            {status === "saving" ? "Saving..." : "Save"}
+                        </Button>
+                        {message && (
+                            <span className={`text-xs ${status === "error" ? "text-destructive" : "text-muted-foreground"}`}>
+                                {message}
+                            </span>
+                        )}
+                    </div>
                 </div>
-            </div>
-            <div>
-                <label className="text-xs font-semibold uppercase tracking-wide text-slate-400">Allowed senders</label>
-                <textarea
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    rows={4}
-                    className="mt-2 w-full rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60"
-                    placeholder="alerts@bank.com, noreply@bank.com"
-                />
-            </div>
-            <div className="flex items-center gap-3">
-                <Button onClick={save} disabled={status === "saving"}>
-                    {status === "saving" ? "Saving..." : "Save"}
-                </Button>
-                {message && (
-                    <span className={`text-xs ${status === "error" ? "text-red-300" : "text-slate-400"}`}>
-                        {message}
-                    </span>
-                )}
-            </div>
-        </div>
+            </CardContent>
+        </Card>
     );
 }

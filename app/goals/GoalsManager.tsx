@@ -2,9 +2,10 @@
 
 import React, { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import Card from "../../src/components/ui/Card";
-import Button from "../../src/components/ui/Button";
-import Input from "../../src/components/ui/Input";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input as BaseInput } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 type Goal = {
     id: string;
@@ -16,6 +17,25 @@ type Goal = {
     targetDate?: string | null;
     notes?: string | null;
 };
+
+type LabeledInputProps = React.ComponentProps<typeof BaseInput> & {
+    label?: string;
+};
+
+function Input({ label, id, className, ...props }: LabeledInputProps) {
+    const fallbackId = React.useId();
+    if (!label) {
+        return <BaseInput id={id} className={className} {...props} />;
+    }
+
+    const safeId = id || `goal-${fallbackId}`;
+    return (
+        <div className="space-y-2">
+            <Label htmlFor={safeId}>{label}</Label>
+            <BaseInput id={safeId} className={className} {...props} />
+        </div>
+    );
+}
 
 async function fetchGoals(): Promise<Goal[]> {
     const res = await fetch("/api/goals");
@@ -101,7 +121,7 @@ export default function GoalsManager() {
 
     return (
         <div className="space-y-6">
-            <Card>
+            <Card className="px-10">
                 <div>
                     <div className="text-sm font-semibold text-white">Create a goal</div>
                     <div className="text-xs text-slate-400">Track a target and the timeline you want</div>
@@ -148,6 +168,7 @@ export default function GoalsManager() {
                         onClick={() => createMutation.mutate()}
                         disabled={!form.title.trim() || !form.targetAmount || createMutation.isPending}
                         variant="secondary"
+                        className={"rounded-lg"}
                     >
                         {createMutation.isPending ? "Saving..." : "Add goal"}
                     </Button>
@@ -167,7 +188,7 @@ export default function GoalsManager() {
                     const hasChanges = Object.keys(patch).length > 0;
 
                     return (
-                        <Card key={goal.id}>
+                        <Card key={goal.id} className="px-10">
                             <details className="group">
                                 <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-4">
                                     <div>
@@ -262,6 +283,7 @@ export default function GoalsManager() {
                                         size="sm"
                                         onClick={() => updateMutation.mutate({ id: goal.id, patch })}
                                         disabled={updateMutation.isPending || !hasChanges}
+                                        className={"rounded-lg"}
                                     >
                                         {updateMutation.isPending ? "Saving..." : "Save changes"}
                                     </Button>
@@ -269,6 +291,7 @@ export default function GoalsManager() {
                                         variant="ghost"
                                         size="sm"
                                         onClick={() => setEditing((prev) => ({ ...prev, [goal.id]: {} }))}
+                                        className={"rounded-lg"}
                                     >
                                         Reset
                                     </Button>
@@ -277,6 +300,7 @@ export default function GoalsManager() {
                                         size="sm"
                                         onClick={() => deleteMutation.mutate(goal.id)}
                                         disabled={deleteMutation.isPending}
+                                        className={"rounded-lg"}
                                     >
                                         Delete
                                     </Button>

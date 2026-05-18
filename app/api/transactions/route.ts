@@ -8,14 +8,21 @@ export async function POST(req: Request) {
     const raw = body.raw || JSON.stringify(body);
 
     const parsed = deterministicParse(raw);
-    const cat = await autoCategorize(parsed.merchant, parsed.category);
+    const catInfo = await autoCategorize(parsed.merchant, parsed.category);
+
+    // Find or create the category
+    const category = await prisma.category.upsert({
+        where: { name: catInfo.category },
+        update: {},
+        create: { name: catInfo.category },
+    });
 
     const tx = await prisma.transaction.create({
         data: {
             amount: parsed.amount,
             merchant: parsed.merchant,
-            category: cat.category,
-            timestamp: parsed.timestamp ? new Date(parsed.timestamp) : new Date(),
+            categoryId: category.id,
+            timestamp: parsed.timestamp && !isNaN(new Date(parsed.timestamp).getTime()) ? new Date(parsed.timestamp) : new Date(),
             source: parsed.source || "email",
             account: parsed.account || null,
             type: parsed.type as any,

@@ -4,7 +4,7 @@ import { TransactionRecord } from "../types/transaction";
 type ParseResult = TransactionRecord & { confidence: number };
 
 const amountRegex = /(?:Rs\.?|INR\s?|₹)\s?(-?\s?[0-9,]+(?:\.[0-9]{1,2})?)/i;
-const dateRegex = /([0-9]{1,2}[\-/][0-9]{1,2}[\-/][0-9]{2,4})|([A-Za-z]{3,9}\s[0-9]{1,2},?\s[0-9]{4})/;
+const dateRegex = /(\d{1,2}[\s\-/]\d{1,2}[\s\-/]\d{2,4})|([A-Za-z]{3,9}\s\d{1,2},?\s\d{4})/;
 const upiRegex = /(upi|vpa|@okaxis|@ybl|@apl)/i;
 const bankSmsKeywords = /(debited|credited|ref|txn|transaction|a\/c|acct|available balance)/i;
 

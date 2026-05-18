@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import Card from "../../src/components/ui/Card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function InsightsPanel() {
     const [insights, setInsights] = useState<any[]>([]);
@@ -17,22 +17,30 @@ export default function InsightsPanel() {
 
     return (
         <Card>
-            <div className="flex items-center justify-between">
-                <div>
-                    <div className="text-sm font-semibold text-white">Insights</div>
-                    <div className="text-xs text-slate-400">Key signals from recent activity</div>
-                </div>
-                <div className="text-xs text-slate-500">Auto-refresh</div>
-            </div>
-            <div className="mt-4 space-y-3">
-                {insights.length === 0 && <div className="text-sm text-slate-500">No insights yet.</div>}
-                {insights.map((i, idx) => (
-                    <div key={idx} className="rounded-lg border border-white/10 bg-white/5 p-3">
-                        <div className="text-sm text-slate-100">{i.message}</div>
-                        {i.score != null && <div className="mt-1 text-xs text-slate-500">Score: {Math.round(i.score)}</div>}
+            <CardHeader>
+                <div className="flex items-center justify-between">
+                    <div>
+                        <CardTitle>Insights</CardTitle>
+                        <CardDescription>Key signals from recent activity</CardDescription>
                     </div>
-                ))}
-            </div>
+                    <div className="text-xs text-muted-foreground">Auto-refresh</div>
+                </div>
+            </CardHeader>
+            <CardContent>
+                <div className="space-y-3">
+                    {insights.length === 0 && <div className="text-sm text-muted-foreground">No insights yet.</div>}
+                    {insights.map((i, idx) => (
+                        <Card key={idx} size="sm" className="bg-muted/40">
+                            <CardContent className="px-4 py-4">
+                                <div className="text-sm text-foreground">{i.message}</div>
+                                {i.score != null && (
+                                    <div className="mt-1 text-xs text-muted-foreground">Score: {Math.round(i.score)}</div>
+                                )}
+                            </CardContent>
+                        </Card>
+                    ))}
+                </div>
+            </CardContent>
         </Card>
     );
 }

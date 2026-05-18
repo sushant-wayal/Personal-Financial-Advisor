@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import Button from "../../src/components/ui/Button";
+import { Button } from "@/components/ui/button";
 
 type Status = "idle" | "connecting" | "connected" | "syncing" | "error";
 
@@ -37,8 +37,13 @@ export default function GmailControls() {
                 setMessage("Sync complete.");
                 setStatus("connected");
             } else {
-                setMessage(data?.error || "Sync failed.");
-                setStatus("error");
+                if (res.status === 401) {
+                    setMessage("Authentication failed. Please reconnect.");
+                    setStatus("idle"); // Revert to connect button
+                } else {
+                    setMessage(data?.error || "Sync failed.");
+                    setStatus("error");
+                }
             }
         } catch (e: any) {
             setMessage(String(e));
@@ -46,20 +51,27 @@ export default function GmailControls() {
         }
     }
 
-    if (status === "idle") {
+    if (status === "idle" || status === "error") {
         return (
-            <a
-                href="/api/auth/google/start"
-                className="inline-flex h-8 items-center justify-center rounded-md border border-white/10 bg-white/5 px-3 text-xs font-semibold text-white transition-colors duration-150 hover:bg-white/10"
-            >
-                Connect Gmail
-            </a>
+            <div className="flex items-center gap-2">
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                        window.location.href = "/api/auth/google/start";
+                    }}
+                    className={"rounded-lg"}
+                >
+                    Connect Gmail
+                </Button>
+                {message && status === "error" && <span className="text-xs text-red-400">{message}</span>}
+            </div>
         );
     }
 
     return (
         <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={syncGmail} disabled={status === "syncing"}>
+            <Button size="sm" onClick={syncGmail} disabled={status === "syncing"} className={"rounded-lg"}>
                 {status === "syncing" ? "Syncing..." : "Sync Gmail"}
             </Button>
             {message && <span className="text-xs text-slate-400">{message}</span>}

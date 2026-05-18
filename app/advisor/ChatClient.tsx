@@ -1,9 +1,9 @@
 "use client";
 import React, { useState, useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
-import Button from "../../src/components/ui/Button";
-import Card from "../../src/components/ui/Card";
-import Input from "../../src/components/ui/Input";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 
 export default function ChatClient() {
     const [q, setQ] = useState("");
@@ -86,17 +86,19 @@ export default function ChatClient() {
     }
 
     return (
-        <Card aria-label="AI financial chat" className="flex h-[70vh] flex-col">
+        <Card aria-label="AI financial chat" className="flex h-[70vh] flex-col px-10">
             <div ref={liveRef} className="flex-1 overflow-auto" aria-live="polite">
                 <div className="prose prose-invert max-w-none text-sm">
                     {!threads.length && (
-                        <div className="text-slate-500">Ask a question to get started.</div>
+                        <div className="text-muted-foreground">Ask a question to get started.</div>
                     )}
                     {threads.map((entry, index) => (
                         <div key={`${entry.question}-${index}`} className="mb-6">
-                            <div className="rounded-lg border border-white/10 bg-white/5 px-3 py-2">
-                                <div className="mt-1 text-slate-100">{entry.question}</div>
-                            </div>
+                            <Card size="sm" className="bg-muted/40">
+                                <CardContent className="px-4 py-3">
+                                    <div className="text-sm text-foreground">{entry.question}</div>
+                                </CardContent>
+                            </Card>
                             {entry.response && (
                                 <div className="mt-3">
                                     <ReactMarkdown>{entry.response}</ReactMarkdown>
@@ -105,9 +107,9 @@ export default function ChatClient() {
                         </div>
                     ))}
                 </div>
-                {loading && <div className="mt-3 text-sm text-slate-500">Assistant is typing...</div>}
+                {loading && <div className="mt-3 text-sm text-muted-foreground">Assistant is typing...</div>}
             </div>
-            <div className="mt-4 flex flex-col gap-2 sm:flex-row" role="form" aria-label="Send message">
+            <div className="mt-4 flex flex-col gap-5 sm:flex-row" role="form" aria-label="Send message">
                 <div className="flex-1">
                     <Input
                         className="w-full"
@@ -123,7 +125,7 @@ export default function ChatClient() {
                         placeholder="Ask the financial advisor"
                     />
                 </div>
-                <Button onClick={send} disabled={loading} className="sm:w-28 flex-none">
+                <Button onClick={send} disabled={loading} className="sm:w-28 flex-none rounded-lg" aria-label="Send message">
                     Send
                 </Button>
             </div>
