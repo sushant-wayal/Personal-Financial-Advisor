@@ -109,6 +109,52 @@ export function buildAuthUrl(redirectUri: string, scope = "https://www.googleapi
     return url.toString();
 }
 
+function decodeBase64Url(data: string) {
+    return Buffer.from(
+        data.replace(/-/g, "+").replace(/_/g, "/"),
+        "base64"
+    ).toString("utf-8");
+}
+
+function extractEmailBody(payload: any): string {
+    if (!payload) return "";
+
+    // plain text body
+    if (payload.mimeType === "text/plain" && payload.body?.data) {
+        return decodeBase64Url(payload.body.data);
+    }
+
+    // html body fallback
+    if (payload.mimeType === "text/html" && payload.body?.data) {
+        return decodeBase64Url(payload.body.data)
+            .replace(/<style[\s\S]*?<\/style>/gi, " ")
+            .replace(/<script[\s\S]*?<\/script>/gi, " ")
+            .replace(/<[^>]+>/g, " ")
+            .replace(/&nbsp;/gi, " ")
+            .replace(/&#39;/gi, "'")
+            .replace(/&amp;/gi, "&")
+            .replace(/\s+/g, " ")
+            .trim();
+    }
+
+    // recursive multipart traversal
+    if (payload.parts?.length) {
+        for (const part of payload.parts) {
+            const text = extractEmailBody(part);
+            if (text?.trim()) {
+                return text;
+            }
+        }
+    }
+
+    // fallback direct body
+    if (payload.body?.data) {
+        return decodeBase64Url(payload.body.data);
+    }
+
+    return "";
+}
+
 export async function fetchUnreadFinancialEmails(accessToken: string, senders: string[], maxResults = 20, afterDate?: string) {
     // search only from explicitly configured senders; support incremental via after:YYYY/MM/DD
     const fromQuery = senders.map((s) => `from:${s}`).join(" OR ");
@@ -128,7 +174,12 @@ export async function fetchUnreadFinancialEmails(accessToken: string, senders: s
     for (const m of messages) {
         try {
             const r = await axios.get(`${GMAIL_API_BASE}/users/me/messages/${m.id}?format=full`, { headers: { Authorization: `Bearer ${accessToken}` } });
-            out.push({ id: m.id, snippet: r.data.snippet, internalDate: r.data.internalDate });
+            const fullBody = extractEmailBody(r.data.payload);
+            out.push({
+                id: m.id,
+                snippet: fullBody,
+                internalDate: r.data.internalDate,
+            });
         } catch (e) {
             // skip
         }

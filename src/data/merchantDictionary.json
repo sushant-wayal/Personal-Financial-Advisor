@@ -3,6 +3,10 @@
         "merchant": "Amazon",
         "category": "Shopping"
     },
+    "amazon pay": {
+        "merchant": "Amazon",
+        "category": "Shopping"
+    },
     "flipkart": {
         "merchant": "Flipkart",
         "category": "Shopping"
@@ -15,25 +19,45 @@
         "merchant": "Swiggy",
         "category": "Food"
     },
-    "google pay": {
-        "merchant": "Google Pay",
-        "category": "Transfer"
+    "dominos": {
+        "merchant": "Dominos",
+        "category": "Food"
     },
-    "phonepe": {
-        "merchant": "PhonePe",
-        "category": "Transfer"
+    "mcdonald": {
+        "merchant": "McDonald's",
+        "category": "Food"
     },
-    "paytm": {
-        "merchant": "Paytm",
-        "category": "Transfer"
+    "starbucks": {
+        "merchant": "Starbucks",
+        "category": "Food"
+    },
+    "blinkit": {
+        "merchant": "Blinkit",
+        "category": "Groceries"
+    },
+    "zepto": {
+        "merchant": "Zepto",
+        "category": "Groceries"
+    },
+    "bigbasket": {
+        "merchant": "BigBasket",
+        "category": "Groceries"
+    },
+    "dmart": {
+        "merchant": "DMart",
+        "category": "Groceries"
     },
     "ola": {
         "merchant": "Ola",
-        "category": "Travel"
+        "category": "Transport"
     },
     "uber": {
         "merchant": "Uber",
-        "category": "Travel"
+        "category": "Transport"
+    },
+    "paytm travel": {
+        "merchant": "Paytm Travel",
+        "category": "Transport"
     },
     "spotify": {
         "merchant": "Spotify",
@@ -43,12 +67,32 @@
         "merchant": "Netflix",
         "category": "Subscription"
     },
-    "hdfc": {
-        "merchant": "HDFC Bank",
-        "category": "Bank"
+    "hotstar": {
+        "merchant": "Hotstar",
+        "category": "Subscription"
     },
-    "icici": {
-        "merchant": "ICICI Bank",
-        "category": "Bank"
+    "airtel": {
+        "merchant": "Airtel",
+        "category": "Bills"
+    },
+    "jio": {
+        "merchant": "Jio",
+        "category": "Bills"
+    },
+    "bescom": {
+        "merchant": "BESCOM",
+        "category": "Bills"
+    },
+    "lic": {
+        "merchant": "LIC",
+        "category": "Insurance"
+    },
+    "groww": {
+        "merchant": "Groww",
+        "category": "Investment"
+    },
+    "zerodha": {
+        "merchant": "Zerodha",
+        "category": "Investment"
     }
 }

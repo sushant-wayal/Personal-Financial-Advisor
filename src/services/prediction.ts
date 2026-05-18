@@ -29,7 +29,7 @@ function estimateMonthlyExpenses(txs: any[]) {
 }
 
 function estimateMonthlyIncome(txs: any[]) {
-    const incomes = txs.filter((t: any) => (t.category?.name || "").toLowerCase() === "salary" || (t.type || "").toLowerCase() === "salary");
+    const incomes = txs.filter((t: any) => (t.category?.name || "").toLowerCase() === "salary" || (t.transactionType || t.type || "").toLowerCase() === "salary");
     if (incomes.length > 0) return incomes.reduce((s: number, t: any) => s + (t.amount || 0), 0);
     return 0;
 }

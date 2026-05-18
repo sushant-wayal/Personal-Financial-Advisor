@@ -1,10 +1,19 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { Transaction } from "@prisma/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
-type TransactionWithCategory = Transaction & { category: { name: string } | null };
+type TransactionWithCategory = {
+    id: string;
+    amount: number;
+    merchant: string;
+    timestamp: string | number;
+    type: string;
+    transactionType?: string | null;
+    paymentMethod?: string | null;
+    bankName?: string | null;
+    category: { name: string } | null;
+};
 
 export default function TransactionsClient() {
     const [transactions, setTransactions] = useState<TransactionWithCategory[]>([]);
@@ -20,8 +29,8 @@ export default function TransactionsClient() {
                 }
                 const data = await res.json();
                 setTransactions(data.transactions);
-            } catch (err: any) {
-                setError(err.message);
+            } catch (err: unknown) {
+                setError(err instanceof Error ? err.message : String(err));
             } finally {
                 setLoading(false);
             }
@@ -50,6 +59,8 @@ export default function TransactionsClient() {
                             <TableHead>Merchant</TableHead>
                             <TableHead>Amount</TableHead>
                             <TableHead>Category</TableHead>
+                            <TableHead>Method</TableHead>
+                            <TableHead>Bank</TableHead>
                             <TableHead>Type</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -58,12 +69,14 @@ export default function TransactionsClient() {
                             <TableRow key={tx.id}>
                                 <TableCell>{new Date(tx.timestamp).toLocaleDateString()}</TableCell>
                                 <TableCell className="font-medium">{tx.merchant}</TableCell>
-                                <TableCell className={tx.type === "CREDIT" ? "text-emerald-500" : "text-rose-500"}>
-                                    {tx.type === "CREDIT" ? "+" : "-"}
+                                <TableCell className={(tx.transactionType || tx.type) === "CREDIT" ? "text-emerald-500" : "text-rose-500"}>
+                                    {(tx.transactionType || tx.type) === "CREDIT" ? "+" : "-"}
                                     {new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(tx.amount)}
                                 </TableCell>
                                 <TableCell>{tx.category?.name || "Uncategorized"}</TableCell>
-                                <TableCell>{tx.type}</TableCell>
+                                <TableCell>{tx.paymentMethod || "-"}</TableCell>
+                                <TableCell>{tx.bankName || "-"}</TableCell>
+                                <TableCell>{tx.transactionType || tx.type}</TableCell>
                             </TableRow>
                         ))}
                     </TableBody>

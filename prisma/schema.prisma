@@ -13,13 +13,17 @@ model Transaction {
   merchant      String
   categoryId    String?  
   category      Category? @relation(fields: [categoryId], references: [id])
+  paymentMethod String?
+  bankName      String?
   timestamp     DateTime @default(now())
   source        String
   account       String?
+  transactionType String @default("OTHER")
   type          String
   notes         String?
   confidence    Float    @default(1.0)
   parsedAt      DateTime @default(now())
+  rawText       String   @default("")
   raw           String
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -32,6 +36,19 @@ model Category {
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
   transactions Transaction[]
+  merchantMappings MerchantCategoryMap[]
+}
+
+model MerchantCategoryMap {
+  id           String   @id @default(cuid())
+  merchantKey  String   @unique
+  merchantName String
+  categoryId   String
+  category     Category @relation(fields: [categoryId], references: [id])
+  confidence   Float    @default(0.95)
+  source       String   @default("manual")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
 
 model Goal {

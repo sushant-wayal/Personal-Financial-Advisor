@@ -5,7 +5,7 @@ export async function analyzeBehavior() {
     const insights: any[] = [];
 
     // detect salary-linked spending spikes
-    const salaryTxs = txs.filter((t: any) => (t.category?.name || '').toLowerCase() === 'salary' || (t.type || '').toLowerCase() === 'salary');
+    const salaryTxs = txs.filter((t: any) => (t.category?.name || '').toLowerCase() === 'salary' || (t.transactionType || t.type || '').toLowerCase() === 'salary');
     if (salaryTxs.length) {
         const lastSalary = salaryTxs[0];
         const afterSalary = txs.filter((t: any) => new Date(t.timestamp) > new Date(lastSalary.timestamp));

@@ -1,5 +1,6 @@
 "use client";
 import React from "react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, PieChart, MessageCircle, DollarSign, ShieldCheck, Settings } from "lucide-react";
 
@@ -33,7 +34,7 @@ export default function Sidebar() {
                     const Icon = item.icon;
                     const isActive = pathname === item.href;
                     return (
-                        <a
+                        <Link
                             key={item.label}
                             href={item.href}
                             className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${isActive
@@ -44,7 +45,7 @@ export default function Sidebar() {
                         >
                             <Icon size={16} className="text-muted-foreground" />
                             <span>{item.label}</span>
-                        </a>
+                        </Link>
                     );
                 })}
             </nav>

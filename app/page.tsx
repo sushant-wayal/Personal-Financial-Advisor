@@ -1,3 +1,4 @@
+import Link from "next/link";
 import DashboardOverview from "./components/DashboardOverview";
 import InsightsPanel from "./components/InsightsPanel";
 import AffordabilityWidget from "./components/AffordabilityWidget";
@@ -14,12 +15,12 @@ export default async function DashboardPage() {
                 <div className="space-y-6">
                     <InsightsPanel />
                     <AffordabilityWidget price={200000} />
-                    <a
+                    <Link
                         href="/subscriptions"
                         className="text-sm font-semibold text-muted-foreground transition hover:text-foreground"
                     >
                         Manage subscriptions
-                    </a>
+                    </Link>
                 </div>
             </div>
         </div>
