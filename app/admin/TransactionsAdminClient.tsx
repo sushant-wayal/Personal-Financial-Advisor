@@ -4,8 +4,21 @@ import React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, RotateCw, Save, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 
 type Tx = {
     id: string;
@@ -78,10 +91,6 @@ function txToDraft(tx: Tx): Draft {
         bankName: tx.bankName || "",
         transactionType: tx.transactionType || tx.type || "OTHER",
     };
-}
-
-function selectClassName(extra = "") {
-    return `h-10 w-full min-w-0 border border-transparent border-b-input bg-transparent px-0 py-1 text-sm outline-none transition-[color,border-color] focus-visible:border-b-ring ${extra}`;
 }
 
 function TransactionEditor({
@@ -172,11 +181,16 @@ function TransactionEditor({
                 </label>
                 <label className="space-y-1">
                     <span className="text-xs font-medium text-muted-foreground">Category</span>
-                    <select className={selectClassName()} value={draft.category} onChange={(event) => update("category", event.target.value)}>
-                        {CATEGORIES.map((category) => (
-                            <option key={category} value={category}>{category}</option>
-                        ))}
-                    </select>
+                    <Select value={draft.category} onValueChange={(value) => update("category", value || "")}>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Select a category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {CATEGORIES.map((category) => (
+                                <SelectItem key={category} value={category}>{category}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
                 </label>
                 <label className="space-y-1">
                     <span className="text-xs font-medium text-muted-foreground">Amount</span>
@@ -188,19 +202,29 @@ function TransactionEditor({
                 </label>
                 <label className="space-y-1">
                     <span className="text-xs font-medium text-muted-foreground">Type</span>
-                    <select className={selectClassName()} value={draft.transactionType} onChange={(event) => update("transactionType", event.target.value)}>
-                        {TRANSACTION_TYPES.map((type) => (
-                            <option key={type} value={type}>{type}</option>
-                        ))}
-                    </select>
+                    <Select value={draft.transactionType} onValueChange={(value) => update("transactionType", value || "")}>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Select a type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {TRANSACTION_TYPES.map((type) => (
+                                <SelectItem key={type} value={type}>{type}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
                 </label>
                 <label className="space-y-1">
                     <span className="text-xs font-medium text-muted-foreground">Payment method</span>
-                    <select className={selectClassName()} value={draft.paymentMethod} onChange={(event) => update("paymentMethod", event.target.value)}>
-                        {PAYMENT_METHODS.map((method) => (
-                            <option key={method || "empty"} value={method}>{method || "Unknown"}</option>
-                        ))}
-                    </select>
+                    <Select value={draft.paymentMethod} onValueChange={(value) => update("paymentMethod", value || "")}>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Select a payment method" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {PAYMENT_METHODS.map((method) => (
+                                <SelectItem key={method} value={method}>{method || "None"}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
                 </label>
                 <label className="space-y-1 md:col-span-2">
                     <span className="text-xs font-medium text-muted-foreground">Bank / provider</span>
