@@ -66,7 +66,8 @@ function heuristicCategory(merchant: string, rawText?: string, transactionType?:
     if (transactionType === "REFUND" || /\brefund|cashback\b/.test(text)) return { category: "Refund", confidence: 0.82, source: "heuristic" };
     if ((transactionType === "CREDIT" || /\bcredited\b/.test(text)) && /\bweb\s+upi\b/.test(text)) return { category: "Refund", confidence: 0.74, source: "heuristic" };
     if (/\bwater\s+park|amusement|theme\s+park|cinema|movie|pvr|inox|bowling|game\s+zone\b/.test(text)) return { category: "Entertainment", confidence: 0.78, source: "heuristic" };
-    if (/\bpaytm\s+travel|travel|uber|ola|rapido|metro|irctc|fuel|petrol|diesel|cab|taxi|flight|bus|railway|train\b/.test(text)) return { category: "Transport", confidence: 0.74, source: "heuristic" };
+    if (/\buber|ola|rapido|metro|irctc|fuel|petrol|diesel|cab|taxi|bus\b/.test(text)) return { category: "Transport", confidence: 0.74, source: "heuristic" };
+    if (/\bpaytm\s+travel|travel|flight|railway|train\b/.test(text)) return { category: "Travel", confidence: 0.85, source: "heuristic" };
     if (/\bzomato|swiggy|restaurant|cafe|pizza|burger|dominos|mcdonald|starbucks|foods?|farsan|sweets?|bakery|bakers?|dairy|snacks?|juice|tea\b/.test(text)) return { category: "Food", confidence: 0.75, source: "heuristic" };
     if (/\bblinkit|zepto|bigbasket|dmart|grocery|groceries|mart|super\s*market|supermarket|daily needs|traders?|general stores?|kirana|provision|departmental store\b/.test(text)) return { category: "Groceries", confidence: 0.72, source: "heuristic" };
     if (/\b(?:airtel|jio|vi|vodafone|electricity|water\s*bill|gas\s*bill|broadband|wifi|utility)\b/.test(text)) return { category: "Bills", confidence: 0.72, source: "heuristic" };
