@@ -1,19 +1,17 @@
 import Link from "next/link";
 import DashboardOverview from "./components/DashboardOverview";
-import InsightsPanel from "./components/InsightsPanel";
 import AffordabilityWidget from "./components/AffordabilityWidget";
 import GoalsWidget from "./components/GoalsWidget";
 
 export default async function DashboardPage() {
     return (
-        <div className="mx-auto max-w-6xl space-y-6">
+        <div className="mx-auto max-w-7xl space-y-6">
             <DashboardOverview />
-            <div className="grid gap-6 lg:grid-cols-3">
-                <div className="lg:col-span-2">
+            <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
+                <div>
                     <GoalsWidget />
                 </div>
                 <div className="space-y-6">
-                    <InsightsPanel />
                     <AffordabilityWidget price={200000} />
                     <Link
                         href="/subscriptions"

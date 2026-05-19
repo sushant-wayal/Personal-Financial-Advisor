@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "../../src/components/ui/Card";
+import AIInsightsPreview from "./AIInsightsPreview";
 
 const COLORS = ["#38bdf8", "#22c55e", "#f59e0b", "#a855f7", "#f472b6", "#94a3b8"];
 
@@ -125,7 +126,7 @@ export default function DashboardOverview() {
                             <CardTitle className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Balance</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-3xl font-semibold text-white">
+                            <div className="mt-3 text-3xl font-semibold text-white">
                                 {balanceFormatter.format(balance)}
                             </div>
                             {loadingBalance ? (
@@ -204,6 +205,8 @@ export default function DashboardOverview() {
                     </Card>
                 </motion.div>
             </motion.div>
+
+            <AIInsightsPreview />
 
             <motion.div variants={gridMotion} initial="hidden" animate="show" className="grid gap-6 lg:grid-cols-3">
                 <motion.div variants={itemMotion} className="lg:col-span-2">

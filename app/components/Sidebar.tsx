@@ -2,7 +2,7 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, PieChart, MessageCircle, DollarSign, ShieldCheck, Settings } from "lucide-react";
+import { Home, PieChart, MessageCircle, DollarSign, Settings } from "lucide-react";
 
 const navItems = [
     { label: "Dashboard", icon: Home, href: "/" },
@@ -10,7 +10,6 @@ const navItems = [
     { label: "Goals", icon: DollarSign, href: "/goals" },
     { label: "Advisor", icon: MessageCircle, href: "/advisor" },
     { label: "Settings", icon: Settings, href: "/settings" },
-    { label: "Admin", icon: ShieldCheck, href: "/admin" },
 ];
 
 export default function Sidebar() {
