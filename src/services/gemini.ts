@@ -17,7 +17,7 @@ function toGeminiRequest(promptOrMessages: string | GeminiMessage[], opts?: { te
             contents: [{ role: "user", parts: [{ text: promptOrMessages }] }],
             generationConfig: {
                 temperature: opts?.temperature ?? 0.2,
-                maxOutputTokens: opts?.maxTokens ?? 512,
+                // maxOutputTokens: opts?.maxTokens ?? 512,
             },
         };
     }
