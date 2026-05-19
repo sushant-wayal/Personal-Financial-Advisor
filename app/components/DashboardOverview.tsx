@@ -21,9 +21,90 @@ async function fetchCategories() {
     return d.data;
 }
 
+async function fetchBalance() {
+    const res = await fetch('/api/analytics/balance');
+    if (!res.ok) throw new Error('Failed');
+    const d = await res.json();
+    return d.data ?? { balance: 0, lastMonthDelta: 0, percentChange: 0 };
+}
+
+async function fetchSavingsRate() {
+    const res = await fetch('/api/analytics/savings-rate');
+    if (!res.ok) throw new Error('Failed');
+    const d = await res.json();
+    return d.data ?? {
+        currentMonthSavingsRate: 0,
+        savingsRateChange: 0,
+        savingsRateChangeDirection: "neutral",
+        previousMonthHasData: false,
+        savingsMessage: "Needs improvement",
+    };
+}
+
+async function fetchBurnRate() {
+    const res = await fetch('/api/analytics/burn-rate');
+    if (!res.ok) throw new Error('Failed');
+    const d = await res.json();
+    return d.data ?? {
+        burnRate: 0,
+        burnRateChange: 0,
+        burnRateChangeDirection: "neutral",
+        previousPeriodHasData: false,
+    };
+}
+
+async function fetchRunway() {
+    const res = await fetch('/api/analytics/runway');
+    if (!res.ok) throw new Error('Failed');
+    const d = await res.json();
+    return d.data ?? {
+        runwayMonths: null,
+        previousRunwayMonths: null,
+        runwayChange: 0,
+        runwayChangeDirection: "neutral",
+    };
+}
+
 export default function DashboardOverview() {
     const { data: monthly = [], isLoading: loadingMonthly } = useQuery({ queryKey: ["monthlyTrend"], queryFn: fetchMonthly });
     const { data: categories = [], isLoading: loadingCats } = useQuery({ queryKey: ["categoryBreakdown"], queryFn: fetchCategories });
+    const { data: balanceData, isLoading: loadingBalance } = useQuery({ queryKey: ["currentBalance"], queryFn: fetchBalance });
+    const { data: savingsData, isLoading: loadingSavings } = useQuery({ queryKey: ["monthlySavingsRate"], queryFn: fetchSavingsRate });
+    const { data: burnData, isLoading: loadingBurn } = useQuery({ queryKey: ["burnRate"], queryFn: fetchBurnRate });
+    const { data: runwayData, isLoading: loadingRunway } = useQuery({ queryKey: ["runway"], queryFn: fetchRunway });
+
+    const balance = balanceData?.balance ?? 0;
+    const lastMonthDelta = balanceData?.lastMonthDelta ?? 0;
+    const percentChange = balanceData?.percentChange ?? 0;
+    const isPositive = lastMonthDelta >= 0;
+    const savingsRate = savingsData?.currentMonthSavingsRate ?? 0;
+    const savingsRateChange = savingsData?.savingsRateChange ?? 0;
+    const savingsDirection = savingsData?.savingsRateChangeDirection ?? "neutral";
+    const savingsMessage = savingsData?.savingsMessage ?? "Needs improvement";
+    const previousMonthHasData = savingsData?.previousMonthHasData ?? false;
+    const burnRate = burnData?.burnRate ?? 0;
+    const burnRateChange = burnData?.burnRateChange ?? 0;
+    const burnRateDirection = burnData?.burnRateChangeDirection ?? "neutral";
+    const previousBurnHasData = burnData?.previousPeriodHasData ?? false;
+    const runwayMonths = runwayData?.runwayMonths ?? null;
+    const previousRunwayMonths = runwayData?.previousRunwayMonths ?? null;
+    const runwayChange = runwayData?.runwayChange ?? 0;
+    const runwayDirection = runwayData?.runwayChangeDirection ?? "neutral";
+
+    const runwayLabel = runwayMonths === null ? "Unlimited" : `${runwayMonths.toFixed(1)} mo`;
+    const runwayDeltaLabel = Math.abs(runwayChange).toFixed(1);
+
+    const balanceFormatter = new Intl.NumberFormat("en-IN", {
+        style: "currency",
+        currency: "INR",
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    });
+
+    const percentFormatter = new Intl.NumberFormat("en-IN", {
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1,
+    });
 
     const gridMotion = {
         hidden: { opacity: 0 },
@@ -44,41 +125,81 @@ export default function DashboardOverview() {
                             <CardTitle className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Balance</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-3xl font-semibold text-white">₹ 1,23,456</div>
-                            <div className="mt-1 text-sm text-emerald-400">+3.2% since last month</div>
+                            <div className="text-3xl font-semibold text-white">
+                                {balanceFormatter.format(balance)}
+                            </div>
+                            {loadingBalance ? (
+                                <div className="mt-1 text-sm text-slate-400">Loading balance...</div>
+                            ) : (
+                                <div className={`mt-1 text-sm ${isPositive ? "text-emerald-400" : "text-rose-400"}`}>
+                                    {isPositive ? "▲" : "▼"} {balanceFormatter.format(Math.abs(lastMonthDelta))}
+                                    {` (${percentFormatter.format(Math.abs(percentChange))}%) vs last month`}
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
                 </motion.div>
                 <motion.div variants={itemMotion}>
                     <Card>
                         <CardHeader>
-                            <CardTitle className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Savings rate</CardTitle>
+                            <CardTitle className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Savings Rate (This Month)</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="mt-3 text-3xl font-semibold text-white">32%</div>
-                            <div className="mt-1 text-sm text-slate-400">On track for your quarterly goal</div>
+                            <div className="mt-3 text-3xl font-semibold text-white">
+                                {Math.round(savingsRate)}%
+                            </div>
+                            {loadingSavings ? (
+                                <div className="mt-1 text-sm text-slate-400">Loading savings rate...</div>
+                            ) : previousMonthHasData ? (
+                                <div className={`mt-1 text-sm ${savingsDirection === "increase" ? "text-emerald-400" : savingsDirection === "decrease" ? "text-rose-400" : "text-slate-400"}`}>
+                                    {savingsDirection === "increase" ? "▲" : savingsDirection === "decrease" ? "▼" : "•"} {Math.abs(Math.round(savingsRateChange))}% vs last month
+                                </div>
+                            ) : (
+                                <div className="mt-1 text-sm text-slate-400">No previous month data</div>
+                            )}
+                            <div className="mt-1 text-sm text-slate-400">{savingsMessage}</div>
                         </CardContent>
                     </Card>
                 </motion.div>
                 <motion.div variants={itemMotion}>
-                    <Card>
+                    <Card className="h-full">
                         <CardHeader>
                             <CardTitle className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Burn rate</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="mt-3 text-3xl font-semibold text-white">₹ 3,300 / mo</div>
-                            <div className="mt-1 text-sm text-amber-300">Watch discretionary spend</div>
+                            <div className="mt-3 text-3xl font-semibold text-white">
+                                {balanceFormatter.format(Math.round(burnRate))} / mo
+                            </div>
+                            {loadingBurn ? (
+                                <div className="mt-1 text-sm text-slate-400">Loading burn rate...</div>
+                            ) : previousBurnHasData ? (
+                                <div className={`mt-1 text-sm ${burnRateDirection === "increase" ? "text-rose-400" : burnRateDirection === "decrease" ? "text-emerald-400" : "text-slate-400"}`}>
+                                    {burnRateDirection === "increase" ? "▲" : burnRateDirection === "decrease" ? "▼" : "•"} {balanceFormatter.format(Math.abs(Math.round(burnRateChange)))} vs previous period
+                                </div>
+                            ) : (
+                                <div className="mt-1 text-sm text-slate-400">No previous period data</div>
+                            )}
                         </CardContent>
                     </Card>
                 </motion.div>
                 <motion.div variants={itemMotion}>
-                    <Card>
+                    <Card className="h-full">
                         <CardHeader>
                             <CardTitle className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Runway</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="mt-3 text-3xl font-semibold text-white">14.2 mo</div>
-                            <div className="mt-1 text-sm text-slate-400">Based on last 60 days</div>
+                            <div className="mt-3 text-3xl font-semibold text-white">{runwayLabel}</div>
+                            {loadingRunway ? (
+                                <div className="mt-1 text-sm text-slate-400">Loading runway...</div>
+                            ) : previousRunwayMonths === null ? (
+                                <div className="mt-1 text-sm text-slate-400">No previous period data</div>
+                            ) : runwayDirection === "neutral" ? (
+                                <div className="mt-1 text-sm text-slate-400">No change vs previous period</div>
+                            ) : (
+                                <div className={`mt-1 text-sm ${runwayDirection === "increase" ? "text-emerald-400" : "text-rose-400"}`}>
+                                    {runwayDirection === "increase" ? "▲" : "▼"} {runwayDeltaLabel} mo vs previous period
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
                 </motion.div>

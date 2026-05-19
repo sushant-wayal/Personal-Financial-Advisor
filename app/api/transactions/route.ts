@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { deterministicParse } from "../../../src/services/transactionParser";
 import { prisma } from "../../../src/lib/prisma";
 import { autoCategorize, findOrCreateCategory } from "../../../src/services/categorizer";
+import { getTransactionImpact, updateProfileBalanceBy } from "../../../src/services/balance";
 
 export async function POST(req: Request) {
     const body = await req.json();
@@ -74,6 +75,9 @@ export async function POST(req: Request) {
             WHERE "id" = ${tx.id}
         `;
 
+        const impact = getTransactionImpact(tx.amount, transactionType, transactionType);
+        await updateProfileBalanceBy(impact);
+
         return NextResponse.json({
             ok: true,
             transaction: {
@@ -118,6 +122,9 @@ export async function POST(req: Request) {
             "rawText" = ${parsed.rawText || raw}
         WHERE "id" = ${tx.id}
     `;
+
+    const impact = getTransactionImpact(tx.amount, parsed.type, parsed.transactionType || parsed.type || "OTHER");
+    await updateProfileBalanceBy(impact);
 
     return NextResponse.json({
         ok: true,

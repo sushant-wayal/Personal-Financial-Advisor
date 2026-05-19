@@ -68,6 +68,7 @@ model FinancialProfile {
   id               String   @id @default(cuid())
   ownerName        String?
   currency         String   @default("INR")
+  balance          Float    @default(0)
   emergencyFund    Float    @default(0)
   monthlyIncome    Float    @default(0)
   monthlyExpenses  Float    @default(0)

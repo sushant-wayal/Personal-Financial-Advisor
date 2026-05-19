@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "../../../../src/lib/prisma";
 import { findOrCreateCategory, teachMerchantCategory } from "../../../../src/services/categorizer";
+import { getTransactionImpact, updateProfileBalanceBy } from "../../../../src/services/balance";
 
 type UpdateBody = {
     merchant?: string;
@@ -23,6 +24,11 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     try {
         const { id } = await params;
         const body = await req.json() as UpdateBody;
+
+        const existing = await prisma.transaction.findUnique({ where: { id } });
+        if (!existing) {
+            return NextResponse.json({ error: "transaction not found" }, { status: 404 });
+        }
 
         const amount = body.amount === undefined ? undefined : Number(body.amount);
         if (amount !== undefined && (!Number.isFinite(amount) || amount < 0)) {
@@ -63,6 +69,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
             await teachMerchantCategory(tx.merchant, category.name);
         }
 
+        const oldImpact = getTransactionImpact(existing.amount, existing.type, existing.transactionType);
+        const newAmount = amount ?? existing.amount;
+        const newType = transactionType || existing.transactionType || existing.type;
+        const newImpact = getTransactionImpact(newAmount, newType, newType);
+        await updateProfileBalanceBy(newImpact - oldImpact);
+
         return NextResponse.json({ ok: true, transaction: tx });
     } catch (e: unknown) {
         const message = e instanceof Error ? e.message : String(e);
@@ -73,7 +85,14 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const { id } = await params;
+        const existing = await prisma.transaction.findUnique({ where: { id } });
+        if (!existing) {
+            return NextResponse.json({ error: "transaction not found" }, { status: 404 });
+        }
+
         await prisma.transaction.delete({ where: { id } });
+        const impact = getTransactionImpact(existing.amount, existing.type, existing.transactionType);
+        await updateProfileBalanceBy(-impact);
         return NextResponse.json({ ok: true });
     } catch (e: unknown) {
         const message = e instanceof Error ? e.message : String(e);
