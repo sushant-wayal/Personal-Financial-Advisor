@@ -23,6 +23,13 @@ async function fetchCategories() {
     return d.data;
 }
 
+async function fetchCategoryTrends() {
+    const res = await fetch('/api/analytics/category-trends');
+    if (!res.ok) throw new Error('Failed');
+    const d = await res.json();
+    return d.data;
+}
+
 async function fetchBalance() {
     const res = await fetch('/api/analytics/balance');
     if (!res.ok) throw new Error('Failed');
@@ -70,6 +77,7 @@ async function fetchRunway() {
 export default function DashboardOverview() {
     const { data: monthly = [], isLoading: loadingMonthly } = useQuery({ queryKey: ["monthlyTrend"], queryFn: fetchMonthly });
     const { data: categories = [], isLoading: loadingCats } = useQuery({ queryKey: ["categoryBreakdown"], queryFn: fetchCategories });
+    const { data: categoryTrends = [], isLoading: loadingCategoryTrends } = useQuery({ queryKey: ["categoryTrends"], queryFn: fetchCategoryTrends });
     const { data: balanceData, isLoading: loadingBalance } = useQuery({ queryKey: ["currentBalance"], queryFn: fetchBalance });
     const { data: savingsData, isLoading: loadingSavings } = useQuery({ queryKey: ["monthlySavingsRate"], queryFn: fetchSavingsRate });
     const { data: burnData, isLoading: loadingBurn } = useQuery({ queryKey: ["burnRate"], queryFn: fetchBurnRate });
@@ -265,6 +273,76 @@ export default function DashboardOverview() {
                             </ResponsiveContainer>
                             {loadingCats && <div className="mt-3 text-xs text-slate-500">Loading categories...</div>}
                         </div>
+                    </Card>
+                </motion.div>
+            </motion.div>
+            <motion.div variants={gridMotion} initial="hidden" animate="show" className="grid gap-6 lg:grid-cols-3">
+                <motion.div variants={itemMotion} className="lg:col-span-2">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-sm font-semibold text-white">Category trends</CardTitle>
+                            <div className="text-xs text-slate-400">Top spending categories across the last 6 months</div>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="mt-4" style={{ width: "100%", height: 260 }}>
+                                <ResponsiveContainer>
+                                    <LineChart data={categoryTrends} margin={{ top: 10, right: 12, left: 0, bottom: 0 }}>
+                                        <XAxis dataKey="month" tick={{ fill: "#94a3b8", fontSize: 12 }} axisLine={{ stroke: "#1f2937" }} tickLine={false} />
+                                        <YAxis tick={{ fill: "#94a3b8", fontSize: 12 }} axisLine={{ stroke: "#1f2937" }} tickLine={false} />
+                                        <Tooltip
+                                            contentStyle={{
+                                                background: "#0b0d10",
+                                                border: "1px solid rgba(255,255,255,0.12)",
+                                                borderRadius: "10px",
+                                                color: "#e5e7eb",
+                                            }}
+                                        />
+                                        {Object.keys(categoryTrends[0] || {}).filter((key) => key !== "month").map((category, index) => (
+                                            <Line
+                                                key={category}
+                                                type="monotone"
+                                                dataKey={category}
+                                                stroke={COLORS[index % COLORS.length]}
+                                                strokeWidth={2}
+                                                dot={false}
+                                            />
+                                        ))}
+                                    </LineChart>
+                                </ResponsiveContainer>
+                                {loadingCategoryTrends && <div className="mt-3 text-xs text-slate-500">Loading category trends...</div>}
+                            </div>
+                        </CardContent>
+                    </Card>
+                </motion.div>
+                <motion.div variants={itemMotion}>
+                    <Card className="h-full">
+                        <CardHeader>
+                            <CardTitle className="text-sm font-semibold text-white">Spend concentration</CardTitle>
+                            <div className="text-xs text-slate-400">Largest category share in the last 30 days</div>
+                        </CardHeader>
+                        <CardContent>
+                            {categories.length > 0 ? (
+                                <div className="space-y-3">
+                                    {categories.slice(0, 4).map((category: any) => {
+                                        const total = categories.reduce((sum: number, item: any) => sum + (item.value || 0), 0);
+                                        const share = total > 0 ? Math.round((category.value / total) * 100) : 0;
+                                        return (
+                                            <div key={category.name}>
+                                                <div className="flex items-center justify-between text-xs text-slate-300">
+                                                    <span>{category.name}</span>
+                                                    <span>{share}%</span>
+                                                </div>
+                                                <div className="mt-1 h-2 rounded-full bg-slate-800">
+                                                    <div className="h-2 rounded-full bg-cyan-400" style={{ width: `${share}%` }} />
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <div className="text-sm text-slate-400">No category data yet.</div>
+                            )}
+                        </CardContent>
                     </Card>
                 </motion.div>
             </motion.div>

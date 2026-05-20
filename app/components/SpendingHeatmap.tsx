@@ -14,7 +14,7 @@ function colorFor(value: number, max: number) {
 }
 
 export default function SpendingHeatmap() {
-    const [data, setData] = useState<Array<{ date: string; amount: number }>>([]);
+    const [data, setData] = useState<Array<{ date: string; amount: number; weekday?: number; weekIndex?: number }>>([]);
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
@@ -35,27 +35,46 @@ export default function SpendingHeatmap() {
         return () => { cancelled = true; };
     }, []);
 
-    const map = new Map(data.map((d) => [d.date, d.amount]));
     const amounts = data.map((d) => d.amount);
     const max = Math.max(0, ...amounts);
-
-    // build last 90 days array
-    const days: { date: string; amount: number }[] = [];
-    const now = new Date();
-    for (let i = 89; i >= 0; i--) {
-        const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
-        const key = d.toISOString().slice(0, 10);
-        days.push({ date: key, amount: map.get(key) || 0 });
-    }
+    const totalWeeks = Math.max(1, Math.ceil(data.length / 7));
+    const weekMatrix = Array.from({ length: totalWeeks }, (_, weekIndex) =>
+        Array.from({ length: 7 }, (_, weekday) => data.find((d) => d.weekIndex === weekIndex && d.weekday === weekday) || null)
+    );
+    const dayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
     return (
         <div>
-            <div className="text-sm font-semibold text-white">Spending heatmap (last 90 days)</div>
-            <div className="text-xs text-slate-400 mb-2">Daily spend intensity</div>
-            <div className="grid grid-cols-18 gap-1">
-                {days.map((d) => (
-                    <div key={d.date} title={`${d.date}: ₹${Math.round(d.amount)}`} className={`w-6 h-6 rounded ${colorFor(d.amount, max)}`} />
-                ))}
+            <div className="flex items-center justify-between gap-3">
+                <div>
+                    <div className="text-sm font-semibold text-white">Spending heatmap (last 90 days)</div>
+                    <div className="text-xs text-slate-400">Daily spend intensity across the calendar</div>
+                </div>
+                {loading && <div className="text-xs text-slate-500">Loading...</div>}
+            </div>
+            <div className="mt-4 overflow-x-auto pb-1">
+                <div className="min-w-[720px] space-y-2">
+                    <div className="grid grid-cols-7 gap-1 text-[10px] text-slate-500">
+                        {dayLabels.map((label) => <div key={label} className="px-1">{label}</div>)}
+                    </div>
+                    <div className="space-y-1">
+                        {weekMatrix.map((week, weekIndex) => (
+                            <div key={weekIndex} className="grid grid-cols-7 gap-1">
+                                {week.map((cell, weekday) => (
+                                    cell ? (
+                                        <div
+                                            key={cell.date}
+                                            title={`${cell.date}: ₹${Math.round(cell.amount)}`}
+                                            className={`h-7 rounded-md border border-white/5 ${colorFor(cell.amount, max)}`}
+                                        />
+                                    ) : (
+                                        <div key={`empty-${weekIndex}-${weekday}`} className="h-7 rounded-md bg-slate-900/40" />
+                                    )
+                                ))}
+                            </div>
+                        ))}
+                    </div>
+                </div>
             </div>
             <div className="mt-2 text-xs text-slate-400">Legend: low → high</div>
         </div>

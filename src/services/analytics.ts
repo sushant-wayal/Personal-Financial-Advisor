@@ -230,3 +230,92 @@ export async function categoryBreakdown(sinceDays = 30) {
     }
     return Object.keys(map).map(k => ({ name: k, value: Math.round(map[k]) }));
 }
+
+export async function categoryTrends(months = 6) {
+    const now = new Date();
+    const monthLabels: string[] = [];
+    const monthRanges: Array<{ month: string; start: Date; end: Date }> = [];
+
+    for (let i = months - 1; i >= 0; i--) {
+        const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const start = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+        const end = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 1);
+        const label = `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, "0")}`;
+        monthLabels.push(label);
+        monthRanges.push({ month: label, start, end });
+    }
+
+    const txs = await prisma.transaction.findMany({
+        where: {
+            timestamp: {
+                gte: monthRanges[0]?.start ?? new Date(now.getFullYear(), now.getMonth(), 1),
+                lt: monthRanges[monthRanges.length - 1]?.end ?? new Date(now.getFullYear(), now.getMonth() + 1, 1),
+            },
+        },
+        include: { category: true },
+    });
+
+    const categoryTotals: Record<string, number> = {};
+    const perMonth: Record<string, Record<string, number>> = {};
+
+    for (const range of monthRanges) {
+        perMonth[range.month] = {};
+    }
+
+    for (const tx of txs as AnalyticsTransaction[]) {
+        const impact = getTransactionImpact(tx.amount || 0, tx.type, tx.transactionType);
+        if (impact >= 0) continue;
+
+        const date = new Date((tx as any).timestamp);
+        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+        const category = categoryNameForAnalytics(tx);
+
+        categoryTotals[category] = (categoryTotals[category] || 0) + Math.abs(impact);
+        if (!perMonth[monthKey]) perMonth[monthKey] = {};
+        perMonth[monthKey][category] = (perMonth[monthKey][category] || 0) + Math.abs(impact);
+    }
+
+    const topCategories = Object.entries(categoryTotals)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([name]) => name);
+
+    return monthLabels.map((month) => {
+        const row: Record<string, number | string> = { month };
+        for (const category of topCategories) {
+            row[category] = Math.round(perMonth[month]?.[category] ?? 0);
+        }
+        return row;
+    });
+}
+
+export async function spendingHeatmap(days = 90) {
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    const txs = await prisma.transaction.findMany({
+        where: { timestamp: { gte: since } },
+        select: { amount: true, timestamp: true },
+        orderBy: { timestamp: "asc" },
+    });
+
+    const map = new Map<string, number>();
+    for (const tx of txs) {
+        const date = new Date(tx.timestamp as any);
+        const key = date.toISOString().slice(0, 10);
+        map.set(key, (map.get(key) || 0) + Math.abs(tx.amount || 0));
+    }
+
+    const daysOut: Array<{ date: string; amount: number; weekday: number; weekIndex: number }> = [];
+    const now = new Date();
+    for (let i = days - 1; i >= 0; i--) {
+        const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+        const key = date.toISOString().slice(0, 10);
+        daysOut.push({
+            date: key,
+            amount: map.get(key) || 0,
+            weekday: date.getDay(),
+            weekIndex: Math.floor((days - 1 - i) / 7),
+        });
+    }
+
+    return daysOut;
+}

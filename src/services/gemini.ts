@@ -7,11 +7,13 @@ const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models
 
 type GeminiMessage = { role: string; content: string };
 
+type GeminiOptions = { temperature?: number; maxTokens?: number; complexity?: "simple" | "complex" };
+
 function buildGeminiUrl(model: string) {
     return `${GEMINI_BASE_URL}/${model}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`;
 }
 
-function toGeminiRequest(promptOrMessages: string | GeminiMessage[], opts?: { temperature?: number; maxTokens?: number }) {
+function toGeminiRequest(promptOrMessages: string | GeminiMessage[], opts?: GeminiOptions) {
     if (typeof promptOrMessages === "string") {
         return {
             contents: [{ role: "user", parts: [{ text: promptOrMessages }] }],
@@ -61,20 +63,37 @@ export type GeminiResponse = {
 
 export async function generateText(
     promptOrMessages: string | GeminiMessage[],
-    opts?: { temperature?: number; maxTokens?: number; complexity?: "simple" | "complex" }
+    opts?: GeminiOptions
 ): Promise<GeminiResponse> {
     if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY not set");
 
     const body = toGeminiRequest(promptOrMessages, opts);
     const model = opts?.complexity === "complex" ? GEMINI_PRO_MODEL : GEMINI_FLASH_MODEL;
-    const res = await axios.post(buildGeminiUrl(model), body, {
-        headers: {
-            "Content-Type": "application/json",
-        },
-        timeout: 30000,
-    });
 
-    const data = res.data;
-    const text = extractTextFromGemini(data) || JSON.stringify(data);
-    return { text, raw: data };
+    let lastError: unknown;
+    for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+            const res = await axios.post(buildGeminiUrl(model), body, {
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                timeout: 30000,
+            });
+
+            const data = res.data;
+            const text = extractTextFromGemini(data) || JSON.stringify(data);
+            return { text, raw: data };
+        } catch (error: any) {
+            lastError = error;
+            const status = error?.response?.status;
+            const retryable = status === 429 || status === 503 || !status;
+            if (!retryable || attempt === 2) {
+                throw error;
+            }
+
+            await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
+        }
+    }
+
+    throw lastError instanceof Error ? lastError : new Error("Failed to generate Gemini response");
 }

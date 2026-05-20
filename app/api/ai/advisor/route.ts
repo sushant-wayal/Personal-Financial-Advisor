@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { buildFinancialContext } from "../../../../src/services/aiContext";
+import { buildAdvisorMessages, buildFinancialContext } from "../../../../src/services/aiContext";
+import { generateText } from "../../../../src/services/gemini";
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_PRO_MODEL = process.env.GEMINI_PRO_MODEL || "gemini-2.5-pro";
@@ -7,16 +8,6 @@ const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models
 
 function buildGeminiStreamUrl(model: string, apiKey: string) {
     return `${GEMINI_BASE_URL}/${model}:streamGenerateContent?alt=sse&key=${encodeURIComponent(apiKey)}`;
-}
-
-function buildGeminiBody(question: string, context: any) {
-    const system = "You are a disciplined, analytical personal finance advisor. Use only the provided financial context and deterministic calculations. Do not hallucinate. Provide clear numeric analysis.";
-    const userMessage = `Context: ${JSON.stringify(context)}\n\nQuestion: ${question}`;
-    return {
-        systemInstruction: { parts: [{ text: system }] },
-        contents: [{ role: "user", parts: [{ text: userMessage }] }],
-        generationConfig: { temperature: 0.05, maxOutputTokens: 1200 },
-    };
 }
 
 function extractTextFromGemini(data: any) {
@@ -41,23 +32,28 @@ export async function POST(req: Request) {
         }
 
         const context = await buildFinancialContext(200);
+        const advisorMessages = buildAdvisorMessages(question, context);
         const upstream = await fetch(buildGeminiStreamUrl(GEMINI_PRO_MODEL, GEMINI_API_KEY), {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
                 Accept: "text/event-stream",
             },
-            body: JSON.stringify(buildGeminiBody(question, context)),
+            body: JSON.stringify({
+                systemInstruction: { parts: [{ text: advisorMessages[0].content }] },
+                contents: [{ role: "user", parts: [{ text: advisorMessages[1].content }] }],
+                generationConfig: { temperature: 0.05, maxOutputTokens: 1200 },
+            }),
         });
 
         if (!upstream.ok) {
-            const text = await upstream.text();
-            return new Response(text, { status: upstream.status, headers: { "Content-Type": "text/plain; charset=utf-8", "X-Request-Id": requestId } });
+            const fallback = await generateText(advisorMessages as any, { temperature: 0.05, maxTokens: 1200, complexity: "complex" });
+            return new Response(fallback.text, { status: 200, headers: { "Content-Type": "text/plain; charset=utf-8", "X-Request-Id": requestId } });
         }
 
         if (!upstream.body) {
-            const text = await upstream.text();
-            return new Response(text, { status: upstream.status, headers: { "Content-Type": "text/plain; charset=utf-8", "X-Request-Id": requestId } });
+            const fallback = await generateText(advisorMessages as any, { temperature: 0.05, maxTokens: 1200, complexity: "complex" });
+            return new Response(fallback.text, { status: 200, headers: { "Content-Type": "text/plain; charset=utf-8", "X-Request-Id": requestId } });
         }
 
         const encoder = new TextEncoder();
