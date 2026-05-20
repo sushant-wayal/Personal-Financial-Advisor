@@ -5,6 +5,7 @@ import { predictETA, recommendMonthlyContribution } from "./goals";
 
 function formatCurrency(amount: number, currency = "INR") {
     return new Intl.NumberFormat("en-IN", {
+        style: "currency",
         currency,
         maximumFractionDigits: 0,
     }).format(amount);
@@ -37,6 +38,7 @@ function summarizeGoal(goal: any, currency: string) {
     const currentAmount = Number(goal.currentAmount || 0);
     const progressPct = targetAmount > 0 ? Math.min(100, (currentAmount / targetAmount) * 100) : 0;
     const monthsLeft = monthsUntil(goal.targetDate ? new Date(goal.targetDate) : null) ?? 12;
+    const goalCurrency = goal.currency || currency;
     const monthlyContribution = goal.monthlyTarget && goal.monthlyTarget > 0
         ? Number(goal.monthlyTarget)
         : recommendMonthlyContribution(currentAmount, targetAmount, Math.max(1, monthsLeft));
@@ -45,10 +47,11 @@ function summarizeGoal(goal: any, currency: string) {
         id: goal.id,
         title: goal.title,
         priority: goal.priority,
+        currency: goalCurrency,
         targetAmount,
-        targetAmountLabel: formatCurrency(targetAmount, currency),
+        targetAmountLabel: formatCurrency(targetAmount, goalCurrency),
         currentAmount,
-        currentAmountLabel: formatCurrency(currentAmount, currency),
+        currentAmountLabel: formatCurrency(currentAmount, goalCurrency),
         progressPct: Math.round(progressPct),
         monthlyTarget: goal.monthlyTarget ?? null,
         recommendedMonthlyContribution: Math.round(monthlyContribution),

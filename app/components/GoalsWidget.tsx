@@ -2,6 +2,10 @@
 import React, { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
+function formatCurrency(amount: number, currency = "INR") {
+    return new Intl.NumberFormat("en-IN", { style: "currency", currency, maximumFractionDigits: 0 }).format(amount || 0);
+}
+
 export default function GoalsWidget() {
     const [goals, setGoals] = useState<any[]>([]);
 
@@ -33,7 +37,10 @@ export default function GoalsWidget() {
                                     <div className="flex items-center justify-between gap-4">
                                         <div>
                                             <div className="font-medium text-foreground">{g.title}</div>
-                                            <div className="text-xs text-muted-foreground">Target ₹{g.targetAmount} • Priority {g.priority}</div>
+                                            <div className="text-xs text-muted-foreground">Target {formatCurrency(g.targetAmount, g.currency || "INR")} • Priority {g.priority}</div>
+                                            {g.nextMilestone && (
+                                                <div className="text-xs text-muted-foreground">Next milestone: {g.nextMilestone.label} at {g.nextMilestone.amountLabel}</div>
+                                            )}
                                         </div>
                                         <div className="text-right">
                                             <div className="text-xs text-muted-foreground">Progress</div>
@@ -44,7 +51,7 @@ export default function GoalsWidget() {
                                         <div className="h-2 rounded-full bg-emerald-400" style={{ width: `${clamped}%` }} />
                                     </div>
                                     <div className="mt-2 text-xs text-muted-foreground">
-                                        Rec. monthly: ₹{g.recommendedMonthly} • ETA: {g.eta?.eta ? new Date(g.eta.eta).toLocaleDateString() : "—"}
+                                        Rec. monthly: {formatCurrency(g.recommendedMonthly || 0, g.currency || "INR")} • ETA: {g.eta?.eta ? new Date(g.eta.eta).toLocaleDateString() : "—"}
                                     </div>
                                 </CardContent>
                             </Card>

@@ -58,6 +58,7 @@ model Goal {
   currentAmount    Float    @default(0)
   monthlyTarget    Float?
   priority         Int      @default(3)
+  currency         String   @default("INR")
   targetDate       DateTime?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt

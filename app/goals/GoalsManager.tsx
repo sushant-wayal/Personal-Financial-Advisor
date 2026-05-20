@@ -14,8 +14,25 @@ type Goal = {
     currentAmount: number;
     monthlyTarget?: number | null;
     priority: number;
+    currency?: string | null;
     targetDate?: string | null;
     notes?: string | null;
+    monthsLeft?: number | null;
+    recommendedMonthly?: number | null;
+    recommendedMonthlyContribution?: number | null;
+    recommendedMonthlyContributionLabel?: string | null;
+    eta?: { months: number; eta: string } | null;
+    milestones?: Array<{ label: string; thresholdPct: number; achieved: boolean; amount: number; amountLabel: string }>;
+    nextMilestone?: { label: string; thresholdPct: number; achieved: boolean; amount: number; amountLabel: string } | null;
+};
+
+type GoalOverview = {
+    goals: Goal[];
+    conflicts: Array<{ type: string; severity: string; message: string; affectedGoalIds: string[] }>;
+    totalRecommendedMonthlyContribution: number;
+    totalRecommendedMonthlyContributionLabel: string;
+    monthlyCapacity: number;
+    monthlyCapacityLabel: string;
 };
 
 type LabeledInputProps = React.ComponentProps<typeof BaseInput> & {
@@ -44,9 +61,28 @@ async function fetchGoals(): Promise<Goal[]> {
     return data.goals || [];
 }
 
+async function fetchGoalOverview(): Promise<GoalOverview> {
+    const res = await fetch("/api/goals/recommend");
+    if (!res.ok) throw new Error("Failed to load goal overview");
+    const data = await res.json();
+    return {
+        goals: data.goals || [],
+        conflicts: data.conflicts || [],
+        totalRecommendedMonthlyContribution: data.totalRecommendedMonthlyContribution || 0,
+        totalRecommendedMonthlyContributionLabel: data.totalRecommendedMonthlyContributionLabel || "₹0",
+        monthlyCapacity: data.monthlyCapacity || 0,
+        monthlyCapacityLabel: data.monthlyCapacityLabel || "₹0",
+    };
+}
+
+function formatCurrency(amount: number, currency = "INR") {
+    return new Intl.NumberFormat("en-IN", { style: "currency", currency, maximumFractionDigits: 0 }).format(amount || 0);
+}
+
 export default function GoalsManager() {
     const queryClient = useQueryClient();
     const { data: goals = [], isLoading } = useQuery({ queryKey: ["goals"], queryFn: fetchGoals });
+    const { data: goalOverview } = useQuery({ queryKey: ["goalOverview"], queryFn: fetchGoalOverview });
 
     const [form, setForm] = useState({
         title: "",
@@ -88,6 +124,7 @@ export default function GoalsManager() {
         onSuccess: () => {
             setForm({ title: "", targetAmount: "", targetDate: "", priority: "3", notes: "" });
             queryClient.invalidateQueries({ queryKey: ["goals"] });
+            queryClient.invalidateQueries({ queryKey: ["goalOverview"] });
         },
     });
 
@@ -103,6 +140,7 @@ export default function GoalsManager() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["goals"] });
+            queryClient.invalidateQueries({ queryKey: ["goalOverview"] });
         },
     });
 
@@ -114,6 +152,7 @@ export default function GoalsManager() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["goals"] });
+            queryClient.invalidateQueries({ queryKey: ["goalOverview"] });
         },
     });
 
@@ -121,6 +160,26 @@ export default function GoalsManager() {
 
     return (
         <div className="space-y-6">
+            {goalOverview && goalOverview.conflicts.length > 0 && (
+                <Card className="px-10 border-amber-700/30 bg-amber-950/10">
+                    <div className="text-sm font-semibold text-amber-300">Goal conflicts</div>
+                    <div className="mt-2 space-y-2 text-sm text-slate-200">
+                        <div className="text-xs text-slate-400">
+                            Monthly capacity: {goalOverview.monthlyCapacityLabel} • Required commitments: {goalOverview.totalRecommendedMonthlyContributionLabel}
+                        </div>
+                        {goalOverview.conflicts.map((conflict) => (
+                            <div key={`${conflict.type}-${conflict.message}`} className="rounded-lg bg-black/20 p-3">
+                                <div className="flex items-center justify-between gap-3">
+                                    <span className="font-medium capitalize">{conflict.type} conflict</span>
+                                    <span className="text-xs uppercase tracking-wide text-amber-300">{conflict.severity}</span>
+                                </div>
+                                <div className="mt-1 text-xs text-slate-300">{conflict.message}</div>
+                            </div>
+                        ))}
+                    </div>
+                </Card>
+            )}
+
             <Card className="px-10">
                 <div>
                     <div className="text-sm font-semibold text-white">Create a goal</div>
@@ -155,6 +214,7 @@ export default function GoalsManager() {
                         onChange={(e) => setForm((prev) => ({ ...prev, priority: e.target.value }))}
                         placeholder="3"
                     />
+
                     <Input
                         label="Notes"
                         value={form.notes}
@@ -193,7 +253,8 @@ export default function GoalsManager() {
                                 <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-4">
                                     <div>
                                         <div className="font-semibold text-slate-100">{goal.title}</div>
-                                        <div className="text-xs text-slate-500">Target: ₹ {goal.targetAmount}</div>
+                                        <div className="text-xs text-slate-500">Target: {formatCurrency(goal.targetAmount, goal.currency || "INR")}</div>
+                                        <div className="text-xs text-slate-500">Current: {formatCurrency(goal.currentAmount, goal.currency || "INR")}</div>
                                     </div>
                                     <div className="text-right">
                                         <div className="text-xs text-slate-400">Progress</div>
@@ -255,6 +316,7 @@ export default function GoalsManager() {
                                             }))
                                         }
                                     />
+
                                     <Input
                                         label="Target date"
                                         type="date"
@@ -304,6 +366,32 @@ export default function GoalsManager() {
                                     >
                                         Delete
                                     </Button>
+                                </div>
+
+                                <div className="mt-4 space-y-3 rounded-lg border border-white/5 bg-black/20 p-4">
+                                    <div className="flex flex-wrap items-center justify-between gap-3">
+                                        <div>
+                                            <div className="text-sm font-semibold text-white">Milestones</div>
+                                            <div className="text-xs text-slate-400">Derived progress checkpoints for this goal</div>
+                                        </div>
+                                        <div className="text-xs text-slate-500">
+                                            Recommended monthly: {formatCurrency(goal.recommendedMonthlyContribution || goal.recommendedMonthly || 0, goal.currency || "INR")}
+                                        </div>
+                                    </div>
+                                    <div className="grid gap-2 md:grid-cols-2">
+                                        {(goal.milestones || []).map((milestone) => (
+                                            <div key={milestone.label} className={`rounded-lg p-3 text-xs ${milestone.achieved ? "bg-emerald-950/20 text-emerald-300" : "bg-slate-900/60 text-slate-300"}`}>
+                                                <div className="font-medium">{milestone.label}</div>
+                                                <div>{milestone.amountLabel}</div>
+                                                <div className="text-slate-500">{milestone.achieved ? "Achieved" : "Pending"}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    {goal.nextMilestone && (
+                                        <div className="text-xs text-slate-400">
+                                            Next milestone: {goal.nextMilestone.label} at {goal.nextMilestone.amountLabel}
+                                        </div>
+                                    )}
                                 </div>
                             </details>
                         </Card>

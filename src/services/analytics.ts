@@ -319,3 +319,113 @@ export async function spendingHeatmap(days = 90) {
 
     return daysOut;
 }
+
+function weekStart(date: Date) {
+    const copy = new Date(date);
+    copy.setHours(0, 0, 0, 0);
+    copy.setDate(copy.getDate() - copy.getDay());
+    return copy;
+}
+
+function monthKey(date: Date) {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function weekdayLabel(index: number) {
+    return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][index] || "Unknown";
+}
+
+export async function spendingAcceleration(weeks = 12) {
+    const now = new Date();
+    const start = new Date(now.getTime() - weeks * 7 * 24 * 60 * 60 * 1000);
+    const txs = await prisma.transaction.findMany({
+        where: { timestamp: { gte: start } },
+        select: { amount: true, timestamp: true, type: true, transactionType: true },
+        orderBy: { timestamp: "asc" },
+    });
+
+    const weekMap = new Map<string, number>();
+    for (let i = weeks - 1; i >= 0; i--) {
+        const wStart = weekStart(new Date(now.getFullYear(), now.getMonth(), now.getDate() - i * 7));
+        weekMap.set(wStart.toISOString().slice(0, 10), 0);
+    }
+
+    for (const tx of txs as AnalyticsTransaction[]) {
+        const impact = getTransactionImpact(tx.amount || 0, tx.type, tx.transactionType);
+        if (impact >= 0) continue;
+        const wStart = weekStart(new Date((tx as any).timestamp));
+        const key = wStart.toISOString().slice(0, 10);
+        weekMap.set(key, (weekMap.get(key) || 0) + Math.abs(impact));
+    }
+
+    const weekly = Array.from(weekMap.entries())
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([week, expense]) => ({ week, expense: Math.round(expense) }));
+
+    const recentWindow = weekly.slice(-4);
+    const previousWindow = weekly.slice(-8, -4);
+    const recentAverage = recentWindow.length ? recentWindow.reduce((sum, item) => sum + item.expense, 0) / recentWindow.length : 0;
+    const previousAverage = previousWindow.length ? previousWindow.reduce((sum, item) => sum + item.expense, 0) / previousWindow.length : 0;
+    const recentWindowHasData = recentWindow.some((item) => item.expense > 0);
+    const previousWindowHasData = previousWindow.some((item) => item.expense > 0);
+    const acceleration = recentAverage - previousAverage;
+    const accelerationPercent = previousAverage > 0 ? (acceleration / previousAverage) * 100 : 0;
+    const direction = acceleration > 0 ? "increase" : acceleration < 0 ? "decrease" : "neutral";
+
+    return {
+        weekly,
+        recentAverage: Math.round(recentAverage),
+        previousAverage: Math.round(previousAverage),
+        recentWindowHasData,
+        previousWindowHasData,
+        acceleration: Math.round(acceleration),
+        accelerationPercent: Math.round(accelerationPercent),
+        direction,
+    };
+}
+
+export async function seasonalPatterns(days = 365) {
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    const txs = await prisma.transaction.findMany({
+        where: { timestamp: { gte: since } },
+        select: { amount: true, timestamp: true, type: true, transactionType: true },
+        orderBy: { timestamp: "asc" },
+    });
+
+    const weekdayTotals = Array.from({ length: 7 }, (_, index) => ({
+        day: weekdayLabel(index),
+        value: 0,
+    }));
+    const monthTotals = Array.from({ length: 12 }, (_, index) => ({
+        month: new Date(2024, index, 1).toLocaleString("en-US", { month: "short" }),
+        value: 0,
+    }));
+
+    for (const tx of txs as AnalyticsTransaction[]) {
+        const impact = getTransactionImpact(tx.amount || 0, tx.type, tx.transactionType);
+        if (impact >= 0) continue;
+        const date = new Date((tx as any).timestamp);
+        weekdayTotals[date.getDay()].value += Math.abs(impact);
+        monthTotals[date.getMonth()].value += Math.abs(impact);
+    }
+
+    const sortedWeekdays = weekdayTotals
+        .map((entry) => ({ ...entry, value: Math.round(entry.value) }))
+        .sort((a, b) => b.value - a.value);
+    const sortedMonths = monthTotals
+        .map((entry) => ({ ...entry, value: Math.round(entry.value) }))
+        .sort((a, b) => b.value - a.value);
+
+    const weekendValue = weekdayTotals[0].value + weekdayTotals[6].value;
+    const weekdayValue = weekdayTotals.slice(1, 6).reduce((sum, entry) => sum + entry.value, 0);
+
+    return {
+        weekdayTotals: weekdayTotals.map((entry) => ({ ...entry, value: Math.round(entry.value) })),
+        monthTotals: monthTotals.map((entry) => ({ ...entry, value: Math.round(entry.value) })),
+        peakWeekday: sortedWeekdays[0] || null,
+        peakMonth: sortedMonths[0] || null,
+        weekendShare: weekendValue + weekdayValue > 0 ? Math.round((weekendValue / (weekendValue + weekdayValue)) * 100) : 0,
+        topWeekdays: sortedWeekdays.slice(0, 3),
+        topMonths: sortedMonths.slice(0, 3),
+    };
+}

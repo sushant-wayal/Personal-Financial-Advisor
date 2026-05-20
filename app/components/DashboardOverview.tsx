@@ -30,6 +30,20 @@ async function fetchCategoryTrends() {
     return d.data;
 }
 
+async function fetchAcceleration() {
+    const res = await fetch('/api/analytics/acceleration');
+    if (!res.ok) throw new Error('Failed');
+    const d = await res.json();
+    return d.data;
+}
+
+async function fetchSeasonality() {
+    const res = await fetch('/api/analytics/seasonality');
+    if (!res.ok) throw new Error('Failed');
+    const d = await res.json();
+    return d.data;
+}
+
 async function fetchBalance() {
     const res = await fetch('/api/analytics/balance');
     if (!res.ok) throw new Error('Failed');
@@ -78,6 +92,8 @@ export default function DashboardOverview() {
     const { data: monthly = [], isLoading: loadingMonthly } = useQuery({ queryKey: ["monthlyTrend"], queryFn: fetchMonthly });
     const { data: categories = [], isLoading: loadingCats } = useQuery({ queryKey: ["categoryBreakdown"], queryFn: fetchCategories });
     const { data: categoryTrends = [], isLoading: loadingCategoryTrends } = useQuery({ queryKey: ["categoryTrends"], queryFn: fetchCategoryTrends });
+    const { data: accelerationData, isLoading: loadingAcceleration } = useQuery({ queryKey: ["spendingAcceleration"], queryFn: fetchAcceleration });
+    const { data: seasonalityData, isLoading: loadingSeasonality } = useQuery({ queryKey: ["seasonalPatterns"], queryFn: fetchSeasonality });
     const { data: balanceData, isLoading: loadingBalance } = useQuery({ queryKey: ["currentBalance"], queryFn: fetchBalance });
     const { data: savingsData, isLoading: loadingSavings } = useQuery({ queryKey: ["monthlySavingsRate"], queryFn: fetchSavingsRate });
     const { data: burnData, isLoading: loadingBurn } = useQuery({ queryKey: ["burnRate"], queryFn: fetchBurnRate });
@@ -353,6 +369,80 @@ export default function DashboardOverview() {
                     </CardContent>
                 </Card>
             </div>
+            <motion.div variants={gridMotion} initial="hidden" animate="show" className="grid gap-6 lg:grid-cols-2">
+                <motion.div variants={itemMotion}>
+                    <Card className="h-full">
+                        <CardHeader>
+                            <CardTitle className="text-sm font-semibold text-white">Spending acceleration</CardTitle>
+                            <div className="text-xs text-slate-400">Compares recent weekly spend vs the prior 4 weeks</div>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="grid gap-3 sm:grid-cols-2">
+                                <div className="rounded-lg bg-slate-900/60 p-3">
+                                    <div className="text-xs text-slate-400">Recent average</div>
+                                    <div className="text-lg font-semibold text-white">{loadingAcceleration ? "..." : balanceFormatter.format(accelerationData?.recentAverage ?? 0)}</div>
+                                </div>
+                                <div className="rounded-lg bg-slate-900/60 p-3">
+                                    <div className="text-xs text-slate-400">Previous average</div>
+                                    <div className="text-lg font-semibold text-white">
+                                        {loadingAcceleration
+                                            ? "..."
+                                            : accelerationData?.previousWindowHasData
+                                                ? balanceFormatter.format(accelerationData?.previousAverage ?? 0)
+                                                : "N/A"}
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="mt-4 rounded-lg border border-white/5 bg-slate-900/40 p-3 text-sm text-slate-200">
+                                {loadingAcceleration ? (
+                                    <span>Loading acceleration metrics...</span>
+                                ) : !accelerationData?.previousWindowHasData ? (
+                                    <span>
+                                        Not enough prior spending history to compute a meaningful acceleration comparison yet.
+                                    </span>
+                                ) : (
+                                    <span>
+                                        Weekly spend is <span className={accelerationData?.direction === "increase" ? "text-rose-400" : accelerationData?.direction === "decrease" ? "text-emerald-400" : "text-slate-300"}>
+                                            {accelerationData?.direction === "increase" ? "rising" : accelerationData?.direction === "decrease" ? "cooling" : "stable"}
+                                        </span>
+                                        {" "}by {balanceFormatter.format(Math.abs(accelerationData?.acceleration ?? 0))} ({accelerationData?.accelerationPercent ?? 0}%).
+                                    </span>
+                                )}
+                            </div>
+                        </CardContent>
+                    </Card>
+                </motion.div>
+
+                <motion.div variants={itemMotion}>
+                    <Card className="h-full">
+                        <CardHeader>
+                            <CardTitle className="text-sm font-semibold text-white">Seasonal patterns</CardTitle>
+                            <div className="text-xs text-slate-400">Day-of-week and month-of-year spending behavior</div>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="grid gap-3 sm:grid-cols-2">
+                                <div className="rounded-lg bg-slate-900/60 p-3">
+                                    <div className="text-xs text-slate-400">Peak weekday</div>
+                                    <div className="text-lg font-semibold text-white">{loadingSeasonality ? "..." : seasonalityData?.peakWeekday?.day ?? "-"}</div>
+                                </div>
+                                <div className="rounded-lg bg-slate-900/60 p-3">
+                                    <div className="text-xs text-slate-400">Peak month</div>
+                                    <div className="text-lg font-semibold text-white">{loadingSeasonality ? "..." : seasonalityData?.peakMonth?.month ?? "-"}</div>
+                                </div>
+                            </div>
+                            <div className="mt-4 rounded-lg border border-white/5 bg-slate-900/40 p-3 text-sm text-slate-200">
+                                {loadingSeasonality ? (
+                                    <span>Loading seasonality metrics...</span>
+                                ) : (
+                                    <span>
+                                        Weekend spending accounts for <span className="text-cyan-400 font-semibold">{seasonalityData?.weekendShare ?? 0}%</span> of tracked spend.
+                                    </span>
+                                )}
+                            </div>
+                        </CardContent>
+                    </Card>
+                </motion.div>
+            </motion.div>
         </div>
     );
 }
