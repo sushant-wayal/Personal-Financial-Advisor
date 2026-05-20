@@ -30,8 +30,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
             return NextResponse.json({ error: "transaction not found" }, { status: 404 });
         }
 
-        const amount = body.amount === undefined ? undefined : Number(body.amount);
-        if (amount !== undefined && (!Number.isFinite(amount) || amount < 0)) {
+        const amount = body.amount === undefined ? undefined : Math.abs(Number(body.amount));
+        if (amount !== undefined && !Number.isFinite(amount)) {
             return NextResponse.json({ error: "invalid amount" }, { status: 400 });
         }
 

@@ -1,4 +1,5 @@
 import { prisma } from "../lib/prisma";
+import { recommendMonthlyContribution } from "./goals";
 
 export async function computeFinancialHealth() {
     const profile = await prisma.financialProfile.findFirst();
@@ -36,5 +37,33 @@ export async function evaluateAffordability(price: number) {
     const state = await computeFinancialHealth();
     const impactOnRunway = state.runwayMonths - price / Math.max(1, state.monthlyExpenses);
     const affordabilityScore = Math.max(0, Math.min(100, (state.emergencyFund >= price ? 90 : 50 * (state.emergencyFund / price))));
-    return { affordabilityScore, impactOnRunway, health: state };
+    // analyze impact on goals
+    const goals = await prisma.goal.findMany({ orderBy: { priority: "asc" } });
+    const now = new Date();
+    const goalImpacts: Array<any> = [];
+    for (const g of goals) {
+        const targetAmount = g.targetAmount || 0;
+        const currentAmount = g.currentAmount || 0;
+        // months remaining until target date (fallback to 12 months if not set)
+        let monthsRemaining = 12;
+        if (g.targetDate) {
+            const td = new Date(g.targetDate as any);
+            monthsRemaining = Math.max(1, Math.ceil((td.getFullYear() - now.getFullYear()) * 12 + (td.getMonth() - now.getMonth())));
+        }
+
+        const monthlyContribution = (g.monthlyTarget && g.monthlyTarget > 0) ? g.monthlyTarget : recommendMonthlyContribution(currentAmount, targetAmount, monthsRemaining);
+
+        if (!monthlyContribution || monthlyContribution <= 0) {
+            goalImpacts.push({ id: g.id, title: g.title, delayMonths: null, monthlyContribution: monthlyContribution || 0, newEta: null });
+            continue;
+        }
+
+        const delayMonths = price / monthlyContribution;
+        const newMonthsRemaining = monthsRemaining + delayMonths;
+        const newEta = new Date(now.getFullYear(), now.getMonth() + Math.ceil(newMonthsRemaining), now.getDate());
+
+        goalImpacts.push({ id: g.id, title: g.title, delayMonths: Number(delayMonths.toFixed(2)), monthlyContribution: Number(monthlyContribution.toFixed(2)), newEta: newEta.toISOString() });
+    }
+
+    return { affordabilityScore, impactOnRunway, health: state, goalImpacts };
 }

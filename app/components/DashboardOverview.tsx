@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "../../src/components/ui/Card";
 import AIInsightsPreview from "./AIInsightsPreview";
+import SpendingHeatmap from "./SpendingHeatmap";
 
 const COLORS = ["#38bdf8", "#22c55e", "#f59e0b", "#a855f7", "#f472b6", "#94a3b8"];
 
@@ -267,6 +268,13 @@ export default function DashboardOverview() {
                     </Card>
                 </motion.div>
             </motion.div>
+            <div className="mt-6">
+                <Card>
+                    <CardContent>
+                        <SpendingHeatmap />
+                    </CardContent>
+                </Card>
+            </div>
         </div>
     );
 }

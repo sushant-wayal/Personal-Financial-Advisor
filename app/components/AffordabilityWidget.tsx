@@ -44,15 +44,51 @@ export default function AffordabilityWidget({ price = 0 }: { price?: number }) {
                         {loading ? "Checking..." : "Run analysis"}
                     </Button>
                     {result && (
-                        <Card size="sm" className="bg-muted/40">
-                            <CardContent className="px-4 py-4 text-sm">
-                                <div>Affordability score: {result.affordabilityScore ?? "-"}</div>
-                                <div>
-                                    Impact on runway (months):{" "}
-                                    {result.impactOnRunway?.toFixed ? result.impactOnRunway.toFixed(2) : result.impactOnRunway}
-                                </div>
-                            </CardContent>
-                        </Card>
+                        <div className="space-y-3">
+                            <Card size="sm" className="bg-muted/40">
+                                <CardContent className="px-4 py-4 text-sm space-y-2">
+                                    <div className="font-medium">Financial Impact:</div>
+                                    <div className="text-xs">
+                                        <span className="font-semibold">Affordability score:</span> {Math.round(result.affordabilityScore ?? 0)} / 100
+                                    </div>
+                                    <div className="text-xs">
+                                        <span className="font-semibold">Impact on runway:</span>{" "}
+                                        {result.impactOnRunway?.toFixed ? result.impactOnRunway.toFixed(2) : result.impactOnRunway} months
+                                        {result.impactOnRunway < 0 && <span className="ml-1 text-rose-400">(reduced)</span>}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                        Emergency fund: ₹{Math.round(result.health?.emergencyFund ?? 0)} • Monthly expenses: ₹{Math.round(result.health?.monthlyExpenses ?? 0)}
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            {result.goalImpacts && result.goalImpacts.length > 0 && (
+                                <Card size="sm" className="bg-amber-950/20 border-amber-700/30">
+                                    <CardContent className="px-4 py-4 text-sm space-y-2">
+                                        <div className="font-medium text-amber-400">Goal Impact Analysis:</div>
+                                        <div className="space-y-2">
+                                            {result.goalImpacts.map((g: any) => (
+                                                <div key={g.id} className="text-xs bg-black/30 rounded p-2">
+                                                    <div className="font-medium text-white">{g.title}</div>
+                                                    {g.delayMonths === null ? (
+                                                        <div className="text-muted-foreground">No monthly target set</div>
+                                                    ) : (
+                                                        <>
+                                                            <div className="text-amber-300">
+                                                                Delayed by <span className="font-semibold">{g.delayMonths.toFixed(1)} months</span>
+                                                            </div>
+                                                            <div className="text-muted-foreground">
+                                                                New ETA: {g.newEta ? new Date(g.newEta).toLocaleDateString() : "-"}
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            )}
+                        </div>
                     )}
                 </div>
             </CardContent>

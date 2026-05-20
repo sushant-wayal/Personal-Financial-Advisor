@@ -22,12 +22,22 @@ export async function POST(req: Request) {
         body.timestamp !== undefined;
 
     if (hasStructuredFields && (body.amount !== undefined || body.merchant)) {
-        const amount = Number(body.amount);
+        let amount = Number(body.amount);
+
+        // Normalize amount to always be positive - sign comes from type field only
+        const amountWasNegative = amount < 0;
+        amount = Math.abs(amount);
+
         const merchant = String(body.merchant || "").trim() || "Unknown";
         const timestamp = body.timestamp && !isNaN(new Date(body.timestamp).getTime())
             ? new Date(body.timestamp)
             : new Date();
-        const transactionType = String(body.transactionType || body.type || "OTHER").toUpperCase();
+        let transactionType = String(body.transactionType || body.type || "OTHER").toUpperCase();
+
+        // If amount was negative and no CREDIT type specified, treat as DEBIT
+        if (amountWasNegative && !body.transactionType && !body.type) {
+            transactionType = "DEBIT";
+        }
         let categoryId: string | null = null;
 
         if (body.categoryId) {
@@ -98,9 +108,12 @@ export async function POST(req: Request) {
     });
     const category = await findOrCreateCategory(catInfo.category);
 
+    // Ensure amount is always positive (transactionParser already does this via Math.abs)
+    const normalizedAmount = Math.abs(parsed.amount);
+
     const tx = await prisma.transaction.create({
         data: {
-            amount: parsed.amount,
+            amount: normalizedAmount,
             merchant: parsed.merchant,
             categoryId: category.id,
             timestamp: parsed.timestamp && !isNaN(new Date(parsed.timestamp).getTime()) ? new Date(parsed.timestamp) : new Date(),

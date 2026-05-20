@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
 export default function SettingsClient() {
@@ -10,14 +11,26 @@ export default function SettingsClient() {
     const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
     const [message, setMessage] = useState("");
 
+    const [profile, setProfile] = useState<any>(null);
+    const [savingProfile, setSavingProfile] = useState(false);
+
     useEffect(() => {
         let cancelled = false;
         async function load() {
             try {
-                const res = await fetch("/api/gmail/senders");
-                const data = await res.json();
+                const [resSenders, resProfile] = await Promise.all([fetch("/api/gmail/senders"), fetch('/api/profile')]);
+                const dataSenders = await resSenders.json();
+                const dataProfile = await resProfile.json();
                 if (!cancelled) {
-                    setInput((data.senders || []).join(", "));
+                    setInput((dataSenders.senders || []).join(", "));
+                    setProfile(dataProfile.profile || {
+                        ownerName: "",
+                        currency: "INR",
+                        balance: 0,
+                        emergencyFund: 0,
+                        monthlyIncome: 0,
+                        monthlyExpenses: 0,
+                    });
                 }
             } catch (e: any) {
                 if (!cancelled) setMessage(String(e));
@@ -29,7 +42,7 @@ export default function SettingsClient() {
         };
     }, []);
 
-    async function save() {
+    async function saveSenders() {
         setStatus("saving");
         setMessage("");
         try {
@@ -52,38 +65,142 @@ export default function SettingsClient() {
         }
     }
 
+    async function saveProfile() {
+        setSavingProfile(true);
+        try {
+            const res = await fetch('/api/profile', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(profile) });
+            const data = await res.json();
+            if (!res.ok) {
+                setMessage(data?.error || 'Failed to save profile');
+            } else {
+                setProfile(data.profile);
+                setMessage('Profile saved');
+            }
+        } catch (e: any) {
+            setMessage(String(e));
+        } finally {
+            setSavingProfile(false);
+        }
+    }
+
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Gmail Senders</CardTitle>
-                <CardDescription>
-                    Enter the email addresses that send your bank debit and credit alerts.
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                <div className="space-y-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="gmail-senders">Allowed senders</Label>
-                        <Textarea
-                            id="gmail-senders"
-                            value={input}
-                            onChange={(e) => setInput(e.target.value)}
-                            rows={4}
-                            placeholder="alerts@bank.com, noreply@bank.com"
-                        />
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <Button onClick={save} disabled={status === "saving"} className={"rounded-lg"}>
-                            {status === "saving" ? "Saving..." : "Save"}
-                        </Button>
-                        {message && (
-                            <span className={`text-xs ${status === "error" ? "text-destructive" : "text-muted-foreground"}`}>
-                                {message}
-                            </span>
-                        )}
-                    </div>
-                </div>
-            </CardContent>
-        </Card>
+        <div className="space-y-6">
+            <div className="grid gap-6 lg:grid-cols-2">
+                {/* Gmail Senders Card */}
+                <Card className="h-full flex flex-col">
+                    <CardHeader>
+                        <CardTitle>Gmail Senders</CardTitle>
+                        <CardDescription>Bank alerts and transaction notifications</CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex flex-col flex-1">
+                        <div className="space-y-4 flex flex-col flex-1">
+                            <div className="space-y-2 flex-1">
+                                <Label htmlFor="gmail-senders">Allowed senders</Label>
+                                <Textarea
+                                    id="gmail-senders"
+                                    value={input}
+                                    onChange={(e) => setInput(e.target.value)}
+                                    rows={10}
+                                    placeholder="alerts@bank.com, noreply@bank.com"
+                                    className="resize-none h-full"
+                                />
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Button onClick={saveSenders} disabled={status === "saving"} className="w-full rounded-lg">
+                                    {status === "saving" ? "Saving..." : "Save senders"}
+                                </Button>
+                            </div>
+                            {message && (
+                                <span className={`text-xs ${status === "error" ? "text-destructive" : "text-emerald-500"}`}>
+                                    {message}
+                                </span>
+                            )}
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* Financial Profile Card */}
+                <Card className="h-full">
+                    <CardHeader>
+                        <CardTitle>Financial Profile</CardTitle>
+                        <CardDescription>Basic values used by analyses</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="owner-name">Owner name</Label>
+                                <Input
+                                    id="owner-name"
+                                    value={profile?.ownerName || ''}
+                                    onChange={(e) => setProfile({ ...profile, ownerName: e.target.value })}
+                                    placeholder="Your name"
+                                />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="currency">Currency</Label>
+                                    <Input
+                                        id="currency"
+                                        value={profile?.currency || 'INR'}
+                                        onChange={(e) => setProfile({ ...profile, currency: e.target.value })}
+                                        placeholder="INR"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="balance">Balance</Label>
+                                    <Input
+                                        id="balance"
+                                        type="number"
+                                        value={profile?.balance ?? 0}
+                                        onChange={(e) => setProfile({ ...profile, balance: Number(e.target.value) })}
+                                        placeholder="0"
+                                    />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="emergency-fund">Emergency fund</Label>
+                                    <Input
+                                        id="emergency-fund"
+                                        type="number"
+                                        value={profile?.emergencyFund ?? 0}
+                                        onChange={(e) => setProfile({ ...profile, emergencyFund: Number(e.target.value) })}
+                                        placeholder="0"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="monthly-income">Monthly income</Label>
+                                    <Input
+                                        id="monthly-income"
+                                        type="number"
+                                        value={profile?.monthlyIncome ?? 0}
+                                        onChange={(e) => setProfile({ ...profile, monthlyIncome: Number(e.target.value) })}
+                                        placeholder="0"
+                                    />
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="monthly-expenses">Monthly expenses</Label>
+                                <Input
+                                    id="monthly-expenses"
+                                    type="number"
+                                    value={profile?.monthlyExpenses ?? 0}
+                                    onChange={(e) => setProfile({ ...profile, monthlyExpenses: Number(e.target.value) })}
+                                    placeholder="0"
+                                />
+                            </div>
+                            <div className="flex gap-2 pt-2">
+                                <Button onClick={saveProfile} disabled={savingProfile} className="flex-1 rounded-lg">
+                                    {savingProfile ? 'Saving...' : 'Save'}
+                                </Button>
+                                <Button variant="outline" onClick={async () => { const res = await fetch('/api/profile'); const d = await res.json(); setProfile(d.profile); }} className="flex-1 rounded-lg">
+                                    Reload
+                                </Button>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+        </div>
     );
 }
