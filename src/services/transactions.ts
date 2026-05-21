@@ -140,10 +140,10 @@ export async function getTransactions(input: TransactionQueryInput): Promise<Tra
     const typeFilter = resolveTypeFilter(input.type);
     const { from, to } = resolveDateRange(input);
 
-    const where: Prisma.TransactionWhereInput = { AND: [] };
+    const andConditions: Prisma.TransactionWhereInput[] = [];
 
     if (search) {
-        where.AND?.push({
+        andConditions.push({
             OR: [
                 { merchant: { contains: search } },
                 { notes: { contains: search } },
@@ -154,15 +154,15 @@ export async function getTransactions(input: TransactionQueryInput): Promise<Tra
     }
 
     if (merchant) {
-        where.AND?.push({ merchant: { contains: merchant } });
+        andConditions.push({ merchant: { contains: merchant } });
     }
 
     if (category) {
-        where.AND?.push({ category: { name: { equals: category } } });
+        andConditions.push({ category: { name: { equals: category } } });
     }
 
     if (typeFilter) {
-        where.AND?.push({
+        andConditions.push({
             OR: [
                 { transactionType: { in: typeFilter } },
                 { type: { in: typeFilter } },
@@ -171,7 +171,7 @@ export async function getTransactions(input: TransactionQueryInput): Promise<Tra
     }
 
     if (from || to) {
-        where.AND?.push({
+        andConditions.push({
             timestamp: {
                 gte: from,
                 lt: to,
@@ -179,16 +179,21 @@ export async function getTransactions(input: TransactionQueryInput): Promise<Tra
         });
     }
 
+    const where: Prisma.TransactionWhereInput = andConditions.length > 0 ? { AND: andConditions } : {};
+
     if (input.amountMin !== undefined || input.amountMax !== undefined) {
-        where.AND?.push({
+        andConditions.push({
             amount: {
                 gte: Number.isFinite(input.amountMin) ? input.amountMin : undefined,
                 lte: Number.isFinite(input.amountMax) ? input.amountMax : undefined,
             },
         });
+        if (andConditions.length > 0) {
+            where.AND = andConditions;
+        }
     }
 
-    if (where.AND && where.AND.length === 0) {
+    if (andConditions.length === 0) {
         delete where.AND;
     }
 

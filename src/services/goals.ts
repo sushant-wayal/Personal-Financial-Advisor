@@ -1,4 +1,9 @@
 import { prisma } from "../lib/prisma";
+import { estimateForecast } from "./GoalForecastService";
+import { computeHealthStatus, computeConfidenceScore } from "./GoalFeasibilityService";
+import { allocateMonthlyCapacity, simulateCapacityShift } from "./GoalAllocationService";
+import { impactMessageForChange } from "./GoalInsightService";
+import { buildGoalProgressSignals, deriveGoalProgress } from "./goalProgress";
 
 export type GoalMilestone = {
     label: string;
@@ -25,6 +30,7 @@ type GoalRecord = {
     currency?: string | null;
     targetDate?: string | Date | null;
     notes?: string | null;
+    createdAt?: string | Date | null;
 };
 
 function formatCurrency(amount: number, currency = "INR") {
@@ -87,12 +93,29 @@ export function analyzeGoalConflicts(goals: GoalRecord[], monthlyCapacity: numbe
     const conflicts: GoalConflict[] = [];
     const goalSummaries = goals.map((goal) => {
         const currency = resolvedCurrency(goal, fallbackCurrency);
-        const monthsLeft = monthsUntil(goal.targetDate) ?? 12;
-        const recommendedMonthlyContribution = goal.monthlyTarget && goal.monthlyTarget > 0
-            ? Number(goal.monthlyTarget)
-            : recommendMonthlyContribution(goal.currentAmount, goal.targetAmount, Math.max(1, monthsLeft));
-        const eta = predictETA(goal.currentAmount, recommendedMonthlyContribution, goal.targetAmount);
+        const monthsLeft = monthsUntil(goal.targetDate) ?? null;
+        const remaining = Math.max(0, goal.targetAmount - goal.currentAmount);
+
+        // estimate forecast using observed monthly capacity as a proxy for savings velocity
+        const forecast = estimateForecast({
+            currentAmount: goal.currentAmount,
+            targetAmount: goal.targetAmount,
+            monthsLeft,
+            currentSavingsVelocity: monthlyCapacity,
+        });
+
         const progressPct = goal.targetAmount > 0 ? Math.min(100, (goal.currentAmount / goal.targetAmount) * 100) : 0;
+        const health = computeHealthStatus(forecast.requiredMonthly, monthlyCapacity);
+        const confidence = computeConfidenceScore(forecast.requiredMonthly, monthlyCapacity, 0.25);
+
+        const recommendations: string[] = [];
+        if (forecast.requiredMonthly > monthlyCapacity) {
+            const deficit = Math.round(forecast.requiredMonthly - monthlyCapacity);
+            recommendations.push(`Increase monthly savings by ${formatCurrency(deficit, currency)}`);
+            recommendations.push(`Extend target date or lower target by ${formatCurrency(deficit * 3, currency)} (example)`);
+        } else if (forecast.requiredMonthly > 0) {
+            recommendations.push(`You are on pace — consider allocating surplus to accelerate this goal`);
+        }
 
         return {
             ...goal,
@@ -101,14 +124,31 @@ export function analyzeGoalConflicts(goals: GoalRecord[], monthlyCapacity: numbe
             currentAmountLabel: formatCurrency(goal.currentAmount, currency),
             progressPct: Math.round(progressPct),
             monthsLeft,
-            recommendedMonthlyContribution: Math.round(recommendedMonthlyContribution),
-            recommendedMonthly: Math.round(recommendedMonthlyContribution),
-            recommendedMonthlyContributionLabel: formatCurrency(recommendedMonthlyContribution, currency),
-            eta,
+            requiredMonthly: Math.round(forecast.requiredMonthly),
+            requiredMonthlyLabel: formatCurrency(forecast.requiredMonthly, currency),
+            recommendedMonthlyContribution: Math.round(forecast.requiredMonthly),
+            recommendedMonthly: Math.round(forecast.requiredMonthly),
+            recommendedMonthlyContributionLabel: formatCurrency(forecast.requiredMonthly, currency),
+            eta: forecast.estimatedCompletion,
             milestones: buildGoalMilestones(goal, fallbackCurrency),
             nextMilestone: buildGoalMilestones(goal, fallbackCurrency).find((milestone) => !milestone.achieved) || null,
+            health,
+            confidenceScore: confidence,
+            recommendations,
         };
     });
+
+    const allocationStrategies = {
+        priorityFirst: allocateMonthlyCapacity(goalSummaries, monthlyCapacity, { strategy: "priority-first" }),
+        proportional: allocateMonthlyCapacity(goalSummaries, monthlyCapacity, { strategy: "proportional" }),
+        utility: allocateMonthlyCapacity(goalSummaries, monthlyCapacity, { strategy: "utility" }),
+    };
+    const allocation = allocationStrategies.utility;
+    const allocationScenarios = [
+        simulateCapacityShift(goalSummaries, monthlyCapacity, -Math.round(monthlyCapacity * 0.25), "utility"),
+        simulateCapacityShift(goalSummaries, monthlyCapacity, 0, "utility"),
+        simulateCapacityShift(goalSummaries, monthlyCapacity, Math.round(monthlyCapacity * 0.25), "utility"),
+    ];
 
     const totalRecommended = goalSummaries.reduce((sum, goal) => sum + (goal.recommendedMonthlyContribution || 0), 0);
     if (monthlyCapacity > 0 && totalRecommended > monthlyCapacity) {
@@ -154,48 +194,67 @@ export function analyzeGoalConflicts(goals: GoalRecord[], monthlyCapacity: numbe
         monthlyCapacity,
         monthlyCapacityLabel: formatCurrency(monthlyCapacity, fallbackCurrency),
         totalRecommendedMonthlyContributionLabel: formatCurrency(totalRecommended, fallbackCurrency),
+        allocation,
+        allocationStrategies,
+        allocationScenarios,
+    };
+}
+
+async function loadDerivedGoals() {
+    const [goals, signals] = await Promise.all([
+        prisma.goal.findMany({
+            orderBy: { priority: "asc" }, select: {
+                id: true,
+                title: true,
+                targetAmount: true,
+                currentAmount: true,
+                monthlyTarget: true,
+                priority: true,
+                currency: true,
+                targetDate: true,
+                notes: true,
+                createdAt: true,
+            }
+        }),
+        buildGoalProgressSignals(),
+    ]);
+
+    return {
+        goals: deriveGoalProgress(goals as GoalRecord[], signals),
+        signals,
     };
 }
 
 export async function listGoals() {
-    const [goals, profile] = await Promise.all([
-        prisma.goal.findMany({ orderBy: { priority: "asc" } }),
-        prisma.financialProfile.findFirst({ select: { currency: true, monthlyIncome: true, monthlyExpenses: true } }),
-    ]);
-
-    const fallbackCurrency = profile?.currency || "INR";
-    const monthlyCapacity = Math.max(0, (profile?.monthlyIncome || 0) - (profile?.monthlyExpenses || 0));
-    return analyzeGoalConflicts(goals as GoalRecord[], monthlyCapacity, fallbackCurrency).goals;
+    const { goals, signals } = await loadDerivedGoals();
+    return analyzeGoalConflicts(goals as GoalRecord[], signals.monthlyCapacity, signals.currency).goals;
 }
 
 export async function getGoalOverview() {
-    const [goals, profile] = await Promise.all([
-        prisma.goal.findMany({ orderBy: { priority: "asc" } }),
-        prisma.financialProfile.findFirst({ select: { currency: true, monthlyIncome: true, monthlyExpenses: true } }),
-    ]);
-
-    const fallbackCurrency = profile?.currency || "INR";
-    const monthlyCapacity = Math.max(0, (profile?.monthlyIncome || 0) - (profile?.monthlyExpenses || 0));
-    return analyzeGoalConflicts(goals as GoalRecord[], monthlyCapacity, fallbackCurrency);
+    const { goals, signals } = await loadDerivedGoals();
+    return analyzeGoalConflicts(goals as GoalRecord[], signals.monthlyCapacity, signals.currency);
 }
 
-export async function createGoal(data: { title: string; targetAmount: number; targetDate?: string; priority?: number; notes?: string }) {
+export async function createGoal(data: { title: string; targetAmount: number; targetDate?: string; priority?: number; notes?: string; initialAllocation?: number; currentAmount?: number }) {
     const createData: any = {
         title: data.title,
         targetAmount: data.targetAmount,
         targetDate: data.targetDate ? new Date(data.targetDate) : null,
         priority: data.priority ?? 3,
         notes: data.notes,
+        currentAmount: Math.max(0, Number(data.initialAllocation ?? data.currentAmount ?? 0)),
     };
     return prisma.goal.create({ data: createData });
 }
 
-export async function updateGoal(id: string, patch: Partial<{ title: string; targetAmount: number; currentAmount: number; monthlyTarget: number; targetDate: string; priority: number; notes: string }>) {
+export async function updateGoal(id: string, patch: Partial<{ title: string; targetAmount: number; monthlyTarget: number; targetDate: string; priority: number; notes: string }>) {
     const data: any = { ...patch };
     if (patch.targetDate) data.targetDate = new Date(patch.targetDate as string);
-    // Remove currency from update payload to avoid PrismaClient validation errors
-    if (Object.prototype.hasOwnProperty.call(data, "currency")) {
-        delete data.currency;
-    }
+    delete data.currentAmount;
+    delete data.currency;
     return prisma.goal.update({ where: { id }, data });
+}
+
+export async function deleteGoal(id: string) {
+    return prisma.goal.delete({ where: { id } });
 }

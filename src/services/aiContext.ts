@@ -1,7 +1,7 @@
 import { prisma } from "../lib/prisma";
 import { calculateBurnRate, calculateMonthlySavingsRate, calculateRunway, categoryBreakdown, monthlyTrend } from "./analytics";
 import { generateText } from "./gemini";
-import { predictETA, recommendMonthlyContribution } from "./goals";
+import { listGoals, predictETA, recommendMonthlyContribution } from "./goals";
 
 function formatCurrency(amount: number, currency = "INR") {
     return new Intl.NumberFormat("en-IN", {
@@ -76,8 +76,8 @@ function summarizeSubscription(sub: any, currency: string) {
 export async function buildFinancialContext(limit = 24) {
     const [transactions, goals, profile, subscriptions, memories, monthly, categoryData, savings, burn, runway] = await Promise.all([
         prisma.transaction.findMany({ orderBy: { timestamp: "desc" }, take: Math.max(12, Math.min(limit, 30)), include: { category: true } }),
-        prisma.goal.findMany({ orderBy: { priority: "asc" } }),
-        prisma.financialProfile.findFirst(),
+        listGoals(),
+        prisma.financialProfile.findUnique({ where: { id: "default" } }),
         prisma.subscription.findMany({ orderBy: { updatedAt: "desc" } }),
         prisma.aIMemory.findMany({ orderBy: { updatedAt: "desc" }, take: 20 }),
         monthlyTrend(6),

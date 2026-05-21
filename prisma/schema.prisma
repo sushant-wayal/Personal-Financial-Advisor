@@ -57,13 +57,18 @@ model Goal {
   targetAmount     Float
   currentAmount    Float    @default(0)
   monthlyTarget    Float?
+  goalType         String   @default("PURCHASE")
+  status           String   @default("ACTIVE")
   priority         Int      @default(3)
   currency         String   @default("INR")
   targetDate       DateTime?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
   notes            String?
+  icon             String?
+  color            String?
 }
+
 
 model FinancialProfile {
   id               String   @id @default(cuid())

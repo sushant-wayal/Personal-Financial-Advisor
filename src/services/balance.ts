@@ -30,11 +30,8 @@ export function getTransactionImpact(amount: number, type?: string | null, trans
 
 export async function updateProfileBalanceBy(delta: number) {
     if (!Number.isFinite(delta) || delta === 0) return;
-    const profile = await prisma.financialProfile.findFirst({ select: { id: true } });
-    if (!profile) return;
-
     await prisma.financialProfile.update({
-        where: { id: profile.id },
+        where: { id: "default" },
         data: { balance: { increment: delta } },
     });
 }

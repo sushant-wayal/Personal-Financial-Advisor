@@ -4,7 +4,6 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
     ColumnDef,
-    ColumnVisibilityState,
     RowSelectionState,
     SortingState,
     flexRender,
@@ -227,7 +226,7 @@ export default function TransactionsClient() {
     const [amountMin, setAmountMin] = useState(queryState.amountMin);
     const [amountMax, setAmountMax] = useState(queryState.amountMax);
     const [sorting, setSorting] = useState<SortingState>(queryState.sorting);
-    const [columnVisibility, setColumnVisibility] = useState<ColumnVisibilityState>({
+    const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>({
         notes: false,
         confidence: false,
     });
@@ -452,7 +451,7 @@ export default function TransactionsClient() {
         if (!stored) return;
 
         try {
-            const parsed = JSON.parse(stored) as ColumnVisibilityState;
+            const parsed = JSON.parse(stored) as Record<string, boolean>;
             setColumnVisibility(parsed);
         } catch {
             // ignore invalid local storage
@@ -800,8 +799,8 @@ export default function TransactionsClient() {
                             value={category || "all"}
                             onValueChange={(value) => {
                                 const next = value === "all" ? "" : value;
-                                setCategory(next);
-                                updateQuery({ category: next, page: 1 });
+                                setCategory(value === "all" ? "" : (value as string));
+                                updateQuery({ category: next as string, page: 1 });
                             }}
                         >
                             <SelectTrigger>
@@ -820,8 +819,8 @@ export default function TransactionsClient() {
                         <Select
                             value={typeFilter}
                             onValueChange={(value) => {
-                                setTypeFilter(value);
-                                updateQuery({ type: value, page: 1 });
+                                setTypeFilter(value as string);
+                                updateQuery({ type: value as string, page: 1 });
                             }}
                         >
                             <SelectTrigger>
@@ -842,12 +841,12 @@ export default function TransactionsClient() {
                         <Select
                             value={dateRange}
                             onValueChange={(value) => {
-                                setDateRange(value);
+                                setDateRange(value as string);
                                 const resetDates = value !== "custom";
                                 setDateFrom(resetDates ? "" : dateFrom);
                                 setDateTo(resetDates ? "" : dateTo);
                                 updateQuery({
-                                    dateRange: value,
+                                    dateRange: value as string,
                                     dateFrom: resetDates ? "" : dateFrom,
                                     dateTo: resetDates ? "" : dateTo,
                                     page: 1,
@@ -1034,7 +1033,7 @@ export default function TransactionsClient() {
                             value={String(pageSize)}
                             onValueChange={(value) => {
                                 const next = Number(value);
-                                setPageSize(next);
+                                setPageSize(Number(value as string));
                                 updateQuery({ pageSize: next, page: 1 });
                             }}
                         >
@@ -1152,7 +1151,7 @@ export default function TransactionsClient() {
                                 <Select
                                     value={editFormData.categoryName}
                                     onValueChange={(value) => {
-                                        setEditFormData({ ...editFormData, categoryName: value });
+                                        setEditFormData({ ...editFormData, categoryName: value as string });
                                     }}
                                 >
                                     <SelectTrigger className="rounded-lg border border-border bg-background px-3 py-2">
@@ -1191,7 +1190,7 @@ export default function TransactionsClient() {
                                 <Label>Transaction Type</Label>
                                 <Select
                                     value={editFormData.transactionType}
-                                    onValueChange={(value) => setEditFormData({ ...editFormData, transactionType: value })}
+                                    onValueChange={(value) => setEditFormData({ ...editFormData, transactionType: value as string })}
                                 >
                                     <SelectTrigger className="rounded-lg border border-border bg-background px-3 py-2">
                                         <SelectValue placeholder="Select type" />

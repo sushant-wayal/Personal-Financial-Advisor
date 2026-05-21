@@ -15,6 +15,7 @@ export async function POST(req: Request) {
         targetDate: body.targetDate,
         priority: body.priority,
         notes: body.notes,
+        initialAllocation: body.initialAllocation,
     });
     return NextResponse.json({ ok: true, goal: g });
 }

@@ -3,6 +3,8 @@ import { deterministicParse } from "../../../src/services/transactionParser";
 import { prisma } from "../../../src/lib/prisma";
 import { autoCategorize, findOrCreateCategory } from "../../../src/services/categorizer";
 import { getTransactionImpact, updateProfileBalanceBy } from "../../../src/services/balance";
+import { adviseGoals } from "../../../src/services/GoalAdvisorService";
+import { getGoalOverview } from "../../../src/services/goals";
 
 export async function POST(req: Request) {
     const body = await req.json();
@@ -88,6 +90,15 @@ export async function POST(req: Request) {
         const impact = getTransactionImpact(tx.amount, transactionType, transactionType);
         await updateProfileBalanceBy(impact);
 
+        // Trigger goals recalculation and advisor insights asynchronously
+        try {
+            await getGoalOverview();
+            await adviseGoals({ persist: true });
+        } catch (e) {
+            // don't fail the transaction creation if advisor fails
+            console.error("goal recalculation failed", e);
+        }
+
         return NextResponse.json({
             ok: true,
             transaction: {
@@ -138,6 +149,14 @@ export async function POST(req: Request) {
 
     const impact = getTransactionImpact(tx.amount, parsed.type, parsed.transactionType || parsed.type || "OTHER");
     await updateProfileBalanceBy(impact);
+
+    // Trigger goals recalculation and advisor insights asynchronously
+    try {
+        await getGoalOverview();
+        await adviseGoals({ persist: true });
+    } catch (e) {
+        console.error("goal recalculation failed", e);
+    }
 
     return NextResponse.json({
         ok: true,

@@ -95,7 +95,7 @@ async function aggregateExpenseTotals(start: Date, end: Date) {
 
 
 export async function calculateCurrentBalance() {
-    const profile = await prisma.financialProfile.findFirst() as { balance?: number | null } | null;
+    const profile = await prisma.financialProfile.findUnique({ where: { id: "default" } }) as { balance?: number | null } | null;
     return profile?.balance ?? 0;
 }
 

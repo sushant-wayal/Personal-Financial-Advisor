@@ -1,8 +1,9 @@
 import { prisma } from "../lib/prisma";
 import { recommendMonthlyContribution } from "./goals";
+import { listGoals } from "./goals";
 
 export async function computeFinancialHealth() {
-    const profile = await prisma.financialProfile.findFirst();
+    const profile = await prisma.financialProfile.findUnique({ where: { id: "default" } });
     const recentTx = await prisma.transaction.findMany({ orderBy: { timestamp: "desc" }, take: 90, include: { category: true } });
 
     const monthlyExpenses = profile?.monthlyExpenses ?? estimateMonthlyExpenses(recentTx);
@@ -38,7 +39,7 @@ export async function evaluateAffordability(price: number) {
     const impactOnRunway = state.runwayMonths - price / Math.max(1, state.monthlyExpenses);
     const affordabilityScore = Math.max(0, Math.min(100, (state.emergencyFund >= price ? 90 : 50 * (state.emergencyFund / price))));
     // analyze impact on goals
-    const goals = await prisma.goal.findMany({ orderBy: { priority: "asc" } });
+    const goals = await listGoals();
     const now = new Date();
     const goalImpacts: Array<any> = [];
     for (const g of goals) {
