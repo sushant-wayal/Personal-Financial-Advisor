@@ -23,6 +23,7 @@ export type GoalConflict = {
 type GoalRecord = {
     id: string;
     title: string;
+    status?: string | null;
     targetAmount: number;
     currentAmount: number;
     monthlyTarget?: number | null;
@@ -206,6 +207,7 @@ async function loadDerivedGoals() {
             orderBy: { priority: "asc" }, select: {
                 id: true,
                 title: true,
+                status: true,
                 targetAmount: true,
                 currentAmount: true,
                 monthlyTarget: true,

@@ -8,6 +8,7 @@ import { computeSavingsCapacity } from "./savings";
 export type GoalProgressSeed = {
     id: string;
     title: string;
+    status?: string | null;
     targetAmount: number;
     currentAmount: number;
     monthlyTarget?: number | null;
@@ -39,7 +40,7 @@ export type DerivedGoalProgress = GoalProgressSeed & {
     requiredMonthlyLabel: string;
     recommendedMonthlyContribution: number;
     recommendedMonthlyContributionLabel: string;
-    eta: { months: number; eta: string } | null;
+    eta: { months: number | null; eta: Date | null } | null;
     health: string;
     confidenceScore: number;
     recommendations: string[];
