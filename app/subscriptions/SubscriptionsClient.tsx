@@ -63,8 +63,8 @@ export default function SubscriptionsClient() {
     return (
         <div className="grid gap-4">
             <div className="flex items-center gap-2">
-                <Button onClick={load} variant="secondary">Refresh</Button>
-                <Button onClick={runDetect}>Run Detection</Button>
+                <Button onClick={load} variant="secondary" className={"rounded-lg"}>Refresh</Button>
+                <Button onClick={runDetect} className={"rounded-lg"}>Run Detection</Button>
                 {loading && <div className="text-xs text-slate-400">Loading...</div>}
             </div>
 
