@@ -150,7 +150,7 @@ export async function generateInsights(limit = 50) {
     if (txs.length > 10 && process.env.GEMINI_API_KEY) {
         const prompt = `Summarize user's recent transactions and provide 3 concrete insights and one recommended action. Transactions: ${JSON.stringify(txs.slice(0, 50))}`;
         try {
-            const resp = await generateText(prompt, { temperature: 0.1, maxTokens: 400, complexity: "simple" });
+            const resp = await generateText(prompt, { temperature: 0.1, complexity: "simple" });
             await addInsight({ type: "ai_summary", message: resp.text, meta: resp.raw || null });
         } catch (e) {
             // ignore AI errors

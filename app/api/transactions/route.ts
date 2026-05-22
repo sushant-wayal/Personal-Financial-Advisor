@@ -19,7 +19,6 @@ export async function POST(req: Request) {
         body.type !== undefined ||
         body.paymentMethod !== undefined ||
         body.bankName !== undefined ||
-        body.account !== undefined ||
         body.notes !== undefined ||
         body.timestamp !== undefined;
 
@@ -69,7 +68,6 @@ export async function POST(req: Request) {
                 categoryId,
                 timestamp,
                 source: body.source || "manual",
-                account: body.account || null,
                 type: transactionType,
                 notes: body.notes || null,
                 confidence: typeof body.confidence === "number" ? Math.min(body.confidence, 1) : 1,

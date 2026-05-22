@@ -6,6 +6,29 @@ function formatCurrency(amount: number) {
     return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(amount);
 }
 
+function extractJsonPayload(text: string) {
+    const trimmed = text.trim();
+
+    const fencedMatch = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+    if (fencedMatch?.[1]) {
+        return fencedMatch[1].trim();
+    }
+
+    const firstArray = trimmed.indexOf("[");
+    const lastArray = trimmed.lastIndexOf("]");
+    if (firstArray !== -1 && lastArray !== -1 && lastArray > firstArray) {
+        return trimmed.slice(firstArray, lastArray + 1).trim();
+    }
+
+    const firstObject = trimmed.indexOf("{");
+    const lastObject = trimmed.lastIndexOf("}");
+    if (firstObject !== -1 && lastObject !== -1 && lastObject > firstObject) {
+        return trimmed.slice(firstObject, lastObject + 1).trim();
+    }
+
+    return trimmed;
+}
+
 export async function generateAIRecommendations() {
     const overview = await getGoalOverview();
 
@@ -101,8 +124,8 @@ Format as JSON array:
 Respond ONLY with valid JSON array, no markdown or extra text.`;
 
     try {
-        const response = await generateText(prompt, { temperature: 0.3, maxTokens: 1024 });
-        const parsed = JSON.parse(response.text);
+        const response = await generateText(prompt, { temperature: 0.3 });
+        const parsed = JSON.parse(extractJsonPayload(response.text));
 
         return {
             recommendations: Array.isArray(parsed)

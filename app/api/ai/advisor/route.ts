@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { buildAdvisorMessages, buildFinancialContext } from "../../../../src/services/aiContext";
-import { generateText } from "../../../../src/services/gemini";
+import { buildAdvisorChatMessages, buildFinancialContext } from "../../../../src/services/aiContext";
+import { buildGeminiRequest, generateText } from "../../../../src/services/gemini";
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_PRO_MODEL = process.env.GEMINI_PRO_MODEL || "gemini-2.5-pro";
@@ -24,7 +24,9 @@ export async function POST(req: Request) {
         if (!GEMINI_API_KEY) {
             return NextResponse.json({ error: "AI provider not configured" }, { status: 503 });
         }
-        const { question } = await req.json();
+        const body = await req.json();
+        const question = body?.question;
+        const history = Array.isArray(body?.history) ? body.history : [];
         if (!question) return NextResponse.json({ error: "missing question" }, { status: 400 });
 
         if (process.env.NODE_ENV !== "production") {
@@ -32,27 +34,24 @@ export async function POST(req: Request) {
         }
 
         const context = await buildFinancialContext(200);
-        const advisorMessages = buildAdvisorMessages(question, context);
+        const advisorMessages = buildAdvisorChatMessages(question, context, history);
+        const geminiBody = buildGeminiRequest(advisorMessages, { temperature: 0.05, complexity: "complex" });
         const upstream = await fetch(buildGeminiStreamUrl(GEMINI_PRO_MODEL, GEMINI_API_KEY), {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
                 Accept: "text/event-stream",
             },
-            body: JSON.stringify({
-                systemInstruction: { parts: [{ text: advisorMessages[0].content }] },
-                contents: [{ role: "user", parts: [{ text: advisorMessages[1].content }] }],
-                generationConfig: { temperature: 0.05, maxOutputTokens: 1200 },
-            }),
+            body: JSON.stringify(geminiBody),
         });
 
         if (!upstream.ok) {
-            const fallback = await generateText(advisorMessages as any, { temperature: 0.05, maxTokens: 1200, complexity: "complex" });
+            const fallback = await generateText(advisorMessages as any, { temperature: 0.05, complexity: "complex" });
             return new Response(fallback.text, { status: 200, headers: { "Content-Type": "text/plain; charset=utf-8", "X-Request-Id": requestId } });
         }
 
         if (!upstream.body) {
-            const fallback = await generateText(advisorMessages as any, { temperature: 0.05, maxTokens: 1200, complexity: "complex" });
+            const fallback = await generateText(advisorMessages as any, { temperature: 0.05, complexity: "complex" });
             return new Response(fallback.text, { status: 200, headers: { "Content-Type": "text/plain; charset=utf-8", "X-Request-Id": requestId } });
         }
 

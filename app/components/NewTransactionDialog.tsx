@@ -50,7 +50,6 @@ export default function NewTransactionDialog({
     const [category, setCategory] = useState("");
     const [paymentMethod, setPaymentMethod] = useState("");
     const [bankName, setBankName] = useState("");
-    const [account, setAccount] = useState("");
     const [transactionType, setTransactionType] = useState("DEBIT");
     const [timestamp, setTimestamp] = useState(new Date().toISOString().slice(0, 16));
     const [notes, setNotes] = useState("");
@@ -96,7 +95,6 @@ export default function NewTransactionDialog({
             setCategory("");
             setPaymentMethod("");
             setBankName("");
-            setAccount("");
             setTransactionType("DEBIT");
             setTimestamp(new Date().toISOString().slice(0, 16));
             setNotes("");
@@ -112,7 +110,6 @@ export default function NewTransactionDialog({
             category,
             paymentMethod,
             bankName,
-            account,
             transactionType,
             timestamp: new Date(timestamp).toISOString(),
             notes,
@@ -199,16 +196,6 @@ export default function NewTransactionDialog({
                                 id="bankName"
                                 value={bankName}
                                 onChange={(e) => setBankName(e.target.value)}
-                                className="rounded-lg border border-border bg-background px-3 py-2"
-                            />
-                        </label>
-
-                        <label className="space-y-2 md:col-span-1">
-                            <Label htmlFor="account">Account</Label>
-                            <Input
-                                id="account"
-                                value={account}
-                                onChange={(e) => setAccount(e.target.value)}
                                 className="rounded-lg border border-border bg-background px-3 py-2"
                             />
                         </label>

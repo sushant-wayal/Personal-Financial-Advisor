@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
+type ChatTurn = { question: string; response: string };
+
 export default function ChatClient() {
     const [q, setQ] = useState("");
     const [threads, setThreads] = useState<Array<{ question: string; response: string }>>([]);
@@ -26,7 +28,12 @@ export default function ChatClient() {
         setLoading(true);
         try {
             // streaming by default
-            const res = await fetch('/api/ai/advisor', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question: user }) });
+            const history: ChatTurn[] = threads.slice(-8);
+            const res = await fetch('/api/ai/advisor', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ question: user, history }),
+            });
             if (!res.body) {
                 const data = await res.json();
                 const reply = data.text || data.result?.text || JSON.stringify(data.result) || data.error || "No response";

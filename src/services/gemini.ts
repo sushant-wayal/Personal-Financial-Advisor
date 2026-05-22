@@ -7,19 +7,18 @@ const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models
 
 type GeminiMessage = { role: string; content: string };
 
-type GeminiOptions = { temperature?: number; maxTokens?: number; complexity?: "simple" | "complex" };
+type GeminiOptions = { temperature?: number; complexity?: "simple" | "complex" };
 
 function buildGeminiUrl(model: string) {
     return `${GEMINI_BASE_URL}/${model}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`;
 }
 
-function toGeminiRequest(promptOrMessages: string | GeminiMessage[], opts?: GeminiOptions) {
+export function buildGeminiRequest(promptOrMessages: string | GeminiMessage[], opts?: GeminiOptions) {
     if (typeof promptOrMessages === "string") {
         return {
             contents: [{ role: "user", parts: [{ text: promptOrMessages }] }],
             generationConfig: {
                 temperature: opts?.temperature ?? 0.2,
-                // maxOutputTokens: opts?.maxTokens ?? 512,
             },
         };
     }
@@ -41,7 +40,6 @@ function toGeminiRequest(promptOrMessages: string | GeminiMessage[], opts?: Gemi
         contents,
         generationConfig: {
             temperature: opts?.temperature ?? 0.2,
-            maxOutputTokens: opts?.maxTokens ?? 512,
         },
     };
 
@@ -67,7 +65,7 @@ export async function generateText(
 ): Promise<GeminiResponse> {
     if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY not set");
 
-    const body = toGeminiRequest(promptOrMessages, opts);
+    const body = buildGeminiRequest(promptOrMessages, opts);
     const model = opts?.complexity === "complex" ? GEMINI_PRO_MODEL : GEMINI_FLASH_MODEL;
 
     let lastError: unknown;

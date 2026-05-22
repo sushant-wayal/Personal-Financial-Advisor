@@ -92,7 +92,7 @@ async function aiFallbackCategory(merchant: string, rawText?: string): Promise<C
     ].join("\n");
 
     try {
-        const response = await generateText(prompt, { temperature: 0, maxTokens: 8, complexity: "simple" });
+        const response = await generateText(prompt, { temperature: 0, complexity: "simple" });
         const cleaned = response.text.replace(/[^A-Za-z ]/g, "").trim();
         const category = normalizeCategory(cleaned);
         return category ? { category, confidence: 0.58, source: "ai" } : undefined;

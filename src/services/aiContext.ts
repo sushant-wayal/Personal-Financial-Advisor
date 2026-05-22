@@ -105,6 +105,95 @@ export async function buildFinancialContext(limit = 24) {
 
     const recentInsights = await prisma.financialInsight.findMany({ orderBy: { createdAt: "desc" }, take: 8 });
 
+    const summarizedGoals = goals.map((goal) => summarizeGoal(goal, currency));
+
+    // Derived: monthly surplus
+    const monthlyIncomeVal = profile?.monthlyIncome ?? 0;
+    const monthlyExpensesVal = profile?.monthlyExpenses ?? 0;
+    const monthlySurplusVal = monthlyIncomeVal - monthlyExpensesVal;
+
+    // Derived: goal summary
+    const totalTargetAmount = summarizedGoals.reduce((s, g) => s + (g.targetAmount || 0), 0);
+    const totalCurrentAmount = summarizedGoals.reduce((s, g) => s + (g.currentAmount || 0), 0);
+    const totalGoals = summarizedGoals.length;
+    const onTrackCount = summarizedGoals.filter((g) => (g.progressPct ?? 0) >= 80).length;
+    const offTrackCount = summarizedGoals.filter((g) => (g.progressPct ?? 0) < 50).length;
+    const atRiskCount = Math.max(0, totalGoals - onTrackCount - offTrackCount);
+    const highestPriorityGoal = (() => {
+        if (summarizedGoals.length === 0) return null;
+        const sorted = [...summarizedGoals].sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0));
+        const g = sorted[0];
+        return { id: g.id, title: g.title, progressPct: g.progressPct };
+    })();
+    const nearestDeadlineGoal = (() => {
+        const withDates = summarizedGoals.filter((g) => g.targetDate);
+        if (withDates.length === 0) return null;
+        const sorted = [...withDates].sort((a, b) => new Date(a.targetDate!).getTime() - new Date(b.targetDate!).getTime());
+        const g = sorted[0];
+        return { id: g.id, title: g.title, targetDate: g.targetDate };
+    })();
+    const overallProgressPercent = totalTargetAmount > 0 ? Math.round((totalCurrentAmount / totalTargetAmount) * 100) : 0;
+
+    // Derived: month snapshot (current calendar month)
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const txsThisMonth = transactions.filter((tx: any) => {
+        const t = new Date(tx.timestamp);
+        return t >= monthStart && t < monthEnd;
+    });
+    const currentMonthIncome = txsThisMonth.reduce((s: number, t: any) => s + (Number(t.amount) > 0 ? Number(t.amount) : 0), 0);
+    const currentMonthExpenses = Math.abs(txsThisMonth.reduce((s: number, t: any) => s + (Number(t.amount) < 0 ? Number(t.amount) : 0), 0));
+    const currentMonthSavings = currentMonthIncome - currentMonthExpenses;
+    const currentMonthSavingsRate = currentMonthIncome > 0 ? Math.round((currentMonthSavings / currentMonthIncome) * 100) : 0;
+    const transactionCountThisMonth = txsThisMonth.length;
+
+    // Derived: transaction summary (last 30 days)
+    const days30 = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const txs30 = transactions.filter((tx: any) => new Date(tx.timestamp) >= days30);
+    const totalSpendingLast30Days = Math.abs(txs30.reduce((s: number, t: any) => s + (Number(t.amount) < 0 ? Number(t.amount) : 0), 0));
+    const totalIncomeLast30Days = txs30.reduce((s: number, t: any) => s + (Number(t.amount) > 0 ? Number(t.amount) : 0), 0);
+    const avgTxSize = txs30.length ? Math.round(txs30.reduce((s: number, t: any) => s + Math.abs(Number(t.amount)), 0) / txs30.length) : 0;
+    let largestExpenseCategory: string | null = null;
+    let largestExpenseAmount = 0;
+    const categoryMap = new Map<string, number>();
+    for (const t of txs30) {
+        const amt = Number(t.amount);
+        if (amt < 0) {
+            const cat = (t.category && t.category.name) || "Unknown";
+            categoryMap.set(cat, (categoryMap.get(cat) || 0) + Math.abs(amt));
+        }
+    }
+    if (categoryMap.size > 0) {
+        const sortedCats = Array.from(categoryMap.entries()).sort((a, b) => b[1] - a[1]);
+        largestExpenseCategory = sortedCats[0][0];
+        largestExpenseAmount = sortedCats[0][1];
+    }
+    const topMerchantObj = topMerchants.length > 0 ? topMerchants[0] : null;
+    const topMerchant = topMerchantObj ? topMerchantObj.merchant : null;
+    const topMerchantSpend = topMerchantObj ? topMerchantObj.amount : 0;
+    const largestTransaction = (() => {
+        if (txs30.length === 0) return null;
+        const sorted = [...txs30].sort((a, b) => Math.abs(Number(b.amount)) - Math.abs(Number(a.amount)));
+        const t = sorted[0];
+        return compactTransaction(t, currency);
+    })();
+
+    // Derived: financial health summary
+    const runwayMonths = (runway && typeof runway === "object" && "runwayMonths" in (runway as any))
+        ? Number((runway as any).runwayMonths ?? 0)
+        : Number(runway ?? 0);
+    const emergencyFundCoverageMonths = profile && profile.emergencyFund && profile.monthlyExpenses ? Number(profile.emergencyFund) / Math.max(1, Number(profile.monthlyExpenses)) : null;
+    const savingsRate = (savings && typeof savings === "object" && "savingsRate" in (savings as any))
+        ? Number((savings as any).savingsRate ?? 0)
+        : Number(savings ?? 0);
+    const fh_monthlySurplus = monthlySurplusVal;
+    let status = "Needs Attention";
+    if (runwayMonths >= 12 && (emergencyFundCoverageMonths ?? 0) >= 6 && (savingsRate ?? 0) >= 20 && fh_monthlySurplus > 0) status = "Excellent";
+    else if (runwayMonths >= 6 && (emergencyFundCoverageMonths ?? 0) >= 3 && (savingsRate ?? 0) >= 10) status = "Healthy";
+    else if (runwayMonths >= 3) status = "Needs Attention";
+    else status = "Critical";
+
     return {
         profile: profile
             ? {
@@ -127,7 +216,7 @@ export async function buildFinancialContext(limit = 24) {
             monthlyTrend: monthly,
             categoryBreakdown: categoryData,
         },
-        goals: goals.map((goal) => summarizeGoal(goal, currency)),
+        goals: summarizedGoals,
         subscriptions: {
             activeCount: activeSubscriptions.length,
             monthlyRecurringSpend: recurringMonthlySpend,
@@ -154,6 +243,44 @@ export async function buildFinancialContext(limit = 24) {
             score: insight.score,
             createdAt: insight.createdAt,
         })),
+        // New derived summary fields
+        monthlySurplus: monthlySurplusVal,
+        monthlySurplusLabel: formatCurrency(monthlySurplusVal, currency),
+        goalSummary: {
+            totalGoals,
+            onTrackCount,
+            atRiskCount,
+            offTrackCount,
+            highestPriorityGoal,
+            nearestDeadlineGoal,
+            totalTargetAmount,
+            totalCurrentAmount,
+            overallProgressPercent,
+        },
+        monthSnapshot: {
+            currentMonthIncome,
+            currentMonthExpenses,
+            currentMonthSavings,
+            currentMonthSavingsRate,
+            transactionCountThisMonth,
+        },
+        transactionSummary: {
+            largestExpenseCategory,
+            largestExpenseAmount,
+            topMerchant,
+            topMerchantSpend,
+            largestTransaction,
+            averageTransactionSize: avgTxSize,
+            totalSpendingLast30Days,
+            totalIncomeLast30Days,
+        },
+        financialHealthSummary: {
+            runwayMonths,
+            emergencyFundCoverageMonths,
+            monthlySurplus: fh_monthlySurplus,
+            savingsRate,
+            status,
+        },
         decisionFrame: [
             "Prioritize deterministic financial analysis over generic advice.",
             "Assess affordability against emergency fund, runway, savings rate, and goal delays.",
@@ -165,13 +292,45 @@ export async function buildFinancialContext(limit = 24) {
 
 export function buildAdvisorSystemPrompt() {
     return [
-        "You are a disciplined, analytical personal finance advisor for one user.",
-        "You must be conservative, specific, and numerically grounded.",
-        "Use the provided financial context and deterministic reasoning first.",
-        "Do not hallucinate balances, investments, or missing facts.",
-        "If the question is about a purchase, explicitly assess emergency fund impact, runway impact, savings impact, and goal delays.",
-        "If there is insufficient data, say what is missing and state the safest conclusion.",
-        "Keep the answer concise, practical, and protective.",
+        "You are a trusted personal financial advisor and decision-making partner for a single user.",
+
+        "Your purpose is not to report financial data. Your purpose is to help the user make better financial decisions.",
+
+        "Speak like an experienced financial planner having a real conversation with the user.",
+
+        "Answer the user's actual question first before discussing details.",
+
+        "Use the provided financial context as the source of truth.",
+
+        "Base recommendations on balance, emergency fund, savings rate, burn rate, runway, goals, spending patterns, subscriptions, and other available financial information.",
+
+        "Be practical, protective, and realistic rather than optimistic.",
+
+        "When evaluating purchases, explain affordability, tradeoffs, impact on financial safety, impact on goals, and potential risks.",
+
+        "If information is missing, ask for it naturally as a financial advisor would. Do not refuse analysis simply because some information is unavailable. Give the best provisional recommendation possible and explain what additional information would improve the answer.",
+
+        "Avoid sounding like a dashboard, spreadsheet, audit report, API response, or financial compliance document.",
+
+        "Do not use phrases such as 'risk posture', 'goal impact available', 'confidence score', 'analysis result', or other internal terminology.",
+
+        "Do not expose internal calculations unless they help explain the recommendation.",
+
+        "Use numbers when they strengthen the advice, but focus on interpretation rather than calculation.",
+
+        "Explain reasoning in plain language.",
+
+        "When recommending an action, explain why it is beneficial and what outcome it is expected to improve.",
+
+        "When the user's financial situation is weak, prioritize financial stability and emergency preparedness over discretionary spending.",
+
+        "When the user's financial situation is strong, acknowledge opportunities while still discussing tradeoffs.",
+
+        "Be concise by default. Most answers should be 2-6 short paragraphs.",
+
+        "Do not create sections, headings, bullet lists, or report formatting unless the user explicitly requests a detailed breakdown.",
+
+        "The user should feel like they are speaking with a thoughtful personal financial advisor, not reading a generated report."
     ].join(" ");
 }
 
@@ -185,11 +344,36 @@ export function buildAdvisorMessages(question: string, context: unknown) {
     ] as const;
 }
 
+export type AdvisorChatTurn = {
+    question: string;
+    response: string;
+};
+
+export function buildAdvisorChatMessages(question: string, context: unknown, history: AdvisorChatTurn[] = []) {
+    const messages = [{ role: "system", content: buildAdvisorSystemPrompt() }];
+    const contextText = `Financial context:\n${JSON.stringify(context)}`;
+
+    for (const turn of history) {
+        if (turn.question?.trim()) {
+            messages.push({ role: "user", content: `${contextText}\n\nUser question:\n${turn.question.trim()}` });
+        }
+        if (turn.response?.trim()) {
+            messages.push({ role: "assistant", content: turn.response.trim() });
+        }
+    }
+
+    messages.push({
+        role: "user",
+        content: `${contextText}\n\nUser question:\n${question}`,
+    });
+
+    return messages;
+}
+
 export async function askAdvisor(question: string) {
     const context = await buildFinancialContext(24);
     return generateText(buildAdvisorMessages(question, context) as any, {
         temperature: 0.05,
-        maxTokens: 1200,
         complexity: "complex",
     });
 }
