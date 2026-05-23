@@ -11,9 +11,12 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "prisma:generate": "prisma generate",
+    "prisma:deploy": "prisma migrate deploy",
     "prisma:migrate": "prisma migrate dev --name init",
     "prisma:push": "prisma db push",
-    "prisma:studio": "prisma studio"
+    "prisma:studio": "prisma studio",
+    "db:migrate:sqlite-to-postgres": "node scripts/migrate-sqlite-to-postgres.js",
+    "db:verify-postgres-migration": "node scripts/verify-postgres-migration.js"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.1",

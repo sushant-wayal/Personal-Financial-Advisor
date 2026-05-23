@@ -1,105 +1,122 @@
 -- CreateTable
+CREATE TABLE "Category" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "description" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Category_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "Transaction" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "amount" REAL NOT NULL,
+    "id" TEXT NOT NULL,
+    "amount" DOUBLE PRECISION NOT NULL,
     "merchant" TEXT NOT NULL,
     "categoryId" TEXT,
-    "timestamp" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "timestamp" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "source" TEXT NOT NULL,
     "account" TEXT,
     "type" TEXT NOT NULL,
     "notes" TEXT,
-    "confidence" REAL NOT NULL DEFAULT 1.0,
-    "parsedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "confidence" DOUBLE PRECISION NOT NULL DEFAULT 1.0,
+    "parsedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "raw" TEXT NOT NULL,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
-    CONSTRAINT "Transaction_categoryId_fkey" FOREIGN KEY ("categoryId") REFERENCES "Category" ("id") ON DELETE SET NULL ON UPDATE CASCADE
-);
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
--- CreateTable
-CREATE TABLE "Category" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "name" TEXT NOT NULL,
-    "description" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL
+    CONSTRAINT "Transaction_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "Goal" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+    "id" TEXT NOT NULL,
     "title" TEXT NOT NULL,
-    "targetAmount" REAL NOT NULL,
-    "currentAmount" REAL NOT NULL DEFAULT 0,
-    "monthlyTarget" REAL,
+    "targetAmount" DOUBLE PRECISION NOT NULL,
+    "currentAmount" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "monthlyTarget" DOUBLE PRECISION,
     "priority" INTEGER NOT NULL DEFAULT 3,
-    "targetDate" DATETIME,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
-    "notes" TEXT
+    "targetDate" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "notes" TEXT,
+
+    CONSTRAINT "Goal_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "FinancialProfile" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+    "id" TEXT NOT NULL,
     "ownerName" TEXT,
     "currency" TEXT NOT NULL DEFAULT 'INR',
-    "emergencyFund" REAL NOT NULL DEFAULT 0,
-    "monthlyIncome" REAL NOT NULL DEFAULT 0,
-    "monthlyExpenses" REAL NOT NULL DEFAULT 0,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL
+    "emergencyFund" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "monthlyIncome" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "monthlyExpenses" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "FinancialProfile_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "AIMemory" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+    "id" TEXT NOT NULL,
     "key" TEXT NOT NULL,
     "value" TEXT NOT NULL,
     "tags" TEXT NOT NULL DEFAULT '[]',
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "AIMemory_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "Subscription" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+    "id" TEXT NOT NULL,
     "merchant" TEXT NOT NULL,
-    "amount" REAL NOT NULL,
+    "amount" DOUBLE PRECISION NOT NULL,
     "interval" TEXT NOT NULL,
-    "nextCharge" DATETIME,
+    "nextCharge" TIMESTAMP(3),
     "active" BOOLEAN NOT NULL DEFAULT true,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Subscription_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "RecurringPattern" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+    "id" TEXT NOT NULL,
     "description" TEXT NOT NULL,
-    "lastSeen" DATETIME NOT NULL,
+    "lastSeen" TIMESTAMP(3) NOT NULL,
     "frequency" TEXT NOT NULL,
-    "estimatedAmount" REAL NOT NULL,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL
+    "estimatedAmount" DOUBLE PRECISION NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "RecurringPattern_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "FinancialInsight" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+    "id" TEXT NOT NULL,
     "type" TEXT NOT NULL,
     "message" TEXT NOT NULL,
-    "score" REAL,
+    "score" DOUBLE PRECISION,
     "meta" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "FinancialInsight_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "GmailSender" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+    "id" TEXT NOT NULL,
     "email" TEXT NOT NULL,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "GmailSender_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex

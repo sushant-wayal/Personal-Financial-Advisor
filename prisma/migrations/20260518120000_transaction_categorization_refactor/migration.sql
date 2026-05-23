@@ -10,22 +10,25 @@ SET "transactionType" = COALESCE(NULLIF("type", ''), 'OTHER'),
 
 -- Persistent merchant learning table used by manual corrections and future ingestion.
 CREATE TABLE "MerchantCategoryMap" (
-    "id" TEXT NOT NULL PRIMARY KEY,
+    "id" TEXT NOT NULL,
     "merchantKey" TEXT NOT NULL,
     "merchantName" TEXT NOT NULL,
     "categoryId" TEXT NOT NULL,
     "confidence" REAL NOT NULL DEFAULT 0.95,
     "source" TEXT NOT NULL DEFAULT 'manual',
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "MerchantCategoryMap_pkey" PRIMARY KEY ("id"),
     CONSTRAINT "MerchantCategoryMap_categoryId_fkey" FOREIGN KEY ("categoryId") REFERENCES "Category" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
 CREATE UNIQUE INDEX "MerchantCategoryMap_merchantKey_key" ON "MerchantCategoryMap"("merchantKey");
 
 -- Legacy cleanup: infrastructure categories are not spending categories.
-INSERT OR IGNORE INTO "Category" ("id", "name", "createdAt", "updatedAt")
-VALUES ('category_miscellaneous_legacy_cleanup', 'Miscellaneous', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+INSERT INTO "Category" ("id", "name", "createdAt", "updatedAt")
+VALUES ('category_miscellaneous_legacy_cleanup', 'Miscellaneous', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+ON CONFLICT ("name") DO NOTHING;
 
 UPDATE "Transaction"
 SET "categoryId" = (SELECT "id" FROM "Category" WHERE "name" = 'Miscellaneous' LIMIT 1)

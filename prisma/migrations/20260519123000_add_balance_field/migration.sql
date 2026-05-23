@@ -1,5 +1,5 @@
 -- Add stored balance to FinancialProfile and remove currentCash.
-ALTER TABLE "FinancialProfile" ADD COLUMN "balance" REAL NOT NULL DEFAULT 0;
+ALTER TABLE "FinancialProfile" ADD COLUMN "balance" DOUBLE PRECISION NOT NULL DEFAULT 0;
 
 UPDATE "FinancialProfile"
 SET "balance" = 15471.50;

@@ -107,9 +107,9 @@ async function findLearnedCategory(merchant: string) {
 
     const rows = await prisma.$queryRaw<Array<{ category: string; confidence: number }>>`
         SELECT c.name as category, m.confidence as confidence
-        FROM MerchantCategoryMap m
-        JOIN Category c ON c.id = m.categoryId
-        WHERE m.merchantKey = ${key}
+        FROM "MerchantCategoryMap" m
+        JOIN "Category" c ON c.id = m."categoryId"
+        WHERE m."merchantKey" = ${key}
         LIMIT 1
     `;
     const row = rows[0];
@@ -149,14 +149,14 @@ export async function teachMerchantCategory(merchant: string, categoryName: stri
 
     const category = await findOrCreateCategory(categoryName);
     await prisma.$executeRaw`
-        INSERT INTO MerchantCategoryMap (id, merchantKey, merchantName, categoryId, confidence, source, createdAt, updatedAt)
+        INSERT INTO "MerchantCategoryMap" ("id", "merchantKey", "merchantName", "categoryId", "confidence", "source", "createdAt", "updatedAt")
         VALUES (${`merchant_map_${key.replace(/[^a-z0-9]+/g, "_")}`}, ${key}, ${merchant}, ${category.id}, ${0.98}, ${"manual"}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-        ON CONFLICT(merchantKey) DO UPDATE SET
-            merchantName = excluded.merchantName,
-            categoryId = excluded.categoryId,
-            confidence = excluded.confidence,
-            source = excluded.source,
-            updatedAt = CURRENT_TIMESTAMP
+        ON CONFLICT ("merchantKey") DO UPDATE SET
+            "merchantName" = excluded."merchantName",
+            "categoryId" = excluded."categoryId",
+            "confidence" = excluded."confidence",
+            "source" = excluded."source",
+            "updatedAt" = CURRENT_TIMESTAMP
     `;
     return { merchantKey: key, merchantName: merchant, category };
 }
