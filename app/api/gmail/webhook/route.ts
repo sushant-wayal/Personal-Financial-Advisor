@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { handleGmailWebhookPush } from "../../../../../src/services/gmail-webhook.service";
+import { handleGmailWebhookPush } from "../../../../src/services/gmail-webhook.service";
 
 export async function POST(req: Request) {
     try {

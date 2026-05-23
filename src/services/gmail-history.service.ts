@@ -156,7 +156,7 @@ export async function syncGmailIncrementally(input: GmailHistorySyncInput) {
     if (!startHistoryId) {
         const recovery = await recoverWithRecentSenderSearch(input.accessToken, configuredSenders);
         await renewGmailWatch(watch.email);
-        return { ok: true, fallbackUsed: true, ...recovery };
+        return { ok: true, ...recovery };
     }
 
     try {
