@@ -30,11 +30,10 @@ export default function MobileNav() {
                             key={item.label}
                             href={item.href}
                             aria-current={isActive ? "page" : undefined}
-                            className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl px-1 py-2 text-[11px] font-medium transition ${
-                                isActive
+                            className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl px-1 py-2 text-[11px] font-medium transition ${isActive
                                     ? "bg-muted text-foreground shadow-sm"
                                     : "text-muted-foreground active:scale-[0.98]"
-                            }`}
+                                }`}
                         >
                             <Icon size={18} className={isActive ? "text-foreground" : "text-muted-foreground"} />
                             <span className="leading-none">{item.label}</span>
