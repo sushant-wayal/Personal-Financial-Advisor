@@ -74,17 +74,17 @@ export default function SubscriptionsClient() {
 
             {subs.map((s) => (
                 <Card key={s.id} className="bg-muted/40">
-                    <CardContent className="flex items-center justify-between gap-4 px-4 py-3">
+                    <CardContent className="flex items-center justify-between gap-4 px-4 py-2">
                         <div>
                             <div className="font-medium text-foreground">{s.merchant}</div>
                             <div className="text-xs text-muted-foreground">₹{s.amount} • {s.interval}</div>
                             <div className="text-xs text-muted-foreground">Next: {s.nextCharge ? new Date(s.nextCharge).toLocaleDateString() : "-"}</div>
                         </div>
                         <div className="flex items-center gap-2">
-                            <Button size="sm" variant={s.active ? "destructive" : "outline"} onClick={() => toggleActive(s.id, s.active)}>
+                            <Button size="sm" className="rounded-lg" variant={s.active ? "destructive" : "outline"} onClick={() => toggleActive(s.id, s.active)}>
                                 {s.active ? "Disable" : "Enable"}
                             </Button>
-                            <Button size="sm" variant="ghost" onClick={() => remove(s.id)}>Delete</Button>
+                            <Button size="sm" className="rounded-lg" variant="ghost" onClick={() => remove(s.id)}>Delete</Button>
                         </div>
                     </CardContent>
                 </Card>
