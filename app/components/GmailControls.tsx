@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 
-type Status = "idle" | "connecting" | "connected" | "syncing" | "error";
+type Status = "idle" | "connecting" | "connected" | "error";
 
 export default function GmailControls() {
     const [status, setStatus] = useState<Status>("idle");
@@ -16,6 +16,7 @@ export default function GmailControls() {
                 const data = await res.json();
                 if (!cancelled) {
                     setStatus(data.connected ? "connected" : "idle");
+                    setMessage(data.connected ? (data.watchActive ? "Automatic sync is active." : "Connected. Watch setup is pending.") : "");
                 }
             } catch {
                 if (!cancelled) setStatus("error");
@@ -26,30 +27,6 @@ export default function GmailControls() {
             cancelled = true;
         };
     }, []);
-
-    async function syncGmail() {
-        setStatus("syncing");
-        setMessage("");
-        try {
-            const res = await fetch("/api/gmail/sync", { method: "POST" });
-            const data = await res.json();
-            if (res.ok) {
-                setMessage("Sync complete.");
-                setStatus("connected");
-            } else {
-                if (res.status === 401) {
-                    setMessage("Authentication failed. Please reconnect.");
-                    setStatus("idle"); // Revert to connect button
-                } else {
-                    setMessage(data?.error || "Sync failed.");
-                    setStatus("error");
-                }
-            }
-        } catch (e: any) {
-            setMessage(String(e));
-            setStatus("error");
-        }
-    }
 
     if (status === "idle" || status === "error") {
         return (
@@ -71,10 +48,7 @@ export default function GmailControls() {
 
     return (
         <div className="flex items-center gap-2">
-            <Button size="sm" onClick={syncGmail} disabled={status === "syncing"} className={"rounded-lg"}>
-                {status === "syncing" ? "Syncing..." : "Sync Gmail"}
-            </Button>
-            {message && <span className="text-xs text-slate-400">{message}</span>}
+            <span className="text-xs text-emerald-400">{message || "Gmail connected. Automatic sync is active."}</span>
         </div>
     );
 }

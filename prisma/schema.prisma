@@ -17,6 +17,7 @@ model Transaction {
   bankName      String?
   timestamp     DateTime @default(now())
   source        String
+  sourceMessageId String? @unique
   account       String?
   transactionType String @default("OTHER")
   type          String
@@ -125,4 +126,13 @@ model GmailSender {
   id        String   @id @default(cuid())
   email     String   @unique
   createdAt DateTime @default(now())
+}
+
+model GmailWatch {
+  id         String   @id @default(cuid())
+  email      String   @unique
+  historyId  String
+  expiration DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }

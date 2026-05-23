@@ -109,14 +109,14 @@ export function buildAuthUrl(redirectUri: string, scope = "https://www.googleapi
     return url.toString();
 }
 
-function decodeBase64Url(data: string) {
+export function decodeBase64Url(data: string) {
     return Buffer.from(
         data.replace(/-/g, "+").replace(/_/g, "/"),
         "base64"
     ).toString("utf-8");
 }
 
-function extractEmailBody(payload: any): string {
+export function extractEmailBody(payload: any): string {
     if (!payload) return "";
 
     // plain text body
@@ -155,6 +155,57 @@ function extractEmailBody(payload: any): string {
     return "";
 }
 
+export function getHeaderValue(payload: any, headerName: string): string | undefined {
+    const headers = payload?.headers || [];
+    const found = headers.find((header: { name?: string; value?: string }) => String(header.name || "").toLowerCase() === headerName.toLowerCase());
+    return found?.value;
+}
+
+export async function getGmailProfile(accessToken: string) {
+    const res = await axios.get(`${GMAIL_API_BASE}/users/me/profile`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    return res.data;
+}
+
+export async function fetchGmailMessage(accessToken: string, messageId: string) {
+    const res = await axios.get(`${GMAIL_API_BASE}/users/me/messages/${messageId}?format=full`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    return res.data;
+}
+
+export async function searchGmailMessages(accessToken: string, query: string, maxResults = 50) {
+    const url = `${GMAIL_API_BASE}/users/me/messages?q=${encodeURIComponent(query)}&maxResults=${maxResults}`;
+    const res = await axios.get(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+    return res.data.messages || [];
+}
+
+export async function listGmailHistory(accessToken: string, startHistoryId: string, pageToken?: string) {
+    const params = new URLSearchParams();
+    params.set("startHistoryId", startHistoryId);
+    params.set("maxResults", "500");
+    if (pageToken) params.set("pageToken", pageToken);
+
+    const res = await axios.get(`${GMAIL_API_BASE}/users/me/history?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    return res.data;
+}
+
+export async function watchGmailInbox(accessToken: string, topicName: string) {
+    const res = await axios.post(
+        `${GMAIL_API_BASE}/users/me/watch`,
+        {
+            labelIds: ["INBOX"],
+            labelFilterAction: "include",
+            topicName,
+        },
+        { headers: { Authorization: `Bearer ${accessToken}` } },
+    );
+    return res.data;
+}
+
 export async function fetchUnreadFinancialEmails(accessToken: string, senders: string[], maxResults = 20, afterDate?: string) {
     // search only from explicitly configured senders; support incremental via after:YYYY/MM/DD
     const fromQuery = senders.map((s) => `from:${s}`).join(" OR ");
@@ -167,13 +218,11 @@ export async function fetchUnreadFinancialEmails(accessToken: string, senders: s
         const day = String(d.getDate()).padStart(2, "0");
         q += ` after:${y}/${m}/${day}`;
     }
-    const url = `${GMAIL_API_BASE}/users/me/messages?q=${encodeURIComponent(q)}&maxResults=${maxResults}`;
-    const res = await axios.get(url, { headers: { Authorization: `Bearer ${accessToken}` } });
-    const messages = res.data.messages || [];
+    const messages = await searchGmailMessages(accessToken, q, maxResults);
     const out: Array<{ id: string; snippet?: string; internalDate?: string }> = [];
     for (const m of messages) {
         try {
-            const r = await axios.get(`${GMAIL_API_BASE}/users/me/messages/${m.id}?format=full`, { headers: { Authorization: `Bearer ${accessToken}` } });
+            const r = await fetchGmailMessage(accessToken, m.id);
             const fullBody = extractEmailBody(r.data.payload);
             out.push({
                 id: m.id,
