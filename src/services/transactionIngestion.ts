@@ -30,6 +30,7 @@ function toDate(value?: string | Date) {
 }
 
 async function applyTransactionSideEffects(amount: number, transactionType: string) {
+    console.info("[transaction-ingestion] applying side effects", { amount, transactionType });
     const impact = getTransactionImpact(amount, transactionType, transactionType);
     await updateProfileBalanceBy(impact);
 
@@ -53,9 +54,28 @@ export async function ingestTransaction(input: TransactionIngestionInput) {
     const raw = input.raw || input.rawText || JSON.stringify(input);
     const sourceMessageId = input.sourceMessageId ? String(input.sourceMessageId) : null;
 
+    console.info("[transaction-ingestion] start", {
+        source: input.source,
+        sourceMessageId,
+        hasStructuredFields: Boolean(
+            input.amount !== undefined ||
+            input.merchant !== undefined ||
+            input.category !== undefined ||
+            input.categoryId !== undefined ||
+            input.transactionType !== undefined ||
+            input.type !== undefined ||
+            input.paymentMethod !== undefined ||
+            input.bankName !== undefined ||
+            input.notes !== undefined ||
+            input.timestamp !== undefined,
+        ),
+        rawLength: raw.length,
+    });
+
     if (sourceMessageId) {
         const existing = await findTransactionBySourceMessageId(sourceMessageId);
         if (existing) {
+            console.info("[transaction-ingestion] duplicate sourceMessageId skipped", { sourceMessageId, transactionId: existing.id });
             return { ok: true, duplicate: true, transaction: existing };
         }
     }
@@ -107,6 +127,14 @@ export async function ingestTransaction(input: TransactionIngestionInput) {
             categoryId = category.id;
         }
 
+        console.info("[transaction-ingestion] creating structured transaction", {
+            merchant,
+            amount,
+            transactionType,
+            categoryId,
+            sourceMessageId,
+        });
+
         const tx = await prisma.transaction.create({
             data: {
                 amount: Number.isFinite(amount) ? amount : 0,
@@ -132,6 +160,8 @@ export async function ingestTransaction(input: TransactionIngestionInput) {
             WHERE "id" = ${tx.id}
         `;
 
+        console.info("[transaction-ingestion] created structured transaction", { transactionId: tx.id, merchant: tx.merchant });
+
         await applyTransactionSideEffects(tx.amount, transactionType);
 
         return {
@@ -147,6 +177,12 @@ export async function ingestTransaction(input: TransactionIngestionInput) {
     }
 
     const parsed = deterministicParse(raw);
+    console.info("[transaction-ingestion] parsed email text", {
+        merchant: parsed.merchant,
+        amount: parsed.amount,
+        type: parsed.type,
+        transactionType: parsed.transactionType,
+    });
     const catInfo = await autoCategorize(parsed.merchant, {
         rawText: parsed.rawText || raw,
         transactionType: parsed.transactionType,
@@ -170,6 +206,13 @@ export async function ingestTransaction(input: TransactionIngestionInput) {
             raw: parsed.raw || raw,
         } as any,
         include: { category: true },
+    });
+
+    console.info("[transaction-ingestion] created parsed transaction", {
+        transactionId: tx.id,
+        merchant: tx.merchant,
+        amount: tx.amount,
+        sourceMessageId,
     });
 
     await prisma.$executeRaw`

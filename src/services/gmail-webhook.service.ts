@@ -36,25 +36,47 @@ function decodePushEnvelope(body: PubSubEnvelope): GmailPushPayload {
 }
 
 export async function handleGmailWebhookPush(rawBody: PubSubEnvelope) {
+    console.info("[gmail-webhook] received push notification", {
+        hasMessage: Boolean(rawBody?.message),
+        subscription: rawBody?.subscription,
+        messageId: rawBody?.message?.messageId,
+    });
     const payload = decodePushEnvelope(rawBody);
+    console.info("[gmail-webhook] decoded payload", payload);
     const watch = await getStoredGmailWatch(payload.emailAddress);
 
     if (!watch) {
+        console.warn("[gmail-webhook] no watch found for account", { emailAddress: payload.emailAddress });
         return { ok: true, ignored: true, reason: "watch-not-found", payload };
     }
 
+    console.info("[gmail-webhook] loaded watch", {
+        email: watch.email,
+        storedHistoryId: watch.historyId,
+        incomingHistoryId: payload.historyId,
+        expiration: watch.expiration,
+    });
+
     if (String(payload.historyId) === String(watch.historyId)) {
+        console.info("[gmail-webhook] duplicate history id ignored", { emailAddress: payload.emailAddress, historyId: payload.historyId });
         return { ok: true, ignored: true, reason: "duplicate-history-id", payload };
     }
 
-    void withGmailAuth(async (accessToken) => {
+    await withGmailAuth(async (accessToken) => {
+        console.info("[gmail-webhook] starting incremental sync", {
+            emailAddress: payload.emailAddress,
+            notificationHistoryId: payload.historyId,
+        });
         await syncGmailIncrementally({
             accessToken,
             emailAddress: payload.emailAddress,
             notificationHistoryId: payload.historyId,
         });
-    }).catch((error) => {
-        console.error("[gmail-webhook] async processing failed", error);
+    });
+
+    console.info("[gmail-webhook] incremental sync finished", {
+        emailAddress: payload.emailAddress,
+        historyId: payload.historyId,
     });
 
     return { ok: true, accepted: true, payload };

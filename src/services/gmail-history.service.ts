@@ -29,7 +29,9 @@ function getWatchModel() {
 
 async function loadConfiguredSenders() {
     try {
-        return await getConfiguredFinancialSenders();
+        const senders = await getConfiguredFinancialSenders();
+        console.info("[gmail-history] loaded configured senders", { count: senders.length, senders });
+        return senders;
     } catch (error) {
         console.error("[gmail-history] failed to load senders", error);
         return [];
@@ -38,18 +40,31 @@ async function loadConfiguredSenders() {
 
 async function processMessage(accessToken: string, messageId: string, configuredSenders: string[]) {
     try {
+        console.info("[gmail-history] processing message", { messageId });
         const message = await fetchGmailMessage(accessToken, messageId) as GmailMessageItem;
         const fromHeader = getHeaderValue(message.payload, "From");
+        console.info("[gmail-history] fetched message headers", {
+            messageId,
+            fromHeader,
+            subject: getHeaderValue(message.payload, "Subject"),
+        });
 
         if (!(await isApprovedFinancialSender(fromHeader, configuredSenders))) {
+            console.info("[gmail-history] skipped unapproved sender", { messageId, fromHeader, configuredSenders });
             return { messageId, skipped: true, reason: "sender-not-approved" };
         }
 
         const rawText = String(extractEmailBody(message.payload) || message.snippet || "").trim();
         const subject = getHeaderValue(message.payload, "Subject") || "";
         const content = rawText || String(subject).trim();
+        console.info("[gmail-history] extracted email content", {
+            messageId,
+            contentLength: content.length,
+            hasBody: Boolean(rawText),
+        });
 
         if (!content) {
+            console.warn("[gmail-history] empty message content", { messageId });
             return { messageId, skipped: true, reason: "empty-message" };
         }
 
@@ -59,6 +74,13 @@ async function processMessage(accessToken: string, messageId: string, configured
             source: "gmail",
             sourceMessageId: messageId,
             timestamp: message.internalDate ? new Date(Number(message.internalDate)) : undefined,
+        });
+
+        console.info("[gmail-history] ingestion result", {
+            messageId,
+            duplicate: Boolean((result as any).duplicate),
+            transactionId: (result as any).transaction?.id,
+            merchant: (result as any).transaction?.merchant,
         });
 
         return { messageId, skipped: false, duplicate: Boolean((result as any).duplicate), transaction: (result as any).transaction };
@@ -73,9 +95,16 @@ async function collectHistoryMessageIds(accessToken: string, startHistoryId: str
     let pageToken: string | undefined;
     let latestHistoryId = startHistoryId;
 
+    console.info("[gmail-history] collecting history changes", { startHistoryId });
+
     do {
         const response = await listGmailHistory(accessToken, startHistoryId, pageToken);
         latestHistoryId = String(response.historyId || latestHistoryId);
+        console.info("[gmail-history] history page", {
+            historyId: response.historyId,
+            pageToken: response.nextPageToken,
+            recordCount: Array.isArray(response.history) ? response.history.length : 0,
+        });
         for (const record of response.history || []) {
             for (const item of record.messagesAdded || []) {
                 if (item?.message?.id) messageIds.add(String(item.message.id));
@@ -94,6 +123,7 @@ async function collectHistoryMessageIds(accessToken: string, startHistoryId: str
 
 async function recoverWithRecentSenderSearch(accessToken: string, configuredSenders: string[]) {
     if (!configuredSenders.length) {
+        console.warn("[gmail-history] recovery skipped because no senders are configured");
         return { processed: [], fallbackUsed: true };
     }
 
@@ -104,7 +134,9 @@ async function recoverWithRecentSenderSearch(accessToken: string, configuredSend
     const d = String(cutoff.getDate()).padStart(2, "0");
     const fromQuery = configuredSenders.map((sender) => `from:${sender}`).join(" OR ");
     const query = configuredSenders.length > 1 ? `(${fromQuery}) after:${y}/${m}/${d}` : `${fromQuery} after:${y}/${m}/${d}`;
+    console.info("[gmail-history] recovery search", { query });
     const messages = await searchGmailMessages(accessToken, query, 100);
+    console.info("[gmail-history] recovery messages found", { count: messages.length });
 
     const processed = [];
     for (const message of messages) {
@@ -140,13 +172,19 @@ async function persistWatchHistory(email: string, historyId: string, expiration?
 }
 
 export async function syncGmailIncrementally(input: GmailHistorySyncInput) {
+    console.info("[gmail-history] incremental sync start", {
+        emailAddress: input.emailAddress,
+        notificationHistoryId: input.notificationHistoryId,
+    });
     const configuredSenders = await loadConfiguredSenders();
     if (!configuredSenders.length) {
+        console.warn("[gmail-history] aborting sync because no configured senders exist");
         return { ok: true, processed: [], skipped: [], messageIds: [], reason: "no-configured-senders" };
     }
 
     const watch = await getStoredGmailWatch(input.emailAddress);
     if (!watch) {
+        console.warn("[gmail-history] no watch row found, using recovery search and recreating watch", { emailAddress: input.emailAddress });
         const recovery = await recoverWithRecentSenderSearch(input.accessToken, configuredSenders);
         await startGmailWatch();
         return { ok: true, watchMissing: true, ...recovery };
@@ -154,6 +192,7 @@ export async function syncGmailIncrementally(input: GmailHistorySyncInput) {
 
     const startHistoryId = String(watch.historyId || input.notificationHistoryId || "");
     if (!startHistoryId) {
+        console.warn("[gmail-history] watch exists but has no start history id, using recovery search", { email: watch.email });
         const recovery = await recoverWithRecentSenderSearch(input.accessToken, configuredSenders);
         await renewGmailWatch(watch.email);
         return { ok: true, ...recovery };
@@ -164,6 +203,12 @@ export async function syncGmailIncrementally(input: GmailHistorySyncInput) {
         const processed = [];
         const skipped = [];
 
+        console.info("[gmail-history] collected message ids", {
+            count: messageIds.length,
+            latestHistoryId,
+            watchHistoryId: watch.historyId,
+        });
+
         for (const messageId of messageIds) {
             const result = await processMessage(input.accessToken, messageId, configuredSenders);
             if ((result as any).skipped) skipped.push(result);
@@ -172,6 +217,13 @@ export async function syncGmailIncrementally(input: GmailHistorySyncInput) {
 
         const nextHistoryId = input.notificationHistoryId || latestHistoryId || startHistoryId;
         await persistWatchHistory(watch.email, String(nextHistoryId), watch.expiration);
+
+        console.info("[gmail-history] sync complete", {
+            email: watch.email,
+            processedCount: processed.length,
+            skippedCount: skipped.length,
+            nextHistoryId,
+        });
 
         return {
             ok: true,
