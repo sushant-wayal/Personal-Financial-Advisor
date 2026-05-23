@@ -331,7 +331,7 @@ export default function GoalsManager() {
     return (
         <div className="space-y-8">
             <Card className="overflow-hidden border-white/10 bg-slate-950/55 shadow-2xl shadow-black/10 backdrop-blur">
-                <div className="border-b border-white/5 px-6 py-6 lg:px-8">
+                <div className="border-b border-white/5 px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
                     <div className="text-xs font-semibold uppercase tracking-[0.35em] text-cyan-300/80">Goals dashboard</div>
                     <div className="mt-2 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                         <div className="max-w-3xl">
@@ -339,7 +339,7 @@ export default function GoalsManager() {
                             <div className="mt-2 text-sm text-slate-400">The most important items sit first: capacity, conflicts, allocation, and timeline risk. Editing and goal creation stay available, but secondary.</div>
                         </div>
                         <div className="flex flex-col items-stretch gap-3 md:items-end">
-                            <Button onClick={() => setCreateGoalOpen(true)} variant="secondary" className="rounded-lg self-start md:self-end">
+                            <Button onClick={() => setCreateGoalOpen(true)} variant="secondary" className="w-full rounded-lg md:w-auto md:self-end">
                                 Add goal
                             </Button>
                             <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-right">
@@ -351,8 +351,8 @@ export default function GoalsManager() {
                     </div>
                 </div>
 
-                <div className="px-6 py-6 lg:px-8">
-                    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
+                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                         {dashboardMetrics.map((metric) => (
                             <div key={metric.label} className={`rounded-2xl border border-white/10 bg-gradient-to-br ${metric.accent} p-4`}>
                                 <div className="text-xs uppercase tracking-[0.28em] text-slate-400">{metric.label}</div>
@@ -365,7 +365,7 @@ export default function GoalsManager() {
             </Card>
 
             {goalOverview && goalOverview.conflicts.length > 0 && (
-                <Card className="overflow-hidden border-amber-700/30 bg-amber-950/10 px-6 py-6 lg:px-8">
+                <Card className="overflow-hidden border-amber-700/30 bg-amber-950/10 px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
                     <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
                         <div>
                             <div className="text-sm font-semibold text-amber-300">Goal conflicts</div>
@@ -387,7 +387,7 @@ export default function GoalsManager() {
                 </Card>
             )}
 
-            <div className="grid gap-6 xl:grid-cols-12">
+            <div className="grid gap-4 xl:grid-cols-12">
                 <div className="space-y-6 xl:col-span-8">
                     {goalOverview?.goals && goalOverview.goals.length > 0 && (() => {
                         const timelineGoals = goalOverview.goals.map((g) => normalizeGoalForTimeline(g));
@@ -398,7 +398,7 @@ export default function GoalsManager() {
 
                         return (
                             <>
-                                <Card className="overflow-hidden border-teal-700/30 bg-teal-950/10 px-6 py-6 lg:px-8">
+                                <Card className="overflow-hidden border-teal-700/30 bg-teal-950/10 px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
                                     <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
                                         <div>
                                             <div className="text-sm font-semibold text-teal-300">Timeline Overview</div>
@@ -435,7 +435,7 @@ export default function GoalsManager() {
                                     </div>
                                 </Card>
 
-                                <Card className="overflow-hidden border-cyan-700/30 bg-cyan-950/10 px-6 py-6 lg:px-8">
+                                <Card className="overflow-hidden border-cyan-700/30 bg-cyan-950/10 px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
                                     <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
                                         <div>
                                             <div className="text-sm font-semibold text-cyan-300">Gantt Timeline</div>
@@ -449,7 +449,7 @@ export default function GoalsManager() {
                                 </Card>
 
                                 {goalOverview?.allocation && goalOverview.allocationStrategies && (
-                                    <Card className="overflow-hidden border-emerald-700/30 bg-emerald-950/10 px-6 py-6 lg:px-8">
+                                    <Card className="overflow-hidden border-emerald-700/30 bg-emerald-950/10 px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
                                         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
                                             <div>
                                                 <div className="text-sm font-semibold text-emerald-300">Allocation engine</div>
@@ -511,7 +511,7 @@ export default function GoalsManager() {
                 </div>
 
                 <div className="space-y-6 xl:col-span-4">
-                    <Card className="overflow-hidden border-blue-700/30 bg-blue-950/10 px-6 py-6">
+                    <Card className="overflow-hidden border-blue-700/30 bg-blue-950/10 px-4 py-4 sm:px-6 sm:py-6">
                         <div className="flex items-start justify-between">
                             <div>
                                 <div className="text-sm font-semibold text-blue-300">AI Financial Advisor</div>
@@ -552,7 +552,7 @@ export default function GoalsManager() {
                         )}
                     </Card>
 
-                    <Card className="overflow-hidden border-purple-700/30 bg-purple-950/10 px-6 py-6">
+                    <Card className="overflow-hidden border-purple-700/30 bg-purple-950/10 px-4 py-4 sm:px-6 sm:py-6">
                         <div>
                             <div className="text-sm font-semibold text-purple-300">What-If Simulation</div>
                             <div className="text-xs text-slate-400">See how spending changes impact your goals</div>
@@ -624,7 +624,7 @@ export default function GoalsManager() {
             </div>
 
             <Dialog open={createGoalOpen} onOpenChange={setCreateGoalOpen}>
-                <DialogContent className="sm:max-w-2xl rounded-2xl p-8">
+                <DialogContent className="rounded-2xl p-4 sm:max-w-2xl sm:p-8">
                     <DialogHeader className="space-y-2">
                         <DialogTitle>Add Goal</DialogTitle>
                         <DialogDescription>
@@ -708,7 +708,7 @@ export default function GoalsManager() {
                     const hasChanges = Object.keys(patch).length > 0;
 
                     return (
-                        <Card key={goal.id} className="overflow-hidden border-white/10 bg-slate-950/55 px-6 py-6 shadow-lg shadow-black/10 backdrop-blur">
+                        <Card key={goal.id} className="overflow-hidden border-white/10 bg-slate-950/55 px-4 py-4 sm:px-6 sm:py-6 shadow-lg shadow-black/10 backdrop-blur">
                             <details className="group">
                                 <summary className="flex cursor-pointer list-none flex-col gap-4">
                                     <div className="flex items-start justify-between gap-4">

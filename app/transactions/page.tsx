@@ -12,8 +12,11 @@ function LoadingFallback() {
 
 export default function TransactionsPage() {
     return (
-        <div>
-            <h1 className="text-2xl font-bold mb-4">Transactions</h1>
+        <div className="space-y-4">
+            <div>
+                <h1 className="text-2xl font-bold sm:text-3xl mb-2">Transactions</h1>
+                <p className="max-w-2xl text-sm text-muted-foreground sm:text-base">Review, filter, and edit your transaction history.</p>
+            </div>
             <Suspense fallback={<LoadingFallback />}>
                 <TransactionsClient />
             </Suspense>

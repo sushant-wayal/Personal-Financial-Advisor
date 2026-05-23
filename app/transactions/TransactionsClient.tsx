@@ -775,8 +775,8 @@ export default function TransactionsClient() {
                     </DropdownMenu>
                 </CardAction>
             </CardHeader>
-            <CardContent className="space-y-6">
-                <div className="grid gap-4 lg:grid-cols-4">
+            <CardContent className="space-y-5 sm:space-y-6">
+                <div className="grid gap-3 lg:grid-cols-4">
                     <label className="space-y-1">
                         <Label>Global search</Label>
                         <Input
@@ -835,7 +835,7 @@ export default function TransactionsClient() {
                     </label>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
                     <label className="space-y-1">
                         <Label>Date range</Label>
                         <Select
@@ -923,7 +923,7 @@ export default function TransactionsClient() {
                     </label>
                 </div>
 
-                <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="text-sm text-muted-foreground">
                         {selectedCount > 0 ? `${selectedCount} selected` : `${meta.total} total`}
                     </div>
@@ -1026,7 +1026,7 @@ export default function TransactionsClient() {
                     </TableBody>
                 </Table>
 
-                <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border/60 pt-4">
+                <div className="flex flex-col gap-3 border-t border-border/60 pt-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <span>Rows per page</span>
                         <Select
@@ -1097,7 +1097,7 @@ export default function TransactionsClient() {
 
             {/* Edit Transaction Dialog */}
             <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-                <DialogContent className="sm:max-w-2xl rounded-2xl p-8">
+                <DialogContent className="rounded-2xl p-4 sm:max-w-2xl sm:p-8">
                     <DialogHeader>
                         <DialogTitle>Edit Transaction</DialogTitle>
                         <DialogDescription>
