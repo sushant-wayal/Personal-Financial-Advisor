@@ -101,9 +101,12 @@ export default function SettingsClient() {
                                     value={input}
                                     onChange={(e) => setInput(e.target.value)}
                                     rows={10}
-                                    placeholder="alerts@bank.com, noreply@bank.com"
+                                    placeholder="alerts@bank.com\nnoreply@bank.com\nhello@bank.com"
                                     className="resize-none h-full"
                                 />
+                                <p className="text-xs text-muted-foreground">
+                                    Enter one email per line, or separate multiple emails with commas.
+                                </p>
                             </div>
                             <div className="flex items-center gap-2">
                                 <Button onClick={saveSenders} disabled={status === "saving"} className="w-full rounded-lg">
