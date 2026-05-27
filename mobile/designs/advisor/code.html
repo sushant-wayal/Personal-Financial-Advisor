@@ -1,0 +1,281 @@
+<!DOCTYPE html><html class="dark" lang="en" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Sovereign AI Advisor</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;700&amp;family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "primary": "#ffffff",
+                    "on-tertiary": "#002d6e",
+                    "surface-container-lowest": "#0e0e0e",
+                    "outline": "#8e9192",
+                    "error-container": "#93000a",
+                    "on-secondary-fixed": "#00210b",
+                    "on-background": "#e5e2e1",
+                    "tertiary-container": "#d9e2ff",
+                    "on-surface": "#e5e2e1",
+                    "surface-container-highest": "#353534",
+                    "surface-container-low": "#1c1b1b",
+                    "outline-variant": "#444748",
+                    "inverse-surface": "#e5e2e1",
+                    "tertiary-fixed": "#d9e2ff",
+                    "on-tertiary-fixed-variant": "#00429b",
+                    "surface-variant": "#353534",
+                    "surface-container-high": "#2a2a2a",
+                    "surface-tint": "#c6c6c7",
+                    "tertiary-fixed-dim": "#b0c6ff",
+                    "on-secondary": "#003918",
+                    "background": "#131313",
+                    "secondary-fixed-dim": "#00e475",
+                    "surface-dim": "#131313",
+                    "on-primary-fixed-variant": "#454747",
+                    "on-tertiary-container": "#005ed6",
+                    "error": "#ffb4ab",
+                    "secondary": "#7dffa2",
+                    "tertiary": "#ffffff",
+                    "on-error-container": "#ffdad6",
+                    "surface-container": "#201f1f",
+                    "surface": "#131313",
+                    "on-primary-container": "#636565",
+                    "inverse-on-surface": "#313030",
+                    "primary-container": "#e2e2e2",
+                    "on-error": "#690005",
+                    "primary-fixed-dim": "#c6c6c7",
+                    "inverse-primary": "#5d5f5f",
+                    "secondary-fixed": "#62ff96",
+                    "on-secondary-fixed-variant": "#005226",
+                    "primary-fixed": "#e2e2e2",
+                    "surface-bright": "#3a3939",
+                    "on-tertiary-fixed": "#001945",
+                    "on-surface-variant": "#c4c7c8",
+                    "on-primary": "#2f3131",
+                    "secondary-container": "#05e777",
+                    "on-primary-fixed": "#1a1c1c",
+                    "on-secondary-container": "#00622e"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "gutter": "24px",
+                    "margin-mobile": "24px",
+                    "container-max": "1440px",
+                    "margin-desktop": "64px",
+                    "base": "8px"
+            },
+            "fontFamily": {
+                    "headline-md": [
+                            "Hanken Grotesk"
+                    ],
+                    "body-lg": [
+                            "Inter"
+                    ],
+                    "body-md": [
+                            "Inter"
+                    ],
+                    "headline-lg": [
+                            "Hanken Grotesk"
+                    ],
+                    "headline-lg-mobile": [
+                            "Hanken Grotesk"
+                    ],
+                    "label-mono": [
+                            "JetBrains Mono"
+                    ]
+            },
+            "fontSize": {
+                    "headline-md": [
+                            "24px",
+                            {
+                                    "lineHeight": "32px",
+                                    "fontWeight": "600"
+                            }
+                    ],
+                    "body-lg": [
+                            "18px",
+                            {
+                                    "lineHeight": "28px",
+                                    "fontWeight": "400"
+                            }
+                    ],
+                    "body-md": [
+                            "16px",
+                            {
+                                    "lineHeight": "24px",
+                                    "fontWeight": "400"
+                            }
+                    ],
+                    "headline-lg": [
+                            "40px",
+                            {
+                                    "lineHeight": "48px",
+                                    "letterSpacing": "-0.02em",
+                                    "fontWeight": "700"
+                            }
+                    ],
+                    "headline-lg-mobile": [
+                            "32px",
+                            {
+                                    "lineHeight": "40px",
+                                    "letterSpacing": "-0.01em",
+                                    "fontWeight": "700"
+                            }
+                    ],
+                    "label-mono": [
+                            "14px",
+                            {
+                                    "lineHeight": "20px",
+                                    "letterSpacing": "0.05em",
+                                    "fontWeight": "500"
+                            }
+                    ]
+            }
+          }
+        }
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+          font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined.fill {
+          font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        
+        /* Custom scrollbar for chat area */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #2a2a2a;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #444748;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-background text-on-background font-body-md min-h-screen flex flex-col antialiased selection:bg-primary selection:text-on-primary">
+<!-- Top App Bar -->
+<header class="flex justify-between items-center w-full px-margin-mobile md:px-margin-desktop h-16 bg-background dark:bg-background border-b border-outline-variant docked full-width top-0 z-40 fixed">
+<div class="flex items-center gap-4 cursor-pointer active:opacity-80"><span class="material-symbols-outlined text-primary dark:text-primary">support_agent</span>
+
+<h1 class="font-label-mono text-label-mono uppercase tracking-widest text-primary dark:text-primary font-bold">AI ADVISOR</h1>
+</div>
+
+<span class="material-symbols-outlined text-primary dark:text-primary cursor-pointer hover:opacity-70 transition-opacity">close</span></header>
+<!-- Main Chat Canvas -->
+<main class="flex-1 flex flex-col pt-16 pb-32 max-w-container-max mx-auto w-full px-margin-mobile md:px-margin-desktop relative">
+<!-- Chat History -->
+<div class="flex-1 overflow-y-auto py-8 space-y-8 flex flex-col">
+<!-- System Introduction (Optional, adds to the premium feel) -->
+<div class="flex justify-center mb-4">
+
+</div>
+<!-- User Message 1 -->
+<div class="flex justify-end w-full">
+<div class="bg-surface-container-low border border-outline-variant rounded-lg rounded-tr-none px-5 py-4 max-w-[85%] md:max-w-[70%] shadow-sm">
+<p class="font-body-md text-body-md text-on-surface">Can I afford a smart watch of around ₹5,000?</p>
+</div>
+</div>
+<!-- AI Response 1 -->
+<div class="flex justify-center w-full">
+<div class="border-outline-variant rounded-xl py-8 w-full relative px-0">
+<h3 class="font-headline-md text-headline-md text-primary mb-4 text-lg text-left">Analysis Complete</h3>
+<p class="font-body-md text-body-md text-on-surface-variant mb-5 text-left">Based on current liquidity metrics and projected outflows, purchasing a ₹5,000 smart watch is strongly advised against at this juncture.</p>
+<!-- Data Badge -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-DEFAULT p-4 mb-5 flex items-center justify-between">
+<div>
+<span class="font-label-mono text-label-mono text-outline uppercase text-[10px] block mb-1">Financial Runway Risk</span>
+<span class="font-headline-md text-headline-md text-error text-xl">Critical Level</span>
+</div>
+<div class="text-right">
+<span class="font-label-mono text-label-mono text-outline uppercase text-[10px] block mb-1">Available Liquidity</span>
+<span class="font-label-mono text-label-mono text-primary text-lg">₹9,437</span>
+</div>
+</div>
+<p class="font-body-md text-body-md text-on-surface mb-3 text-left">Key Detractors:</p>
+<ul class="space-y-3 font-body-md text-body-md text-on-surface-variant list-none pl-1">
+<li class="flex items-start">
+<span class="material-symbols-outlined text-error text-[18px] mr-2 mt-1">warning</span>
+<span class=""><strong>Low Emergency Fund:</strong> Current reserves do not meet the 3-month institutional minimum standard.</span>
+</li>
+<li class="flex items-start">
+<span class="material-symbols-outlined text-outline text-[18px] mr-2 mt-1">track_changes</span>
+<span class=""><strong>Existing Mandates:</strong> Diverting ₹5,000 compromises timeline integrity for your primary established goals.</span>
+</li>
+</ul>
+</div>
+</div>
+<!-- User Message 2 -->
+<div class="flex justify-end w-full">
+<div class="bg-surface-container-low border border-outline-variant rounded-lg rounded-tr-none px-5 py-4 max-w-[85%] md:max-w-[70%] shadow-sm">
+<p class="font-body-md text-body-md text-on-surface">If I want then, what should be my target date for it and what priority?</p>
+</div>
+</div>
+<!-- AI Response 2 -->
+<div class="flex justify-center w-full">
+<div class="border-outline-variant rounded-xl py-8 w-full relative px-0">
+<p class="font-body-md text-body-md text-on-surface-variant mb-5 text-left">To acquire this asset without destabilizing your core financial architecture, we must structure it as a subordinate objective.</p>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+<div class="bg-surface-container-highest border border-outline-variant rounded-DEFAULT p-4">
+<div class="flex items-center mb-2">
+<span class="material-symbols-outlined text-outline text-[16px] mr-2">flag</span>
+<span class="font-label-mono text-label-mono text-outline uppercase text-[10px]">Classification</span>
+</div>
+<span class="font-headline-md text-headline-md text-primary text-lg">P4 / P5 Priority</span>
+<p class="font-body-md text-body-md text-on-surface-variant text-sm mt-1 text-left">Non-essential discretionary</p>
+</div>
+<div class="bg-surface-container-highest border border-outline-variant rounded-DEFAULT p-4">
+<div class="flex items-center mb-2">
+<span class="material-symbols-outlined text-secondary text-[16px] mr-2">calendar_month</span>
+<span class="font-label-mono text-label-mono text-outline uppercase text-[10px]">Strategic Horizon</span>
+</div>
+<span class="font-headline-md text-headline-md text-secondary text-lg">8-9 Months Out</span>
+<p class="font-body-md text-body-md text-on-surface-variant text-sm mt-1 text-left">Post-emergency fund stabilization</p>
+</div>
+</div>
+<div class="bg-[#1A1A1A] border border-[#333333] rounded-DEFAULT p-4">
+<p class="font-body-md text-body-md text-on-surface text-sm text-left"><strong>Directive:</strong> Focus all surplus capital on establishing the 3-month emergency reserve threshold. Once achieved, we can allocate a fractional monthly drip towards this P4 objective.</p>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Fixed Input Area -->
+<div class="fixed bottom-0 w-full bg-surface-container-low border-t border-outline-variant z-50 py-6 md:py-8 backdrop-blur-md">
+<div class="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop">
+<div class="relative flex flex-col border rounded-lg focus-within:border-primary transition-all shadow-xl bg-surface-container-lowest border-outline-variant group">
+<textarea class="bg-transparent border-none focus:ring-0 text-primary font-body-md text-body-md pl-4 pr-16 py-4 min-w-0 placeholder:text-outline/80 resize-none w-full" oninput="this.style.height = 'auto'; this.style.height = Math.min(this.scrollHeight, 200) + 'px'; this.style.overflowY = this.scrollHeight &gt; 200 ? 'auto' : 'hidden';" placeholder="Ask the financial advisor..." rows="1" style="height: 56px; overflow-y: hidden; transition: height 0.1s ease-out;"></textarea>
+<button class="absolute bottom-2 right-2 w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center hover:opacity-90 transition-all focus:outline-none shadow-md">
+<span class="material-symbols-outlined">arrow_upward</span>
+</button>
+</div>
+<div class="flex justify-center mt-6">
+
+</div>
+</div>
+</div>
+
+
+
+
+</body></html>

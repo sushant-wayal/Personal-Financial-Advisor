@@ -1,0 +1,265 @@
+<!DOCTYPE html><html class="dark" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>What-If Simulation - Private Office</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@600;700&amp;family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "background": "#131313",
+                    "tertiary-fixed": "#d9e2ff",
+                    "on-secondary": "#003918",
+                    "on-primary-fixed": "#1a1c1c",
+                    "surface-container-low": "#1c1b1b",
+                    "on-primary-container": "#636565",
+                    "secondary-fixed": "#62ff96",
+                    "inverse-surface": "#e5e2e1",
+                    "inverse-on-surface": "#313030",
+                    "primary-fixed": "#e2e2e2",
+                    "on-surface-variant": "#c4c7c8",
+                    "on-tertiary-container": "#005ed6",
+                    "primary-fixed-dim": "#c6c6c7",
+                    "on-secondary-fixed": "#00210b",
+                    "surface-tint": "#c6c6c7",
+                    "on-tertiary": "#002d6e",
+                    "on-secondary-fixed-variant": "#005226",
+                    "on-primary-fixed-variant": "#454747",
+                    "inverse-primary": "#5d5f5f",
+                    "on-surface": "#e5e2e1",
+                    "secondary-container": "#05e777",
+                    "on-primary": "#2f3131",
+                    "on-tertiary-fixed-variant": "#00429b",
+                    "on-error": "#690005",
+                    "error-container": "#93000a",
+                    "surface-dim": "#131313",
+                    "on-error-container": "#ffdad6",
+                    "surface-container-high": "#2a2a2a",
+                    "secondary": "#7dffa2",
+                    "tertiary-container": "#d9e2ff",
+                    "on-tertiary-fixed": "#001945",
+                    "error": "#ffb4ab",
+                    "on-secondary-container": "#00622e",
+                    "outline-variant": "#444748",
+                    "surface-container-highest": "#353534",
+                    "surface": "#131313",
+                    "primary-container": "#e2e2e2",
+                    "surface-container-lowest": "#0e0e0e",
+                    "primary": "#ffffff",
+                    "outline": "#8e9192",
+                    "tertiary": "#ffffff",
+                    "surface-bright": "#3a3939",
+                    "secondary-fixed-dim": "#00e475",
+                    "tertiary-fixed-dim": "#b0c6ff",
+                    "surface-variant": "#353534",
+                    "on-background": "#e5e2e1",
+                    "surface-container": "#201f1f"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "gutter": "24px",
+                    "base": "8px",
+                    "margin-mobile": "24px",
+                    "container-max": "1440px",
+                    "margin-desktop": "64px"
+            },
+            "fontFamily": {
+                    "label-mono": [
+                            "JetBrains Mono"
+                    ],
+                    "headline-lg-mobile": [
+                            "Hanken Grotesk"
+                    ],
+                    "body-lg": [
+                            "Inter"
+                    ],
+                    "headline-md": [
+                            "Hanken Grotesk"
+                    ],
+                    "headline-lg": [
+                            "Hanken Grotesk"
+                    ],
+                    "body-md": [
+                            "Inter"
+                    ]
+            },
+            "fontSize": {
+                    "label-mono": [
+                            "14px",
+                            {
+                                    "lineHeight": "20px",
+                                    "letterSpacing": "0.05em",
+                                    "fontWeight": "500"
+                            }
+                    ],
+                    "headline-lg-mobile": [
+                            "32px",
+                            {
+                                    "lineHeight": "40px",
+                                    "letterSpacing": "-0.01em",
+                                    "fontWeight": "700"
+                            }
+                    ],
+                    "body-lg": [
+                            "18px",
+                            {
+                                    "lineHeight": "28px",
+                                    "fontWeight": "400"
+                            }
+                    ],
+                    "headline-md": [
+                            "24px",
+                            {
+                                    "lineHeight": "32px",
+                                    "fontWeight": "600"
+                            }
+                    ],
+                    "headline-lg": [
+                            "40px",
+                            {
+                                    "lineHeight": "48px",
+                                    "letterSpacing": "-0.02em",
+                                    "fontWeight": "700"
+                            }
+                    ],
+                    "body-md": [
+                            "16px",
+                            {
+                                    "lineHeight": "24px",
+                                    "fontWeight": "400"
+                            }
+                    ]
+            }
+    },
+        },
+      }
+    </script>
+<style>
+        body { background-color: #131313; color: #e5e2e1; }
+        .glass-card {
+            background: linear-gradient(145deg, rgba(32, 31, 31, 0.6) 0%, rgba(28, 27, 27, 0.4) 100%);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(68, 71, 72, 0.3);
+        }
+    </style>
+</head>
+<body class="antialiased min-h-screen flex flex-col font-body-md text-body-md">
+<!-- TopAppBar -->
+<header class="w-full top-0 sticky bg-background dark:bg-background border-b border-outline-variant flat no shadows transition-colors duration-200 z-50">
+<div class="flex justify-between items-center px-gutter h-16 w-full max-w-container-max mx-auto">
+<div class="flex items-center gap-4">
+<button aria-label="Go back" class="text-on-surface-variant dark:text-on-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-container-high p-2 rounded-full transition-colors duration-200">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">arrow_back</span>
+</button>
+<h1 class="font-headline-md text-headline-md font-bold text-primary dark:text-primary tracking-tight">Simulation</h1>
+</div>
+<div>
+<button aria-label="Account profile" class="text-on-surface-variant dark:text-on-surface-variant hover:bg-surface-container-high dark:hover:bg-surface-container-high p-2 rounded-full transition-colors duration-200">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">account_circle</span>
+</button>
+</div>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-grow w-full max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop py-8 md:py-12 flex flex-col gap-8">
+<!-- Header Intro -->
+<div class="flex flex-col gap-2">
+<h2 class="font-headline-lg-mobile md:font-headline-lg text-primary">What-If Simulation</h2>
+
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+<!-- Left Column: Inputs -->
+<div class="lg:col-span-5 flex flex-col gap-8">
+<!-- Scenario Selection -->
+<section class="glass-card rounded-xl p-6 flex flex-col gap-6">
+<h3 class="font-headline-md text-primary">Scenario</h3>
+<div class="flex flex-col gap-3">
+<button class="flex items-center justify-between p-4 rounded-lg border border-outline-variant bg-surface-container-highest hover:bg-surface-bright transition-colors text-left group">
+<span class="font-body-lg text-primary group-hover:text-secondary transition-colors">SAVINGS INCREASE</span>
+<span class="material-symbols-outlined text-outline-variant group-hover:text-secondary transition-colors">trending_up</span>
+</button>
+<button class="flex items-center justify-between p-4 rounded-lg border border-outline-variant bg-surface hover:bg-surface-container-high transition-colors text-left group">
+<span class="font-body-lg text-on-surface-variant group-hover:text-primary transition-colors">REDUCE SPENDING</span>
+<span class="material-symbols-outlined text-outline-variant group-hover:text-primary transition-colors">arrow_downward</span>
+</button>
+<button class="flex items-center justify-between p-4 rounded-lg border border-outline-variant bg-surface hover:bg-surface-container-high transition-colors text-left group">
+<span class="font-body-lg text-on-surface-variant group-hover:text-primary transition-colors">LARGE PURCHASE</span>
+<span class="material-symbols-outlined text-outline-variant group-hover:text-primary transition-colors">shopping_bag</span>
+</button>
+</div>
+</section>
+<!-- Value Input -->
+<section class="glass-card rounded-xl p-6 flex flex-col gap-6">
+<h3 class="font-headline-md text-primary">Parameters</h3>
+<div class="flex flex-col gap-2">
+<label class="font-body-md text-on-surface-variant" for="simulationAmount">Enter amount (Monthly)</label>
+<div class="relative">
+<span class="absolute inset-y-0 left-0 flex items-center pl-4 font-label-mono text-on-surface-variant">₹</span>
+<input class="w-full bg-surface-container-low border border-outline-variant rounded-lg py-4 pl-10 pr-4 font-label-mono text-primary focus:border-primary focus:ring-1 focus:ring-primary transition-all outline-none" id="simulationAmount" placeholder="0" type="text" value="1,000">
+</div>
+</div>
+<button class="w-full bg-primary text-background font-body-lg font-bold py-4 rounded-lg hover:bg-primary-fixed transition-colors mt-4">
+                        RUN SIMULATION
+                    </button>
+</section>
+</div>
+<!-- Right Column: Results -->
+<div class="lg:col-span-7 flex flex-col gap-6">
+<section class="glass-card rounded-xl p-6 md:p-8 flex flex-col gap-8 h-full border-t-2 border-t-secondary">
+<div class="flex flex-col gap-2 border-b border-outline-variant pb-6">
+<h3 class="font-headline-md text-primary">Simulation Impact</h3>
+<p class="text-on-surface-variant text-lg">If you increase savings by <span class="font-label-mono text-secondary">₹1,000</span></p>
+</div>
+<div class="flex flex-col gap-6">
+<!-- Key Metric -->
+<div class="bg-surface-container-highest rounded-lg p-5 border border-outline-variant flex items-center justify-between">
+<span class="text-on-surface">New monthly capacity</span>
+<span class="font-label-mono text-2xl text-secondary">₹3,945</span>
+</div>
+<!-- Goal Impacts -->
+<div class="flex flex-col gap-4">
+<h4 class="font-body-lg text-primary border-b border-outline-variant pb-2 mb-2">Impact on Active Goals</h4>
+<!-- Goal 1 -->
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-2 p-4 rounded-lg hover:bg-surface-container-high transition-colors border border-transparent hover:border-outline-variant">
+<div class="flex items-center gap-3">
+<div class="w-2 h-2 rounded-full bg-secondary"></div>
+<span class="font-body-lg text-primary">Earbuds</span>
+</div>
+<div class="flex flex-col md:items-end gap-1">
+<span class="text-on-surface-variant text-sm">No change in ETA</span>
+<span class="font-label-mono text-sm text-secondary">Funding increases by ₹130</span>
+</div>
+</div>
+<!-- Goal 2 -->
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-2 p-4 rounded-lg hover:bg-surface-container-high transition-colors border border-transparent hover:border-outline-variant">
+<div class="flex items-center gap-3">
+<div class="w-2 h-2 rounded-full bg-secondary"></div>
+<span class="font-body-lg text-primary">Mobile</span>
+</div>
+<div class="flex flex-col md:items-end gap-1">
+<span class="text-on-surface-variant text-sm">No change in ETA</span>
+<span class="font-label-mono text-sm text-secondary">Funding increases by ₹870</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+</div>
+</div>
+</main>
+
+
+</body></html>

@@ -1,0 +1,391 @@
+<!DOCTYPE html><html class="dark" lang="en" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Spending Insights &amp; Trends</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;700&amp;family=Inter:wght@400;500&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-tertiary-container": "#005ed6",
+                        "primary-fixed-dim": "#c6c6c7",
+                        "on-secondary-fixed": "#00210b",
+                        "secondary-fixed": "#62ff96",
+                        "inverse-surface": "#e5e2e1",
+                        "inverse-on-surface": "#313030",
+                        "primary-fixed": "#e2e2e2",
+                        "on-surface-variant": "#c4c7c8",
+                        "tertiary-fixed": "#d9e2ff",
+                        "on-secondary": "#003918",
+                        "on-primary-fixed": "#1a1c1c",
+                        "background": "#131313",
+                        "surface-container-low": "#1c1b1b",
+                        "on-primary-container": "#636565",
+                        "secondary-container": "#05e777",
+                        "on-primary": "#2f3131",
+                        "on-surface": "#e5e2e1",
+                        "on-primary-fixed-variant": "#454747",
+                        "inverse-primary": "#5d5f5f",
+                        "on-secondary-fixed-variant": "#005226",
+                        "surface-tint": "#c6c6c7",
+                        "on-tertiary": "#002d6e",
+                        "outline-variant": "#444748",
+                        "surface-container-highest": "#353534",
+                        "surface": "#131313",
+                        "tertiary-container": "#d9e2ff",
+                        "on-secondary-container": "#00622e",
+                        "on-tertiary-fixed": "#001945",
+                        "error": "#ffb4ab",
+                        "on-error-container": "#ffdad6",
+                        "surface-dim": "#131313",
+                        "surface-container-high": "#2a2a2a",
+                        "secondary": "#7dffa2",
+                        "on-tertiary-fixed-variant": "#00429b",
+                        "on-error": "#690005",
+                        "error-container": "#93000a",
+                        "surface-container": "#201f1f",
+                        "tertiary-fixed-dim": "#b0c6ff",
+                        "surface-variant": "#353534",
+                        "on-background": "#e5e2e1",
+                        "surface-container-lowest": "#0e0e0e",
+                        "primary": "#ffffff",
+                        "outline": "#8e9192",
+                        "secondary-fixed-dim": "#00e475",
+                        "tertiary": "#ffffff",
+                        "surface-bright": "#3a3939",
+                        "primary-container": "#e2e2e2"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "container-max": "1440px",
+                        "margin-desktop": "64px",
+                        "gutter": "24px",
+                        "base": "8px",
+                        "margin-mobile": "24px"
+                    },
+                    "fontFamily": {
+                        "headline-lg": ["Hanken Grotesk"],
+                        "body-md": ["Inter"],
+                        "headline-md": ["Hanken Grotesk"],
+                        "body-lg": ["Inter"],
+                        "label-mono": ["JetBrains Mono"],
+                        "headline-lg-mobile": ["Hanken Grotesk"]
+                    },
+                    "fontSize": {
+                        "headline-lg": ["40px", { "lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "label-mono": ["14px", { "lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "500" }],
+                        "headline-lg-mobile": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "700" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md antialiased min-h-screen flex flex-col md:flex-row pb-24 md:pb-0">
+<!-- Navigation Drawer (Desktop) -->
+<aside class="hidden md:flex flex-col h-screen w-80 bg-surface-container border-r border-outline-variant shadow-xl p-6 sticky top-0 shrink-0 z-40">
+<div class="flex items-center gap-4 mb-10">
+<div class="w-12 h-12 rounded-full bg-surface-container-highest flex items-center justify-center overflow-hidden border border-outline-variant">
+<span class="material-symbols-outlined text-primary" data-icon="person">person</span>
+</div>
+<div>
+<h2 class="font-headline-md text-headline-md text-primary m-0">Finance OS</h2>
+<p class="font-body-md text-body-md text-on-surface-variant m-0">Sovereign Wealth</p>
+<span class="text-xs text-secondary-fixed tracking-widest uppercase mt-1 block">Premium Access</span>
+</div>
+</div>
+<nav class="flex-1 flex flex-col gap-2">
+<a class="flex items-center gap-4 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container-highest transition-all group" href="#">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors" data-icon="space_dashboard">space_dashboard</span>
+<span class="font-label-mono text-label-mono group-hover:text-primary transition-colors">Dashboard</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container-highest transition-all group" href="#">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors" data-icon="account_balance_wallet">account_balance_wallet</span>
+<span class="font-label-mono text-label-mono group-hover:text-primary transition-colors">Transactions</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-lg bg-secondary text-on-secondary font-bold hover:bg-secondary-fixed transition-all group translate-x-1" href="#">
+<span class="material-symbols-outlined" data-icon="query_stats" data-weight="fill" style="font-variation-settings: 'FILL' 1;">query_stats</span>
+<span class="font-label-mono text-label-mono">Insights</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container-highest transition-all group" href="#">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors" data-icon="ads_click">ads_click</span>
+<span class="font-label-mono text-label-mono group-hover:text-primary transition-colors">Goals</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container-highest transition-all group" href="#">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors" data-icon="support_agent">support_agent</span>
+<span class="font-label-mono text-label-mono group-hover:text-primary transition-colors">Advisor</span>
+</a>
+</nav>
+<div class="mt-auto">
+<a class="flex items-center gap-4 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container-highest transition-all group" href="#">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors" data-icon="settings_accessibility">settings_accessibility</span>
+<span class="font-label-mono text-label-mono group-hover:text-primary transition-colors">Settings</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 flex flex-col min-w-0 max-w-container-max mx-auto w-full relative">
+<!-- TopAppBar (Mobile & Desktop Header) -->
+<header class="flex justify-between items-center w-full px-margin-mobile md:px-margin-desktop h-16 bg-background border-b border-outline-variant sticky top-0 z-30">
+<div class="flex items-center gap-4"><button class="flex items-center justify-center p-2 -ml-2 rounded-full text-primary hover:bg-surface-container-high active:bg-surface-container-highest transition-all duration-200 group" aria-label="Go back">
+    <span class="material-symbols-outlined text-[24px] group-hover:-translate-x-0.5 transition-transform duration-200" data-icon="arrow_back">arrow_back</span>
+</button>
+<h1 class="text-headline-md font-headline-md font-bold text-primary">Insights</h1>
+</div>
+<button class="text-primary opacity-80 hover:scale-95 transition-all p-2 -mr-2 rounded-lg hover:bg-surface-container-high md:hidden">
+</button>
+</header>
+<!-- Content Canvas -->
+<div class="flex-1 p-margin-mobile md:p-margin-desktop space-y-12">
+<!-- Overview Header Area -->
+<!-- Key Metrics Carousel Section -->
+<section class="space-y-6">
+<div class="flex items-center justify-between">
+<h3 class="font-headline-md text-headline-md text-primary">Key Metrics</h3>
+<div class="flex gap-2">
+<button class="w-8 h-8 rounded-full border border-outline-variant flex items-center justify-center text-on-surface-variant hover:text-primary hover:border-primary transition-all" id="btn-prev">
+<span class="material-symbols-outlined text-[18px]" data-icon="chevron_left">chevron_left</span>
+</button>
+<button class="w-8 h-8 rounded-full border border-outline-variant flex items-center justify-center text-on-surface-variant hover:text-primary hover:border-primary transition-all" id="btn-next">
+<span class="material-symbols-outlined text-[18px]" data-icon="chevron_right">chevron_right</span>
+</button>
+</div>
+</div>
+<div class="flex gap-4 overflow-x-auto pb-4 hide-scrollbar snap-x snap-mandatory" id="metrics-carousel">
+<!-- Card 1 -->
+<div class="w-full shrink-0 bg-[#1A1A1A] border border-[#333333] hover:border-primary/50 rounded-xl p-6 snap-center transition-all flex flex-col justify-between" style="box-shadow: rgba(255, 82, 82, 0.2) 0px 2px 0px 0px inset;">
+<div class="flex items-start gap-4">
+<div class="p-2 rounded bg-surface-container">
+<span class="material-symbols-outlined text-[#FF5252]" data-icon="sports_esports">sports_esports</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface mt-1 leading-relaxed">
+                                Your largest spending category over the last 30 days is <span class="text-primary font-medium">Entertainment</span>, accounting for 8% of tracked spend.
+                            </p>
+</div>
+<div class="mt-6 flex items-center justify-between">
+<span class="px-2 py-1 rounded bg-surface-container-high text-xs font-label-mono border border-outline-variant text-on-surface-variant">Score: <span class="text-[#FF5252]">8</span></span>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="w-full shrink-0 bg-[#1A1A1A] border border-[#333333] hover:border-primary/50 rounded-xl p-6 snap-center transition-all flex flex-col justify-between" style="box-shadow: rgba(125, 255, 162, 0.2) 0px 2px 0px 0px inset;">
+<div class="flex items-start gap-4">
+<div class="p-2 rounded bg-surface-container">
+<span class="material-symbols-outlined text-secondary" data-icon="trending_up">trending_up</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface mt-1 leading-relaxed">
+                                Monthly spending rose from <span class="text-primary font-medium">₹771 to ₹18,868</span>.
+                            </p>
+</div>
+<div class="mt-6 flex items-center justify-between">
+<span class="px-2 py-1 rounded bg-surface-container-high text-xs font-label-mono border border-outline-variant text-on-surface-variant">Score: <span class="text-secondary">100</span></span>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="w-full shrink-0 bg-[#1A1A1A] border border-[#333333] hover:border-primary/50 rounded-xl p-6 snap-center transition-all flex flex-col justify-between" style="box-shadow: rgba(255, 180, 171, 0.2) 0px 2px 0px 0px inset;">
+<div class="flex items-start gap-4">
+<div class="p-2 rounded bg-surface-container">
+<span class="material-symbols-outlined text-error" data-icon="hourglass_empty">hourglass_empty</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface mt-1 leading-relaxed">
+                                At the current burn rate, your runway is only <span class="text-primary font-medium">1.5 months</span>.
+                            </p>
+</div>
+<div class="mt-6 flex items-center justify-between">
+<span class="px-2 py-1 rounded bg-surface-container-high text-xs font-label-mono border border-outline-variant text-on-surface-variant">Score: <span class="text-error">15</span></span>
+</div>
+</div>
+<!-- Card 4 -->
+<div class="w-full shrink-0 bg-[#1A1A1A] border border-[#333333] hover:border-primary/50 rounded-xl p-6 snap-center transition-all flex flex-col justify-between" style="box-shadow: rgba(255, 180, 171, 0.2) 0px 2px 0px 0px inset;">
+<div class="flex items-start gap-4">
+<div class="p-2 rounded bg-surface-container">
+<span class="material-symbols-outlined text-[#FFD700]" data-icon="savings">savings</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface mt-1 leading-relaxed">
+                                Your savings rate is <span class="text-primary font-medium">6%</span> this month (Needs improvement).
+                            </p>
+</div>
+<div class="mt-6 flex items-center justify-between">
+<span class="px-2 py-1 rounded bg-surface-container-high text-xs font-label-mono border border-outline-variant text-on-surface-variant">Score: <span class="text-error">6</span></span>
+</div>
+</div>
+<!-- Card 5 -->
+<div class="w-full shrink-0 bg-[#1A1A1A] border border-[#333333] hover:border-primary/50 rounded-xl p-6 snap-center transition-all flex flex-col justify-between" style="box-shadow: rgba(125, 255, 162, 0.2) 0px 2px 0px 0px inset;">
+<div class="flex items-start gap-4">
+<div class="p-2 rounded bg-surface-container">
+<span class="material-symbols-outlined text-secondary" data-icon="receipt_long">receipt_long</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface mt-1 leading-relaxed">
+                                Detected 13 high-value expenses. Top entries: <span class="text-primary font-medium">₹10,000</span> at Sundar Tulshidas Wayal; ₹7,461 at Saurabh Chaurasia; ₹5,620 at Paytm Travel.
+                            </p>
+</div>
+<div class="mt-6 flex items-center justify-between">
+<span class="px-2 py-1 rounded bg-surface-container-high text-xs font-label-mono border border-outline-variant text-on-surface-variant">Score: <span class="text-secondary">100</span></span>
+</div>
+</div>
+</div><div class="flex justify-center gap-2 mt-2" id="carousel-pagination"> <button aria-label="Go to slide 1" class="w-2 h-2 rounded-full bg-secondary transition-all w-4"></button> <button aria-label="Go to slide 2" class="w-2 h-2 rounded-full bg-outline transition-all"></button> <button aria-label="Go to slide 3" class="w-2 h-2 rounded-full bg-outline transition-all"></button> <button aria-label="Go to slide 4" class="w-2 h-2 rounded-full bg-outline transition-all"></button> <button aria-label="Go to slide 5" class="w-2 h-2 rounded-full bg-outline transition-all"></button> </div>
+</section>
+<!-- AI-Generated Summary Bento Box -->
+<section class="bg-surface-container-low border border-outline-variant rounded-2xl overflow-hidden shadow-sm">
+<!-- Header -->
+<div class="p-6 border-b border-outline-variant bg-surface-container-lowest/50 flex items-center justify-between gap-3">
+    <div class="flex items-center gap-3">
+        <span class="material-symbols-outlined text-secondary text-[28px]" data-icon="auto_awesome" data-weight="fill" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
+        <div>
+            <h3 class="font-headline-md text-headline-md text-primary m-0">AI-GENERATED SUMMARY</h3>
+            <p class="font-label-mono text-label-mono text-on-surface-variant m-0 mt-1">Personalized analysis from your transactions</p>
+        </div>
+    </div>
+    <button class="flex items-center gap-2 px-3 py-1.5 rounded border border-outline-variant hover:border-primary text-on-surface-variant hover:text-primary transition-all">
+        <span class="material-symbols-outlined text-[18px]" data-icon="refresh">refresh</span>
+        <span class="font-label-mono text-[10px] uppercase tracking-widest hidden sm:inline">Refresh</span>
+    </button>
+</div>
+<!-- Content Area -->
+<div class="p-6 md:p-8 space-y-8 font-body-md text-body-md text-on-background">
+<p class="text-on-surface">Here's a summary of your recent transactions, along with three concrete insights and one recommended action:</p>
+<div class="space-y-4">
+<h4 class="font-label-mono text-secondary-fixed uppercase tracking-wider text-sm">Summary of Recent Transactions (April 30, 2026 - May 21, 2026):</h4>
+<p class="leading-relaxed">
+                            Over the past three weeks, you've had a total of <span class="text-secondary-fixed font-medium">35 debit transactions</span> amounting to <span class="text-secondary-fixed font-medium">₹19,414.58</span> and <span class="text-secondary-fixed font-medium">6 credit transactions</span> totaling <span class="text-secondary-fixed font-medium">₹20,091.44</span>. This results in a net positive balance of <span class="text-secondary-fixed font-medium">₹676.86</span> during this period. All transactions were made from your HDFC Bank account, primarily using UPI, with one significant debit via Card.
+                        </p>
+<p class="mt-4 text-on-surface">Your spending is distributed across various categories:</p>
+<ul class="list-none space-y-2 pl-2 border-l-2 border-[#262626] ml-2">
+<li class="pl-4 relative before:content-['•'] before:absolute before:left-0 before:text-secondary-fixed"><span class="text-secondary-fixed">Shopping:</span> ₹4,909 (primarily Amazon India)</li>
+<li class="pl-4 relative before:content-['•'] before:absolute before:left-0 before:text-secondary-fixed"><span class="text-secondary-fixed">Transport:</span> ₹6,050 (including a large ₹5,620 for Paytm Travel and ₹430 for Palm Fuels)</li>
+<li class="pl-4 relative before:content-['•'] before:absolute before:left-0 before:text-secondary-fixed"><span class="text-secondary-fixed">Miscellaneous:</span> ₹5,168.33 (numerous small transactions to various individuals and merchants)</li>
+<li class="pl-4 relative before:content-['•'] before:absolute before:left-0 before:text-secondary-fixed"><span class="text-secondary-fixed">Entertainment:</span> ₹1,500 (Rainbow Water World Water Park)</li>
+<li class="pl-4 relative before:content-['•'] before:absolute before:left-0 before:text-secondary-fixed"><span class="text-secondary-fixed">Groceries:</span> ₹807 (various daily needs stores)</li>
+<li class="pl-4 relative before:content-['•'] before:absolute before:left-0 before:text-secondary-fixed"><span class="text-secondary-fixed">Food:</span> ₹629.35 (Om Sai Dairy, Dominos Pizza, Jagdamba Foods, Shree Farsan)</li>
+<li class="pl-4 relative before:content-['•'] before:absolute before:left-0 before:text-secondary-fixed"><span class="text-secondary-fixed">Bills:</span> ₹350.9 (Euronet Services)</li>
+</ul>
+<p class="mt-4 leading-relaxed">
+                            Your credits include a significant amount from Saurabh Chaurasia (Education - ₹7,461.44), a refund from Web UPI (₹2,361.44), and a large credit from Sundar Tulshidas Wayal (Miscellaneous - ₹10,000), along with smaller credits from Rudra Pratap.
+                        </p>
+</div>
+<div class="space-y-4 pt-6 border-t border-[#262626]">
+<h4 class="font-label-mono text-secondary-fixed uppercase tracking-wider text-sm">3 Concrete Insights:</h4>
+<ol class="list-decimal list-outside ml-4 space-y-4 text-on-surface">
+<li class="pl-2">
+<span class="text-secondary-fixed font-medium">Significant Travel &amp; Online Shopping Expenses:</span> Your largest single expense was ₹5,620 for Paytm Travel, indicating recent travel plans. Combined with ₹4,909 spent on Amazon India across three transactions, online shopping and travel constitute a major portion of your recent outgoings, totaling over 50% of your debits.
+                            </li>
+<li class="pl-2">
+<span class="text-secondary-fixed font-medium">High Volume of Small, Uncategorized Transactions:</span> The "Miscellaneous" category accounts for ₹5,168.33 across 25 transactions, making it your second-highest spending category by total amount and highest by transaction count. Many of these are small, frequent payments to individuals (e.g., Mr Pratik Bhanudas Magar, Anand Dalvi, Mohit Jayant Nimje), suggesting a pattern of daily micro-transactions or personal transfers that lack specific categorization.
+                            </li>
+<li class="pl-2">
+<span class="text-secondary-fixed font-medium">Varied and Sporadic Income Sources:</span> Your credits are substantial but appear to be from diverse and non-recurring sources, including "Education," a "Refund," and a large "Miscellaneous" credit from an individual. There is no clear indication of a regular salary or consistent income stream within these transactions.
+                            </li>
+</ol>
+</div>
+<div class="space-y-4 pt-6 border-t border-[#262626]">
+<h4 class="font-label-mono text-secondary-fixed uppercase tracking-wider text-sm">1 Recommended Action:</h4>
+<p class="leading-relaxed bg-[#1A1A1A] p-4 rounded-lg border border-[#333333] border-l-4 border-l-secondary-fixed">
+<span class="text-secondary-fixed font-medium">Review and re-categorize your "Miscellaneous" spending:</span> Given the high volume and total amount in the "Miscellaneous" category, take some time to review these 25 transactions. For frequent payees like "Mr Pratik Bhanudas Magar," "Anand Dalvi," and "Mohit Jayant Nimje," try to recall the nature of these expenses and assign them to more specific categories (e.g., "Daily Commute," "Coffee/Snacks," "Personal Loan Repayment," "Services"). This will provide a much clearer picture of where a significant portion of your money is actually going and help identify potential areas for budgeting or tracking.
+                         </p>
+</div>
+</div>
+</section>
+</div>
+</main>
+<!-- BottomNavBar (Mobile) -->
+<nav class="md:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-20 px-4 pb-2 bg-surface-container-lowest border-t border-outline-variant rounded-t-xl shadow-[0_-4px_20px_rgba(0,0,0,0.5)]">
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary transition-colors w-16 group" href="#">
+<span class="material-symbols-outlined mb-1 group-hover:scale-110 transition-transform" data-icon="dashboard">dashboard</span>
+<span class="font-label-mono text-[10px] tracking-wider uppercase">Dashboard</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary transition-colors w-16 group" href="#">
+<span class="material-symbols-outlined mb-1 group-hover:scale-110 transition-transform" data-icon="receipt_long">receipt_long</span>
+<span class="font-label-mono text-[10px] tracking-wider uppercase">Activity</span>
+</a>
+<a class="flex flex-col items-center justify-center text-secondary font-bold scale-90 transition-transform w-16" href="#">
+<div class="bg-secondary/10 p-1.5 rounded-full mb-1">
+<span class="material-symbols-outlined" data-icon="query_stats" data-weight="fill" style="font-variation-settings: 'FILL' 1;">query_stats</span>
+</div>
+<span class="font-label-mono text-[10px] tracking-wider uppercase">Insights</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary transition-colors w-16 group" href="#">
+<span class="material-symbols-outlined mb-1 group-hover:scale-110 transition-transform" data-icon="psychology">psychology</span>
+<span class="font-label-mono text-[10px] tracking-wider uppercase">Advisory</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary transition-colors w-16 group" href="#">
+<span class="material-symbols-outlined mb-1 group-hover:scale-110 transition-transform" data-icon="settings">settings</span>
+<span class="font-label-mono text-[10px] tracking-wider uppercase">Settings</span>
+</a>
+</nav>
+<script> 
+(function() { 
+    const carousel = document.getElementById('metrics-carousel'); 
+    const dots = document.querySelectorAll('#carousel-pagination button'); 
+    const prevBtn = document.getElementById('btn-prev');
+    const nextBtn = document.getElementById('btn-next');
+    
+    if (!carousel || !dots.length) return; 
+    
+    const updateActiveDot = () => { 
+        const itemWidth = carousel.firstElementChild.offsetWidth;
+        const gap = parseFloat(getComputedStyle(carousel).gap) || 0;
+        const scrollPosition = carousel.scrollLeft; 
+        const activeIndex = Math.round(scrollPosition / (itemWidth + gap)); 
+        dots.forEach((dot, index) => { 
+            if (index === activeIndex) { 
+                dot.classList.replace('bg-outline', 'bg-secondary'); 
+                dot.classList.add('w-4'); 
+            } else { 
+                dot.classList.replace('bg-secondary', 'bg-outline'); 
+                dot.classList.remove('w-4'); 
+            } 
+        }); 
+    }; 
+    
+    carousel.addEventListener('scroll', updateActiveDot); 
+    
+    dots.forEach((dot, index) => { 
+        dot.addEventListener('click', () => { 
+            const itemWidth = carousel.firstElementChild.offsetWidth;
+            const gap = parseFloat(getComputedStyle(carousel).gap) || 0;
+            carousel.scrollTo({ left: index * (itemWidth + gap), behavior: 'smooth' }); 
+        }); 
+    }); 
+    
+    if(prevBtn) {
+        prevBtn.addEventListener('click', () => {
+            const itemWidth = carousel.firstElementChild.offsetWidth;
+            const gap = parseFloat(getComputedStyle(carousel).gap) || 0;
+            carousel.scrollBy({ left: -(itemWidth + gap), behavior: 'smooth' });
+        });
+    }
+    
+    if(nextBtn) {
+        nextBtn.addEventListener('click', () => {
+            const itemWidth = carousel.firstElementChild.offsetWidth;
+            const gap = parseFloat(getComputedStyle(carousel).gap) || 0;
+            carousel.scrollBy({ left: (itemWidth + gap), behavior: 'smooth' });
+        });
+    }
+})(); 
+</script>
+
+
+
+</body></html>

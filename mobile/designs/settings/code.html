@@ -1,0 +1,394 @@
+<!DOCTYPE html><html class="dark" lang="en" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Settings - Personal Finance OS</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Hanken+Grotesk:wght@600;700&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-background": "#e5e2e1",
+                        "on-primary": "#2f3131",
+                        "surface-container": "#201f1f",
+                        "tertiary": "#ffffff",
+                        "on-error": "#690005",
+                        "primary-fixed-dim": "#c6c6c7",
+                        "secondary-fixed-dim": "#00e475",
+                        "inverse-on-surface": "#313030",
+                        "tertiary-fixed-dim": "#b0c6ff",
+                        "surface-container-highest": "#353534",
+                        "on-secondary-container": "#00622e",
+                        "outline-variant": "#444748",
+                        "on-error-container": "#ffdad6",
+                        "surface-container-high": "#2a2a2a",
+                        "error": "#ffb4ab",
+                        "tertiary-fixed": "#d9e2ff",
+                        "surface-container-lowest": "#0e0e0e",
+                        "surface-bright": "#3a3939",
+                        "on-primary-fixed-variant": "#454747",
+                        "surface-tint": "#c6c6c7",
+                        "on-tertiary": "#002d6e",
+                        "tertiary-container": "#d9e2ff",
+                        "surface": "#131313",
+                        "on-surface": "#e5e2e1",
+                        "surface-dim": "#131313",
+                        "secondary": "#7dffa2",
+                        "primary-container": "#e2e2e2",
+                        "outline": "#8e9192",
+                        "on-tertiary-container": "#005ed6",
+                        "secondary-container": "#05e777",
+                        "inverse-primary": "#5d5f5f",
+                        "on-tertiary-fixed": "#001945",
+                        "primary": "#ffffff",
+                        "secondary-fixed": "#62ff96",
+                        "on-primary-container": "#636565",
+                        "background": "#131313",
+                        "primary-fixed": "#e2e2e2",
+                        "surface-container-low": "#1c1b1b",
+                        "on-tertiary-fixed-variant": "#00429b",
+                        "on-primary-fixed": "#1a1c1c",
+                        "surface-variant": "#353534",
+                        "on-secondary-fixed-variant": "#005226",
+                        "error-container": "#93000a",
+                        "inverse-surface": "#e5e2e1",
+                        "on-secondary-fixed": "#00210b",
+                        "on-secondary": "#003918",
+                        "on-surface-variant": "#c4c7c8"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "margin-desktop": "64px",
+                        "container-max": "1440px",
+                        "margin-mobile": "24px",
+                        "gutter": "24px",
+                        "base": "8px"
+                    },
+                    "fontFamily": {
+                        "label-mono": ["JetBrains Mono"],
+                        "headline-md": ["Hanken Grotesk"],
+                        "body-lg": ["Inter"],
+                        "body-md": ["Inter"],
+                        "headline-lg-mobile": ["Hanken Grotesk"],
+                        "headline-lg": ["Hanken Grotesk"]
+                    },
+                    "fontSize": {
+                        "label-mono": ["14px", { "lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "500" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "headline-lg-mobile": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+                        "headline-lg": ["40px", { "lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "700" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            background-color: #0A0A0A; /* Deeper dark for executive feel */
+        }
+        /* Custom scrollbar for data blocks */
+        .data-scroll::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .data-scroll::-webkit-scrollbar-track {
+            background: #131313;
+        }
+        .data-scroll::-webkit-scrollbar-thumb {
+            background: #353534;
+            border-radius: 3px;
+        }
+        .data-scroll::-webkit-scrollbar-thumb:hover {
+            background: #444748;
+        }
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .animate-slide-up {
+            animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @media (min-width: 768px) {
+            .md\:animate-fade-in {
+                animation: fadeIn 0.2s ease-out;
+            }
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md antialiased min-h-screen flex flex-col md:flex-row pb-20 md:pb-0">
+<!-- Desktop SideNav (Suppressed on Mobile) -->
+<nav class="hidden md:flex flex-col w-64 bg-[#0F0F0F] border-r border-[#333333] h-screen sticky top-0 shrink-0">
+<div class="p-8 pb-4">
+<div class="flex items-center gap-3 mb-10">
+<div class="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center text-primary font-headline-md font-bold">
+                    PF
+                </div>
+<div>
+<div class="font-label-mono text-on-surface-variant text-[10px] uppercase tracking-widest">Personal</div>
+<div class="font-headline-md text-primary text-lg">Finance OS</div>
+</div>
+</div>
+<div class="font-label-mono text-on-surface-variant text-[10px] uppercase tracking-widest mb-4 px-2">Workspace</div>
+<ul class="space-y-1">
+<li class="">
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors duration-200" href="#">
+<span class="material-symbols-outlined text-xl">dashboard</span>
+<span class="font-body-md">Dashboard</span>
+</a>
+</li>
+<li class="">
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors duration-200" href="#">
+<span class="material-symbols-outlined text-xl">receipt_long</span>
+<span class="font-body-md">Transactions</span>
+</a>
+</li>
+<li class="">
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors duration-200" href="#">
+<span class="material-symbols-outlined text-xl">track_changes</span>
+<span class="font-body-md">Goals</span>
+</a>
+</li>
+<li class="">
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors duration-200" href="#">
+<span class="material-symbols-outlined text-xl">support_agent</span>
+<span class="font-body-md">Advisor</span>
+</a>
+</li>
+<li class="">
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg bg-surface-container-high text-primary font-medium transition-colors duration-200" href="#">
+<span class="material-symbols-outlined text-xl">settings</span>
+<span class="font-body-md">Settings</span>
+</a>
+</li>
+</ul>
+</div>
+<div class="mt-auto p-6">
+<div class="bg-[#1A1A1A] rounded-xl p-4 border border-[#333333]">
+<div class="font-label-mono text-[10px] uppercase tracking-widest text-secondary mb-1">Active</div>
+<div class="font-body-md text-primary mb-1">Financial health model</div>
+<div class="font-body-md text-[12px] text-on-surface-variant">Signals synced 2 minutes ago</div>
+</div>
+</div>
+</nav>
+<!-- Main Content Canvas -->
+<main class="flex-1 flex flex-col min-h-screen w-full relative">
+<!-- TopAppBar (Mobile & Desktop Content Header) -->
+<header class="bg-background border-b border-[#333333] sticky top-0 z-40">
+<div class="max-w-[1440px] mx-auto px-margin-mobile md:px-margin-desktop h-20 flex justify-between items-center">
+<div class="flex items-center gap-4">
+<button class="md:hidden text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined">settings</span>
+</button>
+<div>
+
+<h1 class="font-headline-md text-headline-md font-bold text-primary">Settings</h1>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="hidden md:flex items-center gap-3 px-3 py-1.5 rounded-full border border-[#333333] bg-[#1A1A1A]">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+<span class="font-label-mono text-[12px] text-secondary">Live sync active</span>
+</div>
+
+</div>
+</div>
+</header>
+<!-- Content Area -->
+<div class="flex-1 overflow-y-auto w-full max-w-[1440px] mx-auto px-margin-mobile md:px-margin-desktop py-8 md:py-12 space-y-8">
+<!-- Top Section: Financial Profile -->
+<div class="max-w-3xl">
+<!-- Financial Profile Card -->
+<section class="bg-[#1A1A1A] rounded-xl border border-[#333333] p-6 md:p-8 flex flex-col h-full">
+<div class="mb-8">
+<h2 class="font-label-mono text-[14px] uppercase tracking-widest text-primary mb-2">Financial Profile</h2>
+<p class="font-body-md text-on-surface-variant">Basic values used by analyses</p>
+</div>
+<div class="space-y-6 flex-1">
+<div>
+<label class="block font-label-mono text-[12px] uppercase tracking-widest text-on-surface-variant mb-2">Owner Name</label>
+<input class="w-full bg-[#0A0A0A] border-b border-[#333333] border-t-0 border-l-0 border-r-0 text-primary font-body-md py-2 focus:border-primary focus:ring-0 transition-colors" type="text" value="User">
+</div>
+<div class="grid grid-cols-2 gap-6">
+<div>
+<label class="block font-label-mono text-[12px] uppercase tracking-widest text-on-surface-variant mb-2">Currency</label>
+<input class="w-full bg-[#0A0A0A] border-b border-[#333333] border-t-0 border-l-0 border-r-0 text-primary font-body-md py-2 focus:border-primary focus:ring-0 transition-colors" type="text" value="INR">
+</div>
+<div>
+<label class="block font-label-mono text-[12px] uppercase tracking-widest text-on-surface-variant mb-2">Balance</label>
+<input class="w-full bg-[#0A0A0A] border-b border-[#333333] border-t-0 border-l-0 border-r-0 text-primary font-body-md py-2 focus:border-primary focus:ring-0 transition-colors" type="text" value="9436.5">
+</div>
+</div>
+<div class="grid grid-cols-2 gap-6">
+<div>
+<label class="block font-label-mono text-[12px] uppercase tracking-widest text-on-surface-variant mb-2">Emergency Fund</label>
+<input class="w-full bg-[#0A0A0A] border-b border-[#333333] border-t-0 border-l-0 border-r-0 text-primary font-body-md py-2 focus:border-primary focus:ring-0 transition-colors" type="text" value="0">
+</div>
+<div>
+<label class="block font-label-mono text-[12px] uppercase tracking-widest text-on-surface-variant mb-2">Monthly Income</label>
+<input class="w-full bg-[#0A0A0A] border-b border-[#333333] border-t-0 border-l-0 border-r-0 text-primary font-body-md py-2 focus:border-primary focus:ring-0 transition-colors" type="text" value="10046">
+</div>
+</div>
+<div>
+<label class="block font-label-mono text-[12px] uppercase tracking-widest text-on-surface-variant mb-2">Monthly Expenses</label>
+<input class="w-full bg-[#0A0A0A] border-b border-[#333333] border-t-0 border-l-0 border-r-0 text-primary font-body-md py-2 focus:border-primary focus:ring-0 transition-colors" type="text" value="7101">
+</div>
+<div>
+<label class="block font-label-mono text-[12px] uppercase tracking-widest text-on-surface-variant mb-3">Gmail Senders</label>
+<div class="flex flex-wrap gap-2 mb-3">
+<div class="inline-flex items-center gap-2 bg-[#0A0A0A] border border-[#333333] rounded-full px-3 py-1.5">
+<span class="font-body-md text-[14px] text-primary">alerts@hdfcbank.bank.in</span>
+<button class="text-on-surface-variant hover:text-error transition-colors flex items-center justify-center">
+<span class="material-symbols-outlined text-[16px]">close</span>
+</button>
+</div>
+<div class="inline-flex items-center gap-2 bg-[#0A0A0A] border border-[#333333] rounded-full px-3 py-1.5">
+<span class="font-body-md text-[14px] text-primary">statements@icicibank.com</span>
+<button class="text-on-surface-variant hover:text-error transition-colors flex items-center justify-center">
+<span class="material-symbols-outlined text-[16px]">close</span>
+</button>
+</div>
+</div>
+<div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center w-full">
+    <input class="flex-1 bg-[#0A0A0A] border-b border-[#333333] border-t-0 border-l-0 border-r-0 text-primary font-body-md py-2 focus:border-primary focus:ring-0 transition-colors min-w-0" placeholder="Add new sender email..." type="text">
+    <button class="bg-[#262626] text-primary font-label-mono text-[12px] uppercase tracking-widest px-6 py-2 rounded border border-[#333333] hover:border-primary transition-colors shrink-0">
+        Add
+    </button>
+</div>
+</div>
+</div>
+<div class="flex gap-4 mt-8">
+<button class="flex-1 bg-primary text-background font-label-mono text-[14px] uppercase tracking-widest py-4 rounded-lg hover:bg-surface-container-high hover:text-primary transition-colors border border-transparent hover:border-primary">
+                            Save
+                        </button>
+<button class="flex-1 bg-transparent text-primary font-label-mono text-[14px] uppercase tracking-widest py-4 rounded-lg border border-[#333333] hover:border-primary transition-colors">
+                            Reload
+                        </button>
+</div>
+</section>
+</div>
+<!-- AI Memory Section -->
+<section class="mt-12">
+<div class="mb-6">
+<h2 class="font-headline-md text-[20px] font-bold text-primary mb-1">AI Memory</h2>
+<p class="font-body-md text-on-surface-variant text-[14px]">Saved notes used for future responses</p>
+</div>
+<div class="bg-[#1A1A1A] border border-[#333333] rounded-xl overflow-hidden">
+<!-- Add New Row -->
+<div class="grid grid-cols-1 md:grid-cols-[1fr_minmax(0,2fr)_auto] gap-4 p-4 border-b border-[#333333] items-center bg-[#131313]">
+<div class="pr-2">
+<input class="bg-transparent border-b border-[#333333] border-t-0 border-l-0 border-r-0 text-primary font-label-mono text-[14px] py-2 focus:border-primary focus:ring-0 transition-colors w-full" placeholder="New key..." type="text">
+</div>
+<div class="pr-2">
+<input class="bg-transparent border-b border-[#333333] border-t-0 border-l-0 border-r-0 text-primary font-body-md py-2 focus:border-primary focus:ring-0 transition-colors w-full" placeholder="Value..." type="text">
+</div>
+<button class="bg-[#262626] text-primary font-label-mono text-[12px] uppercase tracking-widest px-6 py-2 rounded border border-[#333333] hover:border-primary transition-colors h-10 shrink-0 w-full md:w-auto">
+        Save
+    </button>
+</div>
+<!-- Data Rows -->
+<div class="divide-y divide-[#262626]">
+<!-- Token Row -->
+<button class="w-full flex items-center justify-between p-6 hover:bg-[#1F1F1F] transition-colors group text-left focus:outline-none focus:bg-[#1F1F1F]" onclick="openMemoryModal('gmail_oauth_tokens', '{&quot;access_token&quot;:&quot;ya29.a0AfB...&quot;,&quot;expires_in&quot;:3599,&quot;refresh_token&quot;:&quot;1//04...&quot;,&quot;scope&quot;:&quot;https://www.googleapis.com/auth/gmail.readonly&quot;,&quot;token_type&quot;:&quot;Bearer&quot;}')">
+<div class="font-label-mono text-primary text-[14px] font-bold truncate">gmail_oauth_tokens</div>
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary transition-colors">chevron_right</span>
+</button>
+<!-- Recommendation Row -->
+<button class="w-full flex items-center justify-between p-6 hover:bg-[#1F1F1F] transition-colors group text-left focus:outline-none focus:bg-[#1F1F1F]" onclick="openMemoryModal('ai_goals_recommendation', '{&quot;recommendations&quot;:[{&quot;text&quot;:&quot;Allocate an additional ₹382 this month to fully fund the Earbuds goal. Expected impact: The Earbuds goal will be achieved on time (within 30 days)...&quot;, &quot;priority&quot;:&quot;high&quot;}]}')">
+<div class="font-label-mono text-primary text-[14px] font-bold truncate">ai_goals_recommendation</div>
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary transition-colors">chevron_right</span>
+</button>
+<!-- Last Synced Row -->
+<button class="w-full flex items-center justify-between p-6 hover:bg-[#1F1F1F] transition-colors group text-left focus:outline-none focus:bg-[#1F1F1F]" onclick="openMemoryModal('gmail_last_synced', '2026-05-22T07:59:28.000Z')">
+<div class="font-label-mono text-primary text-[14px] font-bold truncate">gmail_last_synced</div>
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary transition-colors">chevron_right</span>
+</button>
+</div></div>
+</section>
+</div>
+</main>
+<!-- BottomNavBar (Mobile Only) -->
+<nav class="md:hidden bg-surface-container-low border-t border-[#333333] fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-20 px-4 pb-2 rounded-t-xl">
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary transition-colors w-16" href="#">
+<span class="material-symbols-outlined mb-1">account_balance_wallet</span>
+<span class="font-label-mono text-[10px] uppercase">Wealth</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary transition-colors w-16" href="#">
+<span class="material-symbols-outlined mb-1">receipt_long</span>
+<span class="font-label-mono text-[10px] uppercase">Trans...</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary transition-colors w-16" href="#">
+<span class="material-symbols-outlined mb-1">track_changes</span>
+<span class="font-label-mono text-[10px] uppercase">Goals</span>
+</a>
+<a class="flex flex-col items-center justify-center bg-secondary-container text-on-secondary-container rounded-full px-4 py-1.5 w-16" href="#">
+<span class="material-symbols-outlined mb-1" style="font-variation-settings: 'FILL' 1;">settings</span>
+<span class="font-label-mono text-[10px] uppercase font-bold">Settings</span>
+</a>
+</nav>
+<!-- AI Memory Detail Modal -->
+<div class="fixed inset-0 z-[100] hidden" id="memoryModal">
+<div class="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity" onclick="closeMemoryModal()"></div>
+<div class="absolute bottom-0 left-0 right-0 md:inset-0 md:m-auto md:max-w-2xl md:h-fit bg-[#131313] border border-[#333333] rounded-t-2xl md:rounded-xl shadow-2xl flex flex-col max-h-[85vh] animate-slide-up md:animate-fade-in">
+<div class="p-6 md:p-8 border-b border-[#333333] flex justify-between items-center bg-[#1A1A1A] rounded-t-2xl md:rounded-t-xl shrink-0">
+<div>
+<div class="font-label-mono text-[10px] uppercase tracking-widest text-on-surface-variant mb-1">Memory Key</div>
+<h3 class="font-label-mono text-primary text-[18px] font-bold truncate pr-4" id="modalKey">Key Name</h3>
+</div>
+<button class="w-10 h-10 rounded-full bg-[#262626] border border-[#333333] flex items-center justify-center text-on-surface-variant hover:text-primary hover:bg-[#333333] transition-colors shrink-0" onclick="closeMemoryModal()">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+<div class="p-6 md:p-8 overflow-y-auto data-scroll flex-1">
+<label class="block font-label-mono text-[12px] uppercase tracking-widest text-on-surface-variant mb-4">Value Content</label>
+<div class="bg-[#0A0A0A] p-6 rounded-xl border border-[#262626]">
+<div class="font-label-mono text-primary text-[14px] leading-relaxed break-words whitespace-pre-wrap" id="modalValue"></div>
+</div>
+</div>
+<div class="p-6 md:p-8 border-t border-[#333333] bg-[#1A1A1A] md:rounded-b-xl shrink-0">
+<button class="w-full bg-transparent text-[#FF5252] border border-[#FF5252]/30 hover:border-[#FF5252] hover:bg-[#FF5252]/10 py-4 rounded-xl font-label-mono text-[14px] uppercase tracking-widest transition-colors font-bold" onclick="closeMemoryModal()">
+                Delete Memory Entry
+            </button>
+</div>
+</div>
+</div>
+<script>
+    function openMemoryModal(key, value) {
+        document.getElementById('modalKey').textContent = key;
+        
+        let displayValue = value;
+        try {
+            const parsed = JSON.parse(value);
+            displayValue = JSON.stringify(parsed, null, 2);
+        } catch(e) {
+            // Keep original string if not JSON
+        }
+        
+        document.getElementById('modalValue').textContent = displayValue;
+        document.getElementById('memoryModal').classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeMemoryModal() {
+        document.getElementById('memoryModal').classList.add('hidden');
+        document.body.style.overflow = '';
+    }
+</script>
+
+
+
+
+</body></html>
