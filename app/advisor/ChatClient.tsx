@@ -49,6 +49,7 @@ export default function ChatClient() {
 
             if (contentType.includes("application/json")) {
                 const data = await res.json();
+                console.log("Raw advisor response data:", data);
                 reply = {
                     narrative: typeof data?.narrative === "string"
                         ? data.narrative
@@ -59,6 +60,7 @@ export default function ChatClient() {
                                 : JSON.stringify(data),
                     artifacts: Array.isArray(data?.artifacts) ? data.artifacts : [],
                 };
+                console.log("Advisor response:", reply);
             } else {
                 const raw = await res.text();
                 reply = fallbackAdvisorResponse(raw);

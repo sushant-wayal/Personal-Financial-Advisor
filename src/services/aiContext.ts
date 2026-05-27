@@ -334,18 +334,237 @@ export function buildAdvisorSystemPrompt(options?: { structured?: boolean }) {
     ];
 
     if (options?.structured) {
-        parts.push(
-            "Return structured JSON only.",
-            "Do not output markdown fences, HTML, frontend code, or extra commentary.",
-            "The response must be a JSON object with narrative and artifacts.",
-            "narrative is required and should remain conversational, direct, and natural.",
-            "artifacts is optional and should usually contain 0-3 items. Some responses may contain no artifacts.",
-            "Use artifacts only when they improve clarity or make the advice easier to act on.",
-            "Avoid repetitive layouts. Choose the artifact types that fit the question best.",
-            "Never force a template or include an artifact just to fill space.",
-            "Allowed artifact types are healthCard, dualMetric, metricsGrid, riskList, warning, directive, recommendation, goalCard, goalTimeline, comparisonTable, priorityCard, and decisionSummary.",
-            "Keep artifact content concise, specific, and financially grounded."
-        );
+        parts.push(`Return ONLY valid JSON.
+
+Do NOT return markdown.
+Do NOT wrap in ${"```json fences"}.
+Do NOT explain your answer.
+Do NOT include any text before or after the JSON.
+
+The response MUST be a single JSON object with this exact structure:
+
+{
+  "narrative": string,
+  "artifacts": AdvisorArtifact[]
+}
+
+Where AdvisorArtifact can be one of the following:
+
+----------------------------------------------------------------
+healthCard
+----------------------------------------------------------------
+
+{
+  "type": "healthCard",
+  "title": string,
+  "status": "critical" | "warning" | "neutral" | "healthy" | "success",
+  "summary": string,
+  "metrics": [
+    {
+      "label": string,
+      "value": string,
+      "tone": "critical" | "warning" | "neutral" | "success" | "positive" | "negative" | "info",
+      "note": string
+    }
+  ],
+  "note": string
+}
+
+----------------------------------------------------------------
+dualMetric
+----------------------------------------------------------------
+
+{
+  "type": "dualMetric",
+  "left": {
+    "label": string,
+    "value": string,
+    "tone": "critical" | "warning" | "neutral" | "success" | "positive" | "negative" | "info",
+    "note": string
+  },
+  "right": {
+    "label": string,
+    "value": string,
+    "tone": "critical" | "warning" | "neutral" | "success" | "positive" | "negative" | "info",
+    "note": string
+  }
+}
+
+----------------------------------------------------------------
+metricsGrid
+----------------------------------------------------------------
+
+{
+  "type": "metricsGrid",
+  "title": string,
+  "metrics": [
+    {
+      "label": string,
+      "value": string,
+      "tone": "critical" | "warning" | "neutral" | "success" | "positive" | "negative" | "info",
+      "note": string
+    }
+  ]
+}
+
+----------------------------------------------------------------
+riskList
+----------------------------------------------------------------
+
+{
+  "type": "riskList",
+  "title": string,
+  "items": [
+    {
+      "title": string,
+      "description": string,
+      "severity": "critical" | "warning" | "neutral" | "success" | "positive" | "negative" | "info"
+    }
+  ]
+}
+
+----------------------------------------------------------------
+warning
+----------------------------------------------------------------
+
+{
+  "type": "warning",
+  "title": string,
+  "content": string,
+  "severity": "critical" | "warning" | "neutral" | "success" | "positive" | "negative" | "info"
+}
+
+----------------------------------------------------------------
+directive
+----------------------------------------------------------------
+
+{
+  "type": "directive",
+  "title": string,
+  "content": string,
+  "priority": "critical" | "high" | "medium" | "low"
+}
+
+----------------------------------------------------------------
+recommendation
+----------------------------------------------------------------
+
+{
+  "type": "recommendation",
+  "title": string,
+  "content": string,
+  "reasoning": string,
+  "nextStep": string,
+  "tone": "critical" | "warning" | "neutral" | "success" | "positive" | "negative" | "info"
+}
+
+----------------------------------------------------------------
+goalCard
+----------------------------------------------------------------
+
+{
+  "type": "goalCard",
+  "title": string,
+  "status": "critical" | "warning" | "neutral" | "healthy" | "success",
+  "progressPct": number,
+  "progressLabel": string,
+  "currentLabel": string,
+  "targetLabel": string,
+  "note": string
+}
+
+----------------------------------------------------------------
+goalTimeline
+----------------------------------------------------------------
+
+{
+  "type": "goalTimeline",
+  "title": string,
+  "items": [
+    {
+      "label": string,
+      "date": string,
+      "status": "critical" | "warning" | "neutral" | "success" | "positive" | "negative" | "info",
+      "note": string
+    }
+  ]
+}
+
+----------------------------------------------------------------
+comparisonTable
+----------------------------------------------------------------
+
+{
+  "type": "comparisonTable",
+  "title": string,
+  "columns": [string],
+  "rows": [
+    {
+      "label": string,
+      "values": [string]
+    }
+  ]
+}
+
+----------------------------------------------------------------
+priorityCard
+----------------------------------------------------------------
+
+{
+  "type": "priorityCard",
+  "title": string,
+  "priority": "critical" | "high" | "medium" | "low",
+  "summary": string,
+  "reasons": [string]
+}
+
+----------------------------------------------------------------
+decisionSummary
+----------------------------------------------------------------
+
+{
+  "type": "decisionSummary",
+  "title": string,
+  "decision": string,
+  "recommendation": string,
+  "tradeoffs": [string],
+  "nextStep": string
+}
+
+Rules:
+
+1. All metric values MUST be strings.
+   Correct:
+   "value": "₹8,772"
+
+   Wrong:
+   "value": 8772
+
+2. Status values MUST be lowercase.
+   Correct:
+   "critical"
+
+   Wrong:
+   "Critical"
+
+3. Priority values MUST be lowercase.
+   Correct:
+   "high"
+
+   Wrong:
+   "High"
+
+4. Do not invent new artifact types.
+
+5. Do not invent new properties.
+
+6. Use 0-3 artifacts unless a comparison requires more.
+
+7. If uncertain about an artifact structure, omit that artifact.
+
+8. Always include a narrative string.
+
+Return JSON only.`);
     }
 
     return parts.join(" ");

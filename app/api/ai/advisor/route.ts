@@ -47,22 +47,18 @@ export async function POST(req: Request) {
         try {
             const response = await generateText(advisorMessages, {
                 temperature: 0.05,
-                complexity: "complex",
-                responseMimeType: "application/json",
-                responseSchema: advisorResponseJsonSchema,
+                complexity: "complex"
             });
+            console.log(`[gemini-advisor] raw response for requestId=${requestId}:`, response);
 
             const parsed = parseAdvisorResponse(response.text);
             return NextResponse.json(parsed, { headers: { "X-Request-Id": requestId } });
         } catch (structuredError: unknown) {
-            const fallback = await generateText(advisorMessages, { temperature: 0.05, complexity: "complex" });
-            const parsed = parseAdvisorResponse(fallback.text);
-            if (process.env.NODE_ENV !== "production") {
-                console.warn(`[gemini-advisor] structured output failed requestId=${requestId}`, structuredError);
-            }
-            return NextResponse.json(parsed, { headers: { "X-Request-Id": requestId } });
+            console.error(`[gemini-advisor] structured response failed requestId=${requestId}`);
+            return NextResponse.json({ error: structuredError instanceof Error ? structuredError.message : String(structuredError) }, { status: 502 });
         }
-    } catch (error: unknown) {
+    }
+    catch (error: unknown) {
         return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
     }
 }
