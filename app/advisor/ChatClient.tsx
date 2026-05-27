@@ -9,8 +9,40 @@ import type { AdvisorResponse } from "@/types/advisor";
 
 type ChatTurn = { question: string; response: AdvisorResponse | null };
 
-function fallbackAdvisorResponse(raw: string): AdvisorResponse {
-    return { narrative: raw.trim() || "No response", artifacts: [] };
+function coerceAdvisorResponse(value: unknown): AdvisorResponse {
+    if (typeof value === "string") {
+        const trimmed = value.trim();
+        if (!trimmed) {
+            return { narrative: "No response", artifacts: [] };
+        }
+
+        try {
+            const parsed = JSON.parse(trimmed);
+            return coerceAdvisorResponse(parsed);
+        } catch {
+            return { narrative: trimmed, artifacts: [] };
+        }
+    }
+
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+        const record = value as Record<string, unknown>;
+        const narrative = typeof record.narrative === "string"
+            ? record.narrative
+            : typeof record.text === "string"
+                ? record.text
+                : typeof record.content === "string"
+                    ? record.content
+                    : "";
+        const artifacts = Array.isArray(record.artifacts) ? record.artifacts as AdvisorResponse["artifacts"] : [];
+
+        if (!narrative.trim() && typeof record === "object") {
+            return { narrative: JSON.stringify(record), artifacts: [] };
+        }
+
+        return { narrative: narrative.trim() || "No response", artifacts };
+    }
+
+    return { narrative: String(value ?? "No response"), artifacts: [] };
 }
 
 export default function ChatClient() {
@@ -49,19 +81,10 @@ export default function ChatClient() {
 
             if (contentType.includes("application/json")) {
                 const data = await res.json();
-                reply = {
-                    narrative: typeof data?.narrative === "string"
-                        ? data.narrative
-                        : typeof data?.text === "string"
-                            ? data.text
-                            : typeof data?.error === "string"
-                                ? data.error
-                                : JSON.stringify(data),
-                    artifacts: Array.isArray(data?.artifacts) ? data.artifacts : [],
-                };
+                reply = coerceAdvisorResponse(data);
             } else {
                 const raw = await res.text();
-                reply = fallbackAdvisorResponse(raw);
+                reply = coerceAdvisorResponse(raw);
             }
 
             setThreads((prev) => {
