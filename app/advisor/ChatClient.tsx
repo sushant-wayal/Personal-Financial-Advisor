@@ -9,6 +9,29 @@ import type { AdvisorResponse } from "@/types/advisor";
 
 type ChatTurn = { question: string; response: AdvisorResponse | null };
 
+function extractJsonPayload(text: string) {
+    const trimmed = text.trim();
+
+    const fencedMatch = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+    if (fencedMatch?.[1]) {
+        return fencedMatch[1].trim();
+    }
+
+    const firstArray = trimmed.indexOf("[");
+    const lastArray = trimmed.lastIndexOf("]");
+    if (firstArray !== -1 && lastArray !== -1 && lastArray > firstArray) {
+        return trimmed.slice(firstArray, lastArray + 1).trim();
+    }
+
+    const firstObject = trimmed.indexOf("{");
+    const lastObject = trimmed.lastIndexOf("}");
+    if (firstObject !== -1 && lastObject !== -1 && lastObject > firstObject) {
+        return trimmed.slice(firstObject, lastObject + 1).trim();
+    }
+
+    return trimmed;
+}
+
 function coerceAdvisorResponse(value: unknown): AdvisorResponse {
     if (typeof value === "string") {
         const trimmed = value.trim();
@@ -17,7 +40,7 @@ function coerceAdvisorResponse(value: unknown): AdvisorResponse {
         }
 
         try {
-            const parsed = JSON.parse(trimmed);
+            const parsed = JSON.parse(extractJsonPayload(trimmed));
             return coerceAdvisorResponse(parsed);
         } catch {
             return { narrative: trimmed, artifacts: [] };
