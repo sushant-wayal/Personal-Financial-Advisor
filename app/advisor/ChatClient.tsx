@@ -4,12 +4,18 @@ import ReactMarkdown from "react-markdown";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import ArtifactRenderer from "../components/advisor/ArtifactRenderer";
+import type { AdvisorResponse } from "@/types/advisor";
 
-type ChatTurn = { question: string; response: string };
+type ChatTurn = { question: string; response: AdvisorResponse | null };
+
+function fallbackAdvisorResponse(raw: string): AdvisorResponse {
+    return { narrative: raw.trim() || "No response", artifacts: [] };
+}
 
 export default function ChatClient() {
     const [q, setQ] = useState("");
-    const [threads, setThreads] = useState<Array<{ question: string; response: string }>>([]);
+    const [threads, setThreads] = useState<ChatTurn[]>([]);
     const [loading, setLoading] = useState(false);
     const liveRef = useRef<HTMLDivElement | null>(null);
     const inFlightRef = useRef(false);
@@ -23,67 +29,65 @@ export default function ChatClient() {
         if (inFlightRef.current) return;
         inFlightRef.current = true;
         const user = q.trim();
-        setThreads((prev) => [...prev, { question: user, response: "" }]);
+        setThreads((prev) => [...prev, { question: user, response: null }]);
         setQ("");
         setLoading(true);
         try {
-            // streaming by default
-            const history: ChatTurn[] = threads.slice(-8);
+            const history: Array<{ question: string; response: string }> = threads
+                .slice(-8)
+                .map((turn) => ({
+                    question: turn.question,
+                    response: turn.response?.narrative || "",
+                }));
             const res = await fetch('/api/ai/advisor', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ question: user, history }),
             });
-            if (!res.body) {
+            const contentType = res.headers.get("content-type") || "";
+            let reply: AdvisorResponse;
+
+            if (contentType.includes("application/json")) {
                 const data = await res.json();
-                const reply = data.text || data.result?.text || JSON.stringify(data.result) || data.error || "No response";
-                console.log("Non-streaming response:", data);
-                setThreads((prev) => {
-                    if (!prev.length) return prev;
-                    const next = [...prev];
-                    const last = next[next.length - 1];
-                    next[next.length - 1] = { ...last, response: reply };
-                    return next;
-                });
-                return;
+                reply = {
+                    narrative: typeof data?.narrative === "string"
+                        ? data.narrative
+                        : typeof data?.text === "string"
+                            ? data.text
+                            : typeof data?.error === "string"
+                                ? data.error
+                                : JSON.stringify(data),
+                    artifacts: Array.isArray(data?.artifacts) ? data.artifacts : [],
+                };
+            } else {
+                const raw = await res.text();
+                reply = fallbackAdvisorResponse(raw);
             }
 
-            const reader = res.body.getReader();
-            const decoder = new TextDecoder();
-            let done = false;
-            let assistantText = "";
-            while (!done) {
-                const { value, done: d } = await reader.read();
-                done = !!d;
-                console.log("Stream chunk:", { value, done });
-                if (value) {
-                    const chunk = decoder.decode(value);
-                    assistantText += chunk;
-                    setThreads((prev) => {
-                        if (!prev.length) return prev;
-                        const next = [...prev];
-                        const last = next[next.length - 1];
-                        next[next.length - 1] = { ...last, response: assistantText };
-                        return next;
-                    });
-                }
-            }
-            const final = assistantText.trim();
-            if (final) {
-                try {
-                    await fetch('/api/ai/memory', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ key: `chat:${Date.now()}`, value: final, tags: ['chat'] }),
-                    });
-                } catch (e) { }
-            }
-        } catch (e: any) {
             setThreads((prev) => {
                 if (!prev.length) return prev;
                 const next = [...prev];
                 const last = next[next.length - 1];
-                next[next.length - 1] = { ...last, response: 'Error: ' + String(e) };
+                next[next.length - 1] = { ...last, response: reply };
+                return next;
+            });
+
+            if (reply.narrative.trim()) {
+                try {
+                    await fetch('/api/ai/memory', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ key: `chat:${Date.now()}`, value: reply.narrative.trim(), tags: ['chat'] }),
+                    });
+                } catch {
+                }
+            }
+        } catch (error) {
+            setThreads((prev) => {
+                if (!prev.length) return prev;
+                const next = [...prev];
+                const last = next[next.length - 1];
+                next[next.length - 1] = { ...last, response: { narrative: "Error: " + String(error), artifacts: [] } };
                 return next;
             });
         } finally {
@@ -107,8 +111,13 @@ export default function ChatClient() {
                                 </CardContent>
                             </Card>
                             {entry.response && (
-                                <div className="mt-3">
-                                    <ReactMarkdown>{entry.response}</ReactMarkdown>
+                                <div className="mt-3 space-y-4">
+                                    <div className="prose prose-invert max-w-none text-sm">
+                                        <ReactMarkdown>{entry.response.narrative}</ReactMarkdown>
+                                    </div>
+                                    {entry.response.artifacts.length > 0 && (
+                                        <ArtifactRenderer artifacts={entry.response.artifacts} />
+                                    )}
                                 </div>
                             )}
                         </div>

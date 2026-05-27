@@ -105,7 +105,7 @@ export async function buildFinancialContext(limit = 24) {
 
     const recentInsights = await prisma.financialInsight.findMany({ orderBy: { createdAt: "desc" }, take: 8 });
 
-    const summarizedGoals = goals.map((goal) => summarizeGoal(goal, currency));
+    const summarizedGoals = (goals as any[]).map((goal: any) => summarizeGoal(goal, currency));
 
     // Derived: monthly surplus
     const monthlyIncomeVal = profile?.monthlyIncome ?? 0;
@@ -113,11 +113,11 @@ export async function buildFinancialContext(limit = 24) {
     const monthlySurplusVal = monthlyIncomeVal - monthlyExpensesVal;
 
     // Derived: goal summary
-    const totalTargetAmount = summarizedGoals.reduce((s, g) => s + (g.targetAmount || 0), 0);
-    const totalCurrentAmount = summarizedGoals.reduce((s, g) => s + (g.currentAmount || 0), 0);
+    const totalTargetAmount = summarizedGoals.reduce((sum: number, goal: any) => sum + (goal.targetAmount || 0), 0);
+    const totalCurrentAmount = summarizedGoals.reduce((sum: number, goal: any) => sum + (goal.currentAmount || 0), 0);
     const totalGoals = summarizedGoals.length;
-    const onTrackCount = summarizedGoals.filter((g) => (g.progressPct ?? 0) >= 80).length;
-    const offTrackCount = summarizedGoals.filter((g) => (g.progressPct ?? 0) < 50).length;
+    const onTrackCount = summarizedGoals.filter((goal: any) => (goal.progressPct ?? 0) >= 80).length;
+    const offTrackCount = summarizedGoals.filter((goal: any) => (goal.progressPct ?? 0) < 50).length;
     const atRiskCount = Math.max(0, totalGoals - onTrackCount - offTrackCount);
     const highestPriorityGoal = (() => {
         if (summarizedGoals.length === 0) return null;
@@ -126,7 +126,7 @@ export async function buildFinancialContext(limit = 24) {
         return { id: g.id, title: g.title, progressPct: g.progressPct };
     })();
     const nearestDeadlineGoal = (() => {
-        const withDates = summarizedGoals.filter((g) => g.targetDate);
+        const withDates = summarizedGoals.filter((goal: any) => goal.targetDate);
         if (withDates.length === 0) return null;
         const sorted = [...withDates].sort((a, b) => new Date(a.targetDate!).getTime() - new Date(b.targetDate!).getTime());
         const g = sorted[0];
@@ -290,8 +290,8 @@ export async function buildFinancialContext(limit = 24) {
     };
 }
 
-export function buildAdvisorSystemPrompt() {
-    return [
+export function buildAdvisorSystemPrompt(options?: { structured?: boolean }) {
+    const parts = [
         "You are a trusted personal financial advisor and decision-making partner for a single user.",
 
         "Your purpose is not to report financial data. Your purpose is to help the user make better financial decisions.",
@@ -331,7 +331,24 @@ export function buildAdvisorSystemPrompt() {
         "Do not create sections, headings, bullet lists, or report formatting unless the user explicitly requests a detailed breakdown.",
 
         "The user should feel like they are speaking with a thoughtful personal financial advisor, not reading a generated report."
-    ].join(" ");
+    ];
+
+    if (options?.structured) {
+        parts.push(
+            "Return structured JSON only.",
+            "Do not output markdown fences, HTML, frontend code, or extra commentary.",
+            "The response must be a JSON object with narrative and artifacts.",
+            "narrative is required and should remain conversational, direct, and natural.",
+            "artifacts is optional and should usually contain 0-3 items. Some responses may contain no artifacts.",
+            "Use artifacts only when they improve clarity or make the advice easier to act on.",
+            "Avoid repetitive layouts. Choose the artifact types that fit the question best.",
+            "Never force a template or include an artifact just to fill space.",
+            "Allowed artifact types are healthCard, dualMetric, metricsGrid, riskList, warning, directive, recommendation, goalCard, goalTimeline, comparisonTable, priorityCard, and decisionSummary.",
+            "Keep artifact content concise, specific, and financially grounded."
+        );
+    }
+
+    return parts.join(" ");
 }
 
 export function buildAdvisorMessages(question: string, context: unknown) {
@@ -341,7 +358,7 @@ export function buildAdvisorMessages(question: string, context: unknown) {
             role: "user",
             content: `Financial context:\n${JSON.stringify(context)}\n\nUser question:\n${question}`,
         },
-    ] as const;
+    ];
 }
 
 export type AdvisorChatTurn = {
@@ -349,8 +366,13 @@ export type AdvisorChatTurn = {
     response: string;
 };
 
-export function buildAdvisorChatMessages(question: string, context: unknown, history: AdvisorChatTurn[] = []) {
-    const messages = [{ role: "system", content: buildAdvisorSystemPrompt() }];
+export function buildAdvisorChatMessages(
+    question: string,
+    context: unknown,
+    history: AdvisorChatTurn[] = [],
+    options?: { structured?: boolean }
+) {
+    const messages = [{ role: "system", content: buildAdvisorSystemPrompt(options) }];
     const contextText = `Financial context:\n${JSON.stringify(context)}`;
 
     for (const turn of history) {

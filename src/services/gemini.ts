@@ -7,7 +7,12 @@ const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models
 
 type GeminiMessage = { role: string; content: string };
 
-type GeminiOptions = { temperature?: number; complexity?: "simple" | "complex" };
+type GeminiOptions = {
+    temperature?: number;
+    complexity?: "simple" | "complex";
+    responseMimeType?: string;
+    responseSchema?: Record<string, unknown>;
+};
 
 function buildGeminiUrl(model: string) {
     return `${GEMINI_BASE_URL}/${model}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`;
@@ -40,6 +45,8 @@ export function buildGeminiRequest(promptOrMessages: string | GeminiMessage[], o
         contents,
         generationConfig: {
             temperature: opts?.temperature ?? 0.2,
+            ...(opts?.responseMimeType ? { responseMimeType: opts.responseMimeType } : {}),
+            ...(opts?.responseSchema ? { responseSchema: opts.responseSchema } : {}),
         },
     };
 
