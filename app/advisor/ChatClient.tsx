@@ -9,63 +9,8 @@ import type { AdvisorResponse } from "@/types/advisor";
 
 type ChatTurn = { question: string; response: AdvisorResponse | null };
 
-function extractJsonPayload(text: string) {
-    const trimmed = text.trim();
-
-    const fencedMatch = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
-    if (fencedMatch?.[1]) {
-        return fencedMatch[1].trim();
-    }
-
-    const firstArray = trimmed.indexOf("[");
-    const lastArray = trimmed.lastIndexOf("]");
-    if (firstArray !== -1 && lastArray !== -1 && lastArray > firstArray) {
-        return trimmed.slice(firstArray, lastArray + 1).trim();
-    }
-
-    const firstObject = trimmed.indexOf("{");
-    const lastObject = trimmed.lastIndexOf("}");
-    if (firstObject !== -1 && lastObject !== -1 && lastObject > firstObject) {
-        return trimmed.slice(firstObject, lastObject + 1).trim();
-    }
-
-    return trimmed;
-}
-
-function coerceAdvisorResponse(value: unknown): AdvisorResponse {
-    if (typeof value === "string") {
-        const trimmed = value.trim();
-        if (!trimmed) {
-            return { narrative: "No response", artifacts: [] };
-        }
-
-        try {
-            const parsed = JSON.parse(extractJsonPayload(trimmed));
-            return coerceAdvisorResponse(parsed);
-        } catch {
-            return { narrative: trimmed, artifacts: [] };
-        }
-    }
-
-    if (value && typeof value === "object" && !Array.isArray(value)) {
-        const record = value as Record<string, unknown>;
-        const narrative = typeof record.narrative === "string"
-            ? record.narrative
-            : typeof record.text === "string"
-                ? record.text
-                : typeof record.content === "string"
-                    ? record.content
-                    : "";
-        const artifacts = Array.isArray(record.artifacts) ? record.artifacts as AdvisorResponse["artifacts"] : [];
-
-        if (!narrative.trim() && typeof record === "object") {
-            return { narrative: JSON.stringify(record), artifacts: [] };
-        }
-
-        return { narrative: narrative.trim() || "No response", artifacts };
-    }
-
-    return { narrative: String(value ?? "No response"), artifacts: [] };
+function fallbackAdvisorResponse(raw: string): AdvisorResponse {
+    return { narrative: raw.trim() || "No response", artifacts: [] };
 }
 
 export default function ChatClient() {
@@ -104,10 +49,19 @@ export default function ChatClient() {
 
             if (contentType.includes("application/json")) {
                 const data = await res.json();
-                reply = coerceAdvisorResponse(data);
+                reply = {
+                    narrative: typeof data?.narrative === "string"
+                        ? data.narrative
+                        : typeof data?.text === "string"
+                            ? data.text
+                            : typeof data?.error === "string"
+                                ? data.error
+                                : JSON.stringify(data),
+                    artifacts: Array.isArray(data?.artifacts) ? data.artifacts : [],
+                };
             } else {
                 const raw = await res.text();
-                reply = coerceAdvisorResponse(raw);
+                reply = fallbackAdvisorResponse(raw);
             }
 
             setThreads((prev) => {
