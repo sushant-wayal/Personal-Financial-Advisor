@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
+    Animated,
     NativeScrollEvent,
     NativeSyntheticEvent,
     Pressable,
@@ -106,6 +107,9 @@ export default function InsightsScreen() {
         }
     }, [loadInsights]);
 
+    // Animated scrollX for the metrics carousel dots
+    const metricsScrollX = useRef(new Animated.Value(0));
+
     React.useEffect(() => {
         let mounted = true;
 
@@ -202,7 +206,10 @@ export default function InsightsScreen() {
                                 onScrollBeginDrag={beginHorizontalScroll}
                                 onScrollEndDrag={endHorizontalScroll}
                                 onMomentumScrollEnd={endHorizontalScroll}
-                                onScroll={onMetricsScroll}
+                                onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: metricsScrollX.current } } }], {
+                                    useNativeDriver: false,
+                                    listener: onMetricsScroll,
+                                })}
                                 scrollEventThrottle={16}
                             >
                                 {metricInsights.map((insight, index) => {
@@ -234,9 +241,27 @@ export default function InsightsScreen() {
                             </ScrollView>
 
                             <View style={styles.paginationRow}>
-                                {(metricInsights.length ? metricInsights : [{ message: "", score: 0 }]).map((_, index) => (
-                                    <View key={`dot-${index}`} style={[styles.dot, index === metricIndex ? styles.dotActive : null]} />
-                                ))}
+                                {(metricInsights.length ? metricInsights : [{ message: "", score: 0 }]).map((_, index) => {
+                                    const inputRange = [
+                                        (index - 1) * (cardWidth + 16),
+                                        index * (cardWidth + 16),
+                                        (index + 1) * (cardWidth + 16),
+                                    ];
+
+                                    return (
+                                        <Animated.View
+                                            key={`dot-${index}`}
+                                            style={[
+                                                styles.dot,
+                                                {
+                                                    width: metricsScrollX.current.interpolate({ inputRange, outputRange: [6, 18, 6], extrapolate: "clamp" }),
+                                                    opacity: metricsScrollX.current.interpolate({ inputRange, outputRange: [0.28, 1, 0.28], extrapolate: "clamp" }),
+                                                    backgroundColor: metricsScrollX.current.interpolate({ inputRange, outputRange: ["rgba(255,255,255,0.22)", "#7dffa2", "rgba(255,255,255,0.22)"], extrapolate: "clamp" }),
+                                                },
+                                            ]}
+                                        />
+                                    );
+                                })}
                             </View>
                         </>
                     )}

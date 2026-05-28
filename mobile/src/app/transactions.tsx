@@ -16,7 +16,7 @@ import {
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Skeleton, TransactionsSkeleton } from "../components/LoadingSkeleton";
 import { getCurrencySymbol, useCurrency } from "../providers/CurrencyProvider";
 import { beginHorizontalScroll, endHorizontalScroll, updateHorizontalScroll } from "../lib/horizontalScrollPriority";
@@ -437,6 +437,8 @@ export default function TransactionsScreen() {
   const [deleteTarget, setDeleteTarget] = useState<Transaction | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deletingTransaction, setDeletingTransaction] = useState(false);
+
+  const insets = useSafeAreaInsets();
 
   const [activeSheet, setActiveSheet] = useState<SheetName>(null);
   const [sheetAnim] = useState(() => new Animated.Value(0));
@@ -917,7 +919,7 @@ export default function TransactionsScreen() {
         <TouchableWithoutFeedback onPress={() => setActionTransaction(null)}>
           <View style={styles.actionOverlay} />
         </TouchableWithoutFeedback>
-        <View style={styles.txActionSheet}>
+        <View style={[styles.txActionSheet, { paddingBottom: Math.max((insets.bottom || 0) + 16, 34) }]}>
           <View style={styles.grabHandleCompact} />
           <Text style={styles.txActionTitle} numberOfLines={1}>{actionTransaction?.merchant ?? "Transaction"}</Text>
           <Text style={styles.txActionMeta}>
@@ -956,7 +958,7 @@ export default function TransactionsScreen() {
       </Modal>
 
       <Modal visible={!!deleteTarget} transparent animationType="fade" onRequestClose={() => setDeleteTarget(null)}>
-        <View style={styles.confirmOverlay}>
+        <SafeAreaView style={styles.confirmOverlay} edges={["top", "bottom"]}>
           <View style={styles.confirmCard}>
             <View style={styles.confirmIcon}>
               <MaterialIcons name="delete-outline" size={26} color="#ffb4ab" />
@@ -983,7 +985,7 @@ export default function TransactionsScreen() {
               </Pressable>
             </View>
           </View>
-        </View>
+        </SafeAreaView>
       </Modal>
 
       <Modal visible={!!activeSheet} transparent animationType="none" onRequestClose={closeSheet}>
@@ -991,7 +993,7 @@ export default function TransactionsScreen() {
           <View style={styles.sheetOverlay} />
         </TouchableWithoutFeedback>
 
-        <Animated.View style={[styles.sheetContainer, sheetStyle(activeSheet), { transform: [{ translateY: sheetTranslateY }] }]}>
+        <Animated.View style={[styles.sheetContainer, sheetStyle(activeSheet), { transform: [{ translateY: sheetTranslateY }], paddingBottom: insets.bottom }]}>
           {activeSheet === "advanced" ? (
             <View style={styles.advancedSheet}>
               <View style={styles.grabHandle} />
@@ -1167,7 +1169,7 @@ export default function TransactionsScreen() {
 
       <Modal visible={addVisible} animationType="slide" presentationStyle="fullScreen" onRequestClose={() => (addPicker ? setAddPicker(null) : setAddVisible(false))}>
         {addPicker === null ? (
-          <View style={styles.addScreen}>
+          <SafeAreaView style={styles.addScreen} edges={["top", "bottom"]}>
             <View style={styles.addHeader}>
               <Text style={styles.addTitle}>{editingTransaction ? "EDIT TRANSACTION" : "ADD NEW TRANSACTION"}</Text>
               <Pressable onPress={() => setAddVisible(false)} style={({ pressed }) => [styles.sheetIconButton, pressed ? styles.iconPressed : null]}>
@@ -1247,11 +1249,11 @@ export default function TransactionsScreen() {
                 {savingTransaction ? <Skeleton width={72} height={16} radius={8} /> : <Text style={styles.addSaveText}>{editingTransaction ? "Save Changes" : "Save"}</Text>}
               </Pressable>
             </View>
-          </View>
+          </SafeAreaView>
         ) : null}
 
         {addPicker === "category" ? (
-          <View style={styles.addPickerScreen}>
+          <SafeAreaView style={styles.addPickerScreen} edges={["top", "bottom"]}>
             <View style={styles.addPickerHeader}>
               <Pressable onPress={() => setAddPicker(null)} style={styles.addBackButton}>
                 <MaterialIcons name="arrow-back" size={24} color="#c4c7c8" />
@@ -1283,11 +1285,11 @@ export default function TransactionsScreen() {
                 />
               ))}
             </ScrollView>
-          </View>
+          </SafeAreaView>
         ) : null}
 
         {addPicker === "method" ? (
-          <View style={styles.addPickerScreen}>
+          <SafeAreaView style={styles.addPickerScreen} edges={["top", "bottom"]}>
             <View style={styles.methodHeader}>
               <Pressable onPress={() => setAddPicker(null)} style={styles.methodBackButton}>
                 <MaterialIcons name="arrow-back" size={24} color="#c4c7c8" />
@@ -1311,11 +1313,11 @@ export default function TransactionsScreen() {
                 />
               ))}
             </ScrollView>
-          </View>
+          </SafeAreaView>
         ) : null}
 
         {addPicker === "type" ? (
-          <View style={styles.addPickerScreen}>
+          <SafeAreaView style={styles.addPickerScreen} edges={["top", "bottom"]}>
             <View style={styles.addPickerHeader}>
               <Pressable onPress={() => setAddPicker(null)} style={styles.addBackButton}>
                 <MaterialIcons name="arrow-back" size={24} color="#ffffff" />
@@ -1336,11 +1338,11 @@ export default function TransactionsScreen() {
                 />
               ))}
             </ScrollView>
-          </View>
+          </SafeAreaView>
         ) : null}
 
         {addPicker === "date" ? (
-          <View style={styles.addDateOverlay}>
+          <SafeAreaView style={styles.addDateOverlay} edges={["top", "bottom"]}>
             <View style={styles.addDateCard}>
               <View style={styles.addDateHeader}>
                 <Text style={styles.addDateTitle}>Select Date & Time</Text>
@@ -1404,12 +1406,12 @@ export default function TransactionsScreen() {
                 </Pressable>
               </View>
             </View>
-          </View>
+          </SafeAreaView>
         ) : null}
       </Modal>
 
       <Modal visible={customModalVisible} animationType="slide" presentationStyle="fullScreen" onRequestClose={() => setCustomModalVisible(false)}>
-        <View style={styles.customRangeScreen}>
+        <SafeAreaView style={styles.customRangeScreen} edges={["top", "bottom"]}>
           <View style={styles.customRangeHeader}>
             <Pressable onPress={() => setCustomModalVisible(false)} style={({ pressed }) => [styles.customCloseButton, pressed ? styles.iconPressed : null]}>
               <MaterialIcons name="close" size={24} color="#c4c7c8" />
@@ -1506,9 +1508,9 @@ export default function TransactionsScreen() {
               <Text style={styles.rangeApplyText}>Apply Range</Text>
             </Pressable>
           </View>
-        </View>
+        </SafeAreaView>
       </Modal>
-    </SafeAreaView>
+    </SafeAreaView >
   );
 }
 

@@ -394,7 +394,7 @@ export default function SettingsScreen() {
       )}
 
       <Modal visible={!!selectedMemory} transparent animationType="slide" onRequestClose={() => setSelectedMemory(null)}>
-        <View style={styles.modalBackdrop}>
+        <SafeAreaView style={styles.modalBackdrop} edges={["bottom"]}>
           <View style={styles.memoryModal}>
             <View style={styles.memoryModalHeader}>
               <View style={styles.memoryModalTitleWrap}>
@@ -417,11 +417,11 @@ export default function SettingsScreen() {
               </Pressable>
             </View>
           </View>
-        </View>
-      </Modal>
+        </SafeAreaView>
+      </Modal >
 
       <Modal visible={confirmDeleteMemoryVisible} transparent animationType="fade" onRequestClose={() => setConfirmDeleteMemoryVisible(false)}>
-        <View style={styles.confirmOverlay}>
+        <SafeAreaView style={styles.confirmOverlay} edges={["top", "bottom"]}>
           <View style={styles.confirmCard}>
             <View style={styles.confirmIcon}>
               <MaterialIcons name="delete-outline" size={26} color="#ffb4ab" />
@@ -448,9 +448,9 @@ export default function SettingsScreen() {
               </Pressable>
             </View>
           </View>
-        </View>
+        </SafeAreaView>
       </Modal>
-    </SafeAreaView>
+    </SafeAreaView >
   );
 }
 

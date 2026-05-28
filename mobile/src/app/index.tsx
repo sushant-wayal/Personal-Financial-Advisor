@@ -11,6 +11,8 @@ import {
   NativeSyntheticEvent,
   useWindowDimensions,
   View,
+  LayoutAnimation,
+  Easing,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -704,11 +706,7 @@ function CategoryRing({
   onSelectCategory: (category: CategoryPoint | null) => void;
   onBoundsChange?: (bounds: { x: number; y: number; width: number; height: number }) => void;
 }) {
-  const ringRef = useRef<View>(null);
-  const [detailOpacity] = useState(() => new Animated.Value(0));
-  const [detailTranslateY] = useState(() => new Animated.Value(10));
-  const [detailVisible, setDetailVisible] = useState(false);
-  const [displayCategory, setDisplayCategory] = useState<CategoryPoint | null>(null);
+  // Tooltip removed: keep the chart and list only.
   const total = categories.reduce((sum, category) => sum + category.value, 0);
   const colors = ["#7dffa2", "#00e475", "#c4c7c8", "#ffffff", "#2979ff"];
   const radius = 68;
@@ -737,72 +735,7 @@ function CategoryRing({
     { offset: 0, nodes: [] as Array<{ key: string; color: string; segmentLength: number; offset: number; opacity: number }> },
   ).nodes;
 
-  useEffect(() => {
-    if (!onBoundsChange) {
-      return;
-    }
-
-    const handle = requestAnimationFrame(() => {
-      ringRef.current?.measureInWindow((x, y, width, height) => {
-        onBoundsChange({ x, y, width, height });
-      });
-    });
-
-    return () => cancelAnimationFrame(handle);
-  }, [total, onBoundsChange]);
-
-  useEffect(() => {
-    const frameId = requestAnimationFrame(() => {
-      if (selectedCategory) {
-        setDetailVisible(true);
-        Animated.sequence([
-          Animated.timing(detailOpacity, {
-            toValue: 0,
-            duration: 120,
-            useNativeDriver: true,
-          }),
-          Animated.timing(detailTranslateY, {
-            toValue: 10,
-            duration: 120,
-            useNativeDriver: true,
-          }),
-        ]).start(() => {
-          setDisplayCategory(selectedCategory);
-          Animated.parallel([
-            Animated.timing(detailOpacity, {
-              toValue: 1,
-              duration: 200,
-              useNativeDriver: true,
-            }),
-            Animated.timing(detailTranslateY, {
-              toValue: 0,
-              duration: 200,
-              useNativeDriver: true,
-            }),
-          ]).start();
-        });
-        return;
-      }
-
-      Animated.parallel([
-        Animated.timing(detailOpacity, {
-          toValue: 0,
-          duration: 160,
-          useNativeDriver: true,
-        }),
-        Animated.timing(detailTranslateY, {
-          toValue: 10,
-          duration: 160,
-          useNativeDriver: true,
-        }),
-      ]).start(() => {
-        setDisplayCategory(null);
-        setDetailVisible(false);
-      });
-    });
-
-    return () => cancelAnimationFrame(frameId);
-  }, [detailOpacity, detailTranslateY, selectedCategory]);
+  // No tooltip animation/effects — selection handled by parent state.
 
   const selectedIndex = selectedCategory ? categories.findIndex((category) => category.name === selectedCategory.name) : -1;
 
@@ -837,11 +770,41 @@ function CategoryRing({
     onSelectCategory(closestCategory);
   };
 
-  const activeCategory = displayCategory;
-  const activePercentage = activeCategory && total > 0 ? Math.round((activeCategory.value / total) * 100) : 0;
+  // Smoothly animate layout changes (padding/background) when selection changes
+  useEffect(() => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+  }, [selectedCategory]);
+
+  // Animated values per row for smooth transitions
+  const animatedRowValuesRef = useRef<Animated.Value[]>([]);
+
+  // Ensure animated values exist for the current number of categories
+  useEffect(() => {
+    const values = animatedRowValuesRef.current;
+    if (values.length !== categories.length) {
+      animatedRowValuesRef.current = categories.map((_, i) => values[i] ?? new Animated.Value(0));
+    }
+  }, [categories.length]);
+
+  // Animate when selectedIndex changes
+  useEffect(() => {
+    const toVals = animatedRowValuesRef.current.map((_, i) => (selectedIndex === i ? 1 : 0));
+    const animations = toVals.map((toVal, i) =>
+      Animated.timing(animatedRowValuesRef.current[i], {
+        toValue: toVal,
+        duration: 260,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: false,
+      })
+    );
+
+    Animated.parallel(animations).start();
+  }, [selectedIndex]);
+
+  const activePercentage = selectedCategory && total > 0 ? Math.round((selectedCategory.value / total) * 100) : 0;
 
   return (
-    <View ref={ringRef} style={styles.categoryCard}>
+    <View style={styles.categoryCard}>
       <Text style={styles.carouselEyebrow}>CATEGORY BREAKDOWN</Text>
       <View style={styles.ringWrap}>
         <Pressable style={styles.ringChart} onPress={(event) => handleRingPress(event.nativeEvent.locationX, event.nativeEvent.locationY)}>
@@ -882,39 +845,26 @@ function CategoryRing({
           </View>
         </Pressable>
       </View>
-      {detailVisible ? (
-        <Animated.View
-          pointerEvents="none"
-          style={[
-            styles.categoryTooltip,
-            {
-              opacity: detailOpacity,
-              transform: [{ translateY: detailTranslateY }],
-            },
-          ]}
-        >
-          {activeCategory ? (
-            <>
-              <Text style={styles.categoryTooltipLabel}>Selected category</Text>
-              <View style={styles.categoryTooltipRow}>
-                <Text style={styles.categoryTooltipName}>{activeCategory.name}</Text>
-                <Text style={styles.categoryTooltipPercent}>{`${activePercentage}%`}</Text>
-              </View>
-              <Text style={styles.categoryTooltipValue}>{formatCompactCurrency(activeCategory.value)}</Text>
-            </>
-          ) : null}
-        </Animated.View>
-      ) : null}
+      {/* tooltip removed */}
       <View style={styles.categoryList}>
-        {categories.map((category, index) => (
-          <View key={category.name} style={[styles.categoryRow, selectedIndex === index ? styles.categoryRowSelected : null]}>
-            <View style={styles.categoryLabelWrap}>
-              <View style={[styles.categoryDot, { backgroundColor: colors[index % colors.length] }]} />
-              <Text style={styles.categoryLabel}>{category.name}</Text>
-            </View>
-            <Text style={styles.categoryPercent}>{`${total > 0 ? Math.round((category.value / total) * 100) : 0}%`}</Text>
-          </View>
-        ))}
+        {categories.map((category, index) => {
+          const anim = animatedRowValuesRef.current[index] ?? new Animated.Value(0);
+          const scale = anim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.02] });
+          const bg = anim.interpolate({ inputRange: [0, 1], outputRange: ["transparent", "rgba(125,255,162,0.12)"] });
+          const dotScale = anim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.18] });
+
+          return (
+            <Pressable key={category.name} onPress={() => onSelectCategory(category)} android_ripple={{ color: "rgba(255,255,255,0.02)" }}>
+              <Animated.View style={[styles.categoryRow, { transform: [{ scale }], backgroundColor: bg }]}>
+                <View style={styles.categoryLabelWrap}>
+                  <Animated.View style={[styles.categoryDot, { backgroundColor: colors[index % colors.length], transform: [{ scale: dotScale }] }]} />
+                  <Text style={styles.categoryLabel}>{category.name}</Text>
+                </View>
+                <Text style={styles.categoryPercent}>{`${total > 0 ? Math.round((category.value / total) * 100) : 0}% • ${formatCompactCurrency(category.value)}`}</Text>
+              </Animated.View>
+            </Pressable>
+          );
+        })}
       </View>
     </View>
   );
@@ -1860,11 +1810,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     borderRadius: 10,
-    paddingVertical: 2,
-    paddingHorizontal: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
   },
   categoryRowSelected: {
-    backgroundColor: "rgba(125,255,162,0.08)",
+    backgroundColor: "rgba(125,255,162,0.12)",
+    borderRadius: 999,
   },
   categoryLabelWrap: {
     flexDirection: "row",

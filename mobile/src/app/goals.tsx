@@ -13,6 +13,7 @@ import {
   NativeSyntheticEvent,
   useWindowDimensions,
   View,
+  BackHandler,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -394,6 +395,32 @@ export default function GoalsScreen() {
       mounted = false;
     };
   }, []);
+
+  // Handle Android hardware back button while inside the Goals UI.
+  // If a modal/sheet is open or the goals view is in 'all'/'detail',
+  // intercept the back action and update local view state instead
+  // of letting the router navigate away from the goals section.
+  useEffect(() => {
+    const onBackPress = () => {
+      if (sheetVisible) {
+        setSheetVisible(false);
+        return true;
+      }
+      if (view === "detail") {
+        setView("all");
+        return true;
+      }
+      if (view === "all") {
+        setView("dashboard");
+        return true;
+      }
+      // allow default behavior (router or system) for other views
+      return false;
+    };
+
+    const sub = BackHandler.addEventListener("hardwareBackPress", onBackPress);
+    return () => sub.remove();
+  }, [view, sheetVisible]);
 
   async function refresh() {
     setRefreshing(true);
@@ -983,7 +1010,7 @@ function GoalSheet({
   return (
     <>
       <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-        <View style={styles.sheetBackdrop}>
+        <SafeAreaView style={styles.sheetBackdrop} edges={["bottom"]}>
           <View style={styles.goalSheet}>
             <View style={styles.grabHandle} />
             <View style={styles.goalSheetHeader}>
@@ -1021,11 +1048,11 @@ function GoalSheet({
               </Pressable>
             </View>
           </View>
-        </View>
+        </SafeAreaView>
       </Modal>
 
       <Modal visible={datePickerVisible} transparent animationType="fade" onRequestClose={() => setDatePickerVisible(false)}>
-        <View style={styles.goalDateOverlay}>
+        <SafeAreaView style={styles.goalDateOverlay} edges={["top", "bottom"]}>
           <View style={styles.goalDateCard}>
             <View style={styles.goalDateHeader}>
               <Text style={styles.goalDateTitle}>Select Target Date</Text>
@@ -1074,7 +1101,7 @@ function GoalSheet({
               </Pressable>
             </View>
           </View>
-        </View>
+        </SafeAreaView>
       </Modal>
     </>
   );
