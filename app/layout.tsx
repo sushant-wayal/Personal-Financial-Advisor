@@ -6,8 +6,8 @@ import ReactQueryProvider from "../src/providers/ReactQueryProvider";
 const notoSans = Noto_Sans({ subsets: ['latin'], variable: '--font-sans' });
 
 export const metadata: Metadata = {
-  title: "Personal Finance OS",
-  description: "AI-powered personal finance assistant (local-first)",
+  title: "North : Personanl Financial Advisor",
+  description: "AI-powered personal finance assistant",
 };
 
 import Sidebar from "./components/Sidebar";

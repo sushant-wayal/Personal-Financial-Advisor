@@ -16,7 +16,7 @@ export default function Header() {
                 <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                         <div className="text-[10px] font-semibold uppercase tracking-[0.28em] text-muted-foreground sm:text-xs sm:tracking-[0.3em]">Overview</div>
-                        <div className="truncate text-lg font-semibold text-foreground sm:text-xl">Personal Finance OS</div>
+                        <div className="truncate text-lg font-semibold text-foreground sm:text-xl">North : Personanl Financial Advisor</div>
                     </div>
                     <div className="hidden items-center gap-2 rounded-full border border-border bg-muted/50 px-3 py-1 text-xs text-muted-foreground md:flex">
                         <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />

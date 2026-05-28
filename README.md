@@ -1,4 +1,4 @@
-# Personal Financial Operating System
+# North : Personanl Financial Advisor
 
 Local-first, single-user financial workspace built with Next.js, Prisma, SQLite, and Gemini. The app is designed to ingest financial emails and transaction text, normalize them deterministically, learn from corrections, and surface practical insights in one place.
 
