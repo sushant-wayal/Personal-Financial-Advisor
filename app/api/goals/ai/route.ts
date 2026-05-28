@@ -6,22 +6,28 @@ const MEMORY_KEY = "ai_goals_recommendation";
 const HOUR = 1000 * 60 * 60;
 
 export async function GET(req: Request) {
+    let cachedPayload: any = null;
+
     try {
         const url = new URL(req.url);
         const force = url.searchParams.get("force") === "true";
 
         const mem = await prisma.aIMemory.findFirst({ where: { key: MEMORY_KEY } });
+        cachedPayload = mem?.value
+            ? (() => {
+                try {
+                    return JSON.parse(mem.value);
+                } catch {
+                    return null;
+                }
+            })()
+            : null;
 
         // If not forcing and we have a recent cached value (within 24h), return it
-        if (!force && mem) {
+        if (!force && mem && cachedPayload) {
             const age = Date.now() - mem.updatedAt.getTime();
             if (age < 24 * HOUR) {
-                try {
-                    const parsed = JSON.parse(mem.value);
-                    return NextResponse.json({ ok: true, ...parsed });
-                } catch (e) {
-                    // fall through to regenerate if cached parse fails
-                }
+                return NextResponse.json({ ok: true, ...cachedPayload });
             }
         }
 
@@ -38,6 +44,9 @@ export async function GET(req: Request) {
         return NextResponse.json({ ok: true, ...result });
     } catch (e: any) {
         console.error("AI recommendation error (route):", e);
+        if (cachedPayload) {
+            return NextResponse.json({ ok: true, ...cachedPayload, stale: true, fallbackReason: "gemini_unavailable" });
+        }
         return NextResponse.json({ error: String(e) }, { status: 500 });
     }
 }
