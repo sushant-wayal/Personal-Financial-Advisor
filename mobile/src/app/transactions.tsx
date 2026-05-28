@@ -915,45 +915,47 @@ export default function TransactionsScreen() {
       </View>
 
       <Modal visible={!!actionTransaction} transparent animationType="fade" onRequestClose={() => setActionTransaction(null)}>
-        <TouchableWithoutFeedback onPress={() => setActionTransaction(null)}>
-          <View style={styles.actionOverlay} />
-        </TouchableWithoutFeedback>
-        <View style={[styles.txActionSheet, { paddingBottom: Math.max((insets.bottom || 0) + 16, 34) }]}>
-          <View style={styles.grabHandleCompact} />
-          <Text style={styles.txActionTitle} numberOfLines={1}>{actionTransaction?.merchant ?? "Transaction"}</Text>
-          <Text style={styles.txActionMeta}>
-            {actionTransaction ? `${formatDate(actionTransaction.timestamp)} · ${currencySymbol}${Math.abs(actionTransaction.amount ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : ""}
-          </Text>
-          <Pressable
-            style={({ pressed }) => [styles.txActionOption, pressed ? styles.optionPressed : null]}
-            onPress={() => {
-              if (actionTransaction) openEditFlow(actionTransaction);
-            }}
-          >
-            <View style={styles.txActionIcon}>
-              <MaterialIcons name="edit" size={22} color="#ffffff" />
-            </View>
-            <Text style={styles.txActionOptionText}>Edit</Text>
-            <MaterialIcons name="chevron-right" size={22} color="#8e9192" />
-          </Pressable>
-          <Pressable
-            style={({ pressed }) => [styles.txActionOption, styles.txActionDangerOption, pressed ? styles.optionPressed : null]}
-            onPress={() => {
-              setDeleteError(null);
-              setDeleteTarget(actionTransaction);
-              setActionTransaction(null);
-            }}
-          >
-            <View style={[styles.txActionIcon, styles.txActionDangerIcon]}>
-              <MaterialIcons name="delete-outline" size={22} color="#ffb4ab" />
-            </View>
-            <Text style={[styles.txActionOptionText, styles.txActionDangerText]}>Delete</Text>
-            <MaterialIcons name="chevron-right" size={22} color="#8e9192" />
-          </Pressable>
-          <Pressable style={({ pressed }) => [styles.txActionCancel, pressed ? styles.footerPressed : null]} onPress={() => setActionTransaction(null)}>
-            <Text style={styles.txActionCancelText}>Cancel</Text>
-          </Pressable>
-        </View>
+        <SafeAreaView style={styles.popupSafeArea} edges={["top", "bottom"]}>
+          <TouchableWithoutFeedback onPress={() => setActionTransaction(null)}>
+            <View style={styles.actionOverlay} />
+          </TouchableWithoutFeedback>
+          <View style={styles.txActionSheet}>
+            <View style={styles.grabHandleCompact} />
+            <Text style={styles.txActionTitle} numberOfLines={1}>{actionTransaction?.merchant ?? "Transaction"}</Text>
+            <Text style={styles.txActionMeta}>
+              {actionTransaction ? `${formatDate(actionTransaction.timestamp)} · ${currencySymbol}${Math.abs(actionTransaction.amount ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : ""}
+            </Text>
+            <Pressable
+              style={({ pressed }) => [styles.txActionOption, pressed ? styles.optionPressed : null]}
+              onPress={() => {
+                if (actionTransaction) openEditFlow(actionTransaction);
+              }}
+            >
+              <View style={styles.txActionIcon}>
+                <MaterialIcons name="edit" size={22} color="#ffffff" />
+              </View>
+              <Text style={styles.txActionOptionText}>Edit</Text>
+              <MaterialIcons name="chevron-right" size={22} color="#8e9192" />
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [styles.txActionOption, styles.txActionDangerOption, pressed ? styles.optionPressed : null]}
+              onPress={() => {
+                setDeleteError(null);
+                setDeleteTarget(actionTransaction);
+                setActionTransaction(null);
+              }}
+            >
+              <View style={[styles.txActionIcon, styles.txActionDangerIcon]}>
+                <MaterialIcons name="delete-outline" size={22} color="#ffb4ab" />
+              </View>
+              <Text style={[styles.txActionOptionText, styles.txActionDangerText]}>Delete</Text>
+              <MaterialIcons name="chevron-right" size={22} color="#8e9192" />
+            </Pressable>
+            <Pressable style={({ pressed }) => [styles.txActionCancel, pressed ? styles.footerPressed : null]} onPress={() => setActionTransaction(null)}>
+              <Text style={styles.txActionCancelText}>Cancel</Text>
+            </Pressable>
+          </View>
+        </SafeAreaView>
       </Modal>
 
       <Modal visible={!!deleteTarget} transparent animationType="fade" onRequestClose={() => setDeleteTarget(null)}>
@@ -988,182 +990,184 @@ export default function TransactionsScreen() {
       </Modal>
 
       <Modal visible={!!activeSheet} transparent animationType="none" onRequestClose={closeSheet}>
-        <TouchableWithoutFeedback onPress={closeSheet}>
-          <View style={styles.sheetOverlay} />
-        </TouchableWithoutFeedback>
+        <SafeAreaView style={styles.popupSafeArea} edges={["top", "bottom"]}>
+          <TouchableWithoutFeedback onPress={closeSheet}>
+            <View style={styles.sheetOverlay} />
+          </TouchableWithoutFeedback>
 
-        <Animated.View style={[styles.sheetContainer, sheetStyle(activeSheet), { transform: [{ translateY: sheetTranslateY }], paddingBottom: insets.bottom }]}>
-          {activeSheet === "advanced" ? (
-            <View style={styles.advancedSheet}>
-              <View style={styles.grabHandle} />
-              <View style={styles.advancedHeader}>
-                <Text style={styles.largeSheetTitle}>Filters</Text>
-                <Pressable onPress={closeSheet} style={({ pressed }) => [styles.sheetIconButton, pressed ? styles.iconPressed : null]}>
-                  <MaterialIcons name="close" size={22} color="#c4c7c8" />
-                </Pressable>
-              </View>
-              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.advancedBody}>
-                <View style={styles.sheetSection}>
-                  <Text style={styles.sheetLabelSmall}>Global Search</Text>
-                  <View style={styles.inputWrap}>
-                    <MaterialIcons name="search" size={20} color="#8e9192" style={styles.inputIcon} />
-                    <TextInput
-                      value={filterSearch}
-                      onChangeText={setFilterSearch}
-                      placeholder="Keywords, banks, or notes"
-                      placeholderTextColor="rgba(196,199,200,0.42)"
-                      style={styles.inputWithIcon}
-                      returnKeyType="search"
-                    />
-                  </View>
+          <Animated.View style={[styles.sheetContainer, sheetStyle(activeSheet), { transform: [{ translateY: sheetTranslateY }] }]}>
+            {activeSheet === "advanced" ? (
+              <View style={styles.advancedSheet}>
+                <View style={styles.grabHandle} />
+                <View style={styles.advancedHeader}>
+                  <Text style={styles.largeSheetTitle}>Filters</Text>
+                  <Pressable onPress={closeSheet} style={({ pressed }) => [styles.sheetIconButton, pressed ? styles.iconPressed : null]}>
+                    <MaterialIcons name="close" size={22} color="#c4c7c8" />
+                  </Pressable>
                 </View>
-                <View style={styles.sheetSection}>
-                  <Text style={styles.sheetLabelSmall}>Merchant</Text>
-                  <View style={styles.inputWrap}>
-                    <MaterialIcons name="storefront" size={20} color="#8e9192" style={styles.inputIcon} />
-                    <TextInput
-                      value={filterMerchant}
-                      onChangeText={setFilterMerchant}
-                      placeholder="Specific merchant name"
-                      placeholderTextColor="rgba(196,199,200,0.42)"
-                      style={styles.inputWithIcon}
-                    />
-                  </View>
-                </View>
-                <View style={styles.sheetSection}>
-                  <Text style={styles.sheetLabelSmall}>Amount Range</Text>
-                  <View style={styles.amountRangeWrap}>
-                    <View style={styles.amountInputBox}>
-                      <Text style={styles.currencyPrefix}>{currencySymbol}</Text>
+                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.advancedBody}>
+                  <View style={styles.sheetSection}>
+                    <Text style={styles.sheetLabelSmall}>Global Search</Text>
+                    <View style={styles.inputWrap}>
+                      <MaterialIcons name="search" size={20} color="#8e9192" style={styles.inputIcon} />
                       <TextInput
-                        value={filterMin}
-                        onChangeText={(text) => setFilterMin(text.replace(/[^0-9.]/g, ""))}
-                        placeholder="Min"
+                        value={filterSearch}
+                        onChangeText={setFilterSearch}
+                        placeholder="Keywords, banks, or notes"
                         placeholderTextColor="rgba(196,199,200,0.42)"
-                        keyboardType="numeric"
-                        style={styles.amountInput}
-                      />
-                    </View>
-                    <View style={styles.amountDivider} />
-                    <View style={styles.amountInputBox}>
-                      <Text style={styles.currencyPrefix}>{currencySymbol}</Text>
-                      <TextInput
-                        value={filterMax}
-                        onChangeText={(text) => setFilterMax(text.replace(/[^0-9.]/g, ""))}
-                        placeholder="Max"
-                        placeholderTextColor="rgba(196,199,200,0.42)"
-                        keyboardType="numeric"
-                        style={styles.amountInput}
+                        style={styles.inputWithIcon}
+                        returnKeyType="search"
                       />
                     </View>
                   </View>
+                  <View style={styles.sheetSection}>
+                    <Text style={styles.sheetLabelSmall}>Merchant</Text>
+                    <View style={styles.inputWrap}>
+                      <MaterialIcons name="storefront" size={20} color="#8e9192" style={styles.inputIcon} />
+                      <TextInput
+                        value={filterMerchant}
+                        onChangeText={setFilterMerchant}
+                        placeholder="Specific merchant name"
+                        placeholderTextColor="rgba(196,199,200,0.42)"
+                        style={styles.inputWithIcon}
+                      />
+                    </View>
+                  </View>
+                  <View style={styles.sheetSection}>
+                    <Text style={styles.sheetLabelSmall}>Amount Range</Text>
+                    <View style={styles.amountRangeWrap}>
+                      <View style={styles.amountInputBox}>
+                        <Text style={styles.currencyPrefix}>{currencySymbol}</Text>
+                        <TextInput
+                          value={filterMin}
+                          onChangeText={(text) => setFilterMin(text.replace(/[^0-9.]/g, ""))}
+                          placeholder="Min"
+                          placeholderTextColor="rgba(196,199,200,0.42)"
+                          keyboardType="numeric"
+                          style={styles.amountInput}
+                        />
+                      </View>
+                      <View style={styles.amountDivider} />
+                      <View style={styles.amountInputBox}>
+                        <Text style={styles.currencyPrefix}>{currencySymbol}</Text>
+                        <TextInput
+                          value={filterMax}
+                          onChangeText={(text) => setFilterMax(text.replace(/[^0-9.]/g, ""))}
+                          placeholder="Max"
+                          placeholderTextColor="rgba(196,199,200,0.42)"
+                          keyboardType="numeric"
+                          style={styles.amountInput}
+                        />
+                      </View>
+                    </View>
+                  </View>
+                </ScrollView>
+                <View style={styles.sheetFooter}>
+                  <Pressable style={({ pressed }) => [styles.clearBtn, pressed ? styles.footerPressed : null]} onPress={() => void clearAdvancedFilters()}>
+                    <Text style={styles.clearBtnText}>Clear</Text>
+                  </Pressable>
+                  <Pressable style={({ pressed }) => [styles.applyBtn, pressed ? styles.footerPressed : null]} onPress={() => void applyAdvancedFilters()}>
+                    <Text style={styles.applyBtnText}>Apply</Text>
+                  </Pressable>
                 </View>
-              </ScrollView>
-              <View style={styles.sheetFooter}>
-                <Pressable style={({ pressed }) => [styles.clearBtn, pressed ? styles.footerPressed : null]} onPress={() => void clearAdvancedFilters()}>
-                  <Text style={styles.clearBtnText}>Clear</Text>
-                </Pressable>
-                <Pressable style={({ pressed }) => [styles.applyBtn, pressed ? styles.footerPressed : null]} onPress={() => void applyAdvancedFilters()}>
-                  <Text style={styles.applyBtnText}>Apply</Text>
-                </Pressable>
               </View>
-            </View>
-          ) : null}
+            ) : null}
 
-          {activeSheet === "time" ? (
-            <View style={styles.sheetContent}>
-              <View style={styles.sheetHandleWrap}>
-                <View style={styles.grabHandleCompact} />
-              </View>
-              <View style={styles.sheetHeaderRow}>
-                <Text style={styles.sheetTitle}>Time Range</Text>
-                <Pressable onPress={closeSheet} style={styles.sheetIconButton}>
-                  <MaterialIcons name="close" size={22} color="#c4c7c8" />
-                </Pressable>
-              </View>
-              <ScrollView contentContainerStyle={styles.optionList}>
-                {TIME_OPTIONS.map((option) => {
-                  const selected = timeRange === option.id;
-                  return (
-                    <Pressable key={option.id} onPress={() => void applyTimeRange(option.id)} style={({ pressed }) => [styles.timeOption, pressed ? styles.optionPressed : null]}>
-                      <Text style={[styles.timeOptionText, selected ? styles.timeOptionTextSelected : null]}>{option.label}</Text>
-                      <MaterialIcons name={selected ? "radio-button-checked" : "radio-button-unchecked"} size={22} color={selected ? "#05e777" : "#444748"} />
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
-              <View style={styles.singleFooter}>
-                <Pressable style={({ pressed }) => [styles.fullApplyBtn, pressed ? styles.footerPressed : null]} onPress={closeSheet}>
-                  <Text style={styles.fullApplyText}>Apply Filter</Text>
-                </Pressable>
-              </View>
-            </View>
-          ) : null}
-
-          {activeSheet === "category" ? (
-            <View style={styles.tallSheet}>
-              <View style={styles.centerHeader}>
-                <Pressable onPress={closeSheet} style={styles.sheetIconButton}>
-                  <MaterialIcons name="close" size={22} color="#e5e2e1" />
-                </Pressable>
-                <Text pointerEvents="none" style={styles.centerTitle}>Select Category</Text>
-                <View style={styles.headerSpacer} />
-              </View>
-              <View style={styles.categoryBody}>
-                <View style={styles.searchInputWrap}>
-                  <MaterialIcons name="search" size={20} color="#c4c7c8" style={styles.inputIcon} />
-                  <TextInput
-                    value={categoryQuery}
-                    onChangeText={setCategoryQuery}
-                    placeholder="Search categories..."
-                    placeholderTextColor="#8e9192"
-                    style={styles.inputWithIcon}
-                  />
+            {activeSheet === "time" ? (
+              <View style={styles.sheetContent}>
+                <View style={styles.sheetHandleWrap}>
+                  <View style={styles.grabHandleCompact} />
                 </View>
-                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.categoryList}>
-                  <CategoryOption label="All" selected={!selectedCategory} icon="category" onPress={() => void applyCategory(null)} />
-                  <View style={styles.categoryDivider} />
-                  {visibleCategories.map((category) => (
-                    <CategoryOption
-                      key={category.id ?? category.name}
-                      label={category.name}
-                      selected={selectedCategory === category.name}
-                      icon={categoryIcon(category.name)}
-                      onPress={() => void applyCategory(category.name)}
+                <View style={styles.sheetHeaderRow}>
+                  <Text style={styles.sheetTitle}>Time Range</Text>
+                  <Pressable onPress={closeSheet} style={styles.sheetIconButton}>
+                    <MaterialIcons name="close" size={22} color="#c4c7c8" />
+                  </Pressable>
+                </View>
+                <ScrollView contentContainerStyle={styles.optionList}>
+                  {TIME_OPTIONS.map((option) => {
+                    const selected = timeRange === option.id;
+                    return (
+                      <Pressable key={option.id} onPress={() => void applyTimeRange(option.id)} style={({ pressed }) => [styles.timeOption, pressed ? styles.optionPressed : null]}>
+                        <Text style={[styles.timeOptionText, selected ? styles.timeOptionTextSelected : null]}>{option.label}</Text>
+                        <MaterialIcons name={selected ? "radio-button-checked" : "radio-button-unchecked"} size={22} color={selected ? "#05e777" : "#444748"} />
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+                <View style={styles.singleFooter}>
+                  <Pressable style={({ pressed }) => [styles.fullApplyBtn, pressed ? styles.footerPressed : null]} onPress={closeSheet}>
+                    <Text style={styles.fullApplyText}>Apply Filter</Text>
+                  </Pressable>
+                </View>
+              </View>
+            ) : null}
+
+            {activeSheet === "category" ? (
+              <View style={styles.tallSheet}>
+                <View style={styles.centerHeader}>
+                  <Pressable onPress={closeSheet} style={styles.sheetIconButton}>
+                    <MaterialIcons name="close" size={22} color="#e5e2e1" />
+                  </Pressable>
+                  <Text pointerEvents="none" style={styles.centerTitle}>Select Category</Text>
+                  <View style={styles.headerSpacer} />
+                </View>
+                <View style={styles.categoryBody}>
+                  <View style={styles.searchInputWrap}>
+                    <MaterialIcons name="search" size={20} color="#c4c7c8" style={styles.inputIcon} />
+                    <TextInput
+                      value={categoryQuery}
+                      onChangeText={setCategoryQuery}
+                      placeholder="Search categories..."
+                      placeholderTextColor="#8e9192"
+                      style={styles.inputWithIcon}
                     />
+                  </View>
+                  <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.categoryList}>
+                    <CategoryOption label="All" selected={!selectedCategory} icon="category" onPress={() => void applyCategory(null)} />
+                    <View style={styles.categoryDivider} />
+                    {visibleCategories.map((category) => (
+                      <CategoryOption
+                        key={category.id ?? category.name}
+                        label={category.name}
+                        selected={selectedCategory === category.name}
+                        icon={categoryIcon(category.name)}
+                        onPress={() => void applyCategory(category.name)}
+                      />
+                    ))}
+                  </ScrollView>
+                </View>
+                <View style={styles.singleFooterOverlay}>
+                  <Pressable style={({ pressed }) => [styles.fullApplyBtn, pressed ? styles.footerPressed : null]} onPress={closeSheet}>
+                    <Text style={styles.fullApplyText}>Confirm Selection</Text>
+                  </Pressable>
+                </View>
+              </View>
+            ) : null}
+
+            {activeSheet === "type" ? (
+              <View style={styles.sheetContent}>
+                <View style={styles.sheetHeaderRow}>
+                  <Text style={styles.sheetTitle}>Select Type</Text>
+                  <Pressable onPress={closeSheet} style={styles.sheetIconButton}>
+                    <MaterialIcons name="close" size={22} color="#c4c7c8" />
+                  </Pressable>
+                </View>
+                <ScrollView contentContainerStyle={styles.typeList}>
+                  <TypeOption label="All Types" selected={!selectedType} onPress={() => void applyType(null)} />
+                  {transactionTypes.map((type) => (
+                    <TypeOption key={type} label={type} selected={selectedType === type} onPress={() => void applyType(type)} />
                   ))}
                 </ScrollView>
+                <View style={styles.singleFooter}>
+                  <Pressable style={({ pressed }) => [styles.fullApplyBtn, pressed ? styles.footerPressed : null]} onPress={closeSheet}>
+                    <Text style={styles.fullApplyText}>Apply</Text>
+                  </Pressable>
+                </View>
               </View>
-              <View style={styles.singleFooterOverlay}>
-                <Pressable style={({ pressed }) => [styles.fullApplyBtn, pressed ? styles.footerPressed : null]} onPress={closeSheet}>
-                  <Text style={styles.fullApplyText}>Confirm Selection</Text>
-                </Pressable>
-              </View>
-            </View>
-          ) : null}
-
-          {activeSheet === "type" ? (
-            <View style={styles.sheetContent}>
-              <View style={styles.sheetHeaderRow}>
-                <Text style={styles.sheetTitle}>Select Type</Text>
-                <Pressable onPress={closeSheet} style={styles.sheetIconButton}>
-                  <MaterialIcons name="close" size={22} color="#c4c7c8" />
-                </Pressable>
-              </View>
-              <ScrollView contentContainerStyle={styles.typeList}>
-                <TypeOption label="All Types" selected={!selectedType} onPress={() => void applyType(null)} />
-                {transactionTypes.map((type) => (
-                  <TypeOption key={type} label={type} selected={selectedType === type} onPress={() => void applyType(type)} />
-                ))}
-              </ScrollView>
-              <View style={styles.singleFooter}>
-                <Pressable style={({ pressed }) => [styles.fullApplyBtn, pressed ? styles.footerPressed : null]} onPress={closeSheet}>
-                  <Text style={styles.fullApplyText}>Apply</Text>
-                </Pressable>
-              </View>
-            </View>
-          ) : null}
-        </Animated.View>
+            ) : null}
+          </Animated.View>
+        </SafeAreaView>
       </Modal>
 
       <Modal visible={addVisible} animationType="slide" presentationStyle="fullScreen" onRequestClose={() => (addPicker ? setAddPicker(null) : setAddVisible(false))}>
@@ -1843,6 +1847,7 @@ const styles = StyleSheet.create({
   debit: { color: "#ffb4ab" },
   credit: { color: "#00e475" },
   actionOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.68)" },
+  popupSafeArea: { flex: 1, backgroundColor: "transparent" },
   txActionSheet: {
     position: "absolute",
     left: 0,
