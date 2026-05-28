@@ -20,6 +20,7 @@ import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { GoalsSkeleton, Skeleton } from "../components/LoadingSkeleton";
 import { formatCurrencyAmount, getCurrencySymbol, useCurrency } from "../providers/CurrencyProvider";
+import { API_BASE_URL } from "../lib/apiBaseUrl";
 import { beginHorizontalScroll, endHorizontalScroll, updateHorizontalScroll } from "../lib/horizontalScrollPriority";
 import { clearClientCache, fetchCachedValue } from "../lib/clientCache";
 
@@ -27,8 +28,6 @@ function syncHorizontalScrollPriority(event: NativeSyntheticEvent<NativeScrollEv
   const { contentOffset, layoutMeasurement, contentSize } = event.nativeEvent;
   updateHorizontalScroll(contentOffset.x, layoutMeasurement.width, contentSize.width);
 }
-
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ?? "https://personal-financial-advisor-os.vercel.app";
 
 type GoalMilestone = {
   label: string;

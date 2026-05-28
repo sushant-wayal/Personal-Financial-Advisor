@@ -15,9 +15,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { SettingsSkeleton, Skeleton } from "../components/LoadingSkeleton";
 import { DEFAULT_CURRENCY_CODE, useCurrency } from "../providers/CurrencyProvider";
 import { useUserProfile } from "../providers/UserProfileProvider";
+import { API_BASE_URL } from "../lib/apiBaseUrl";
 import { clearClientCache, fetchCachedValue } from "../lib/clientCache";
-
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ?? "https://personal-financial-advisor-os.vercel.app";
 
 type Profile = {
   ownerName?: string | null;

@@ -6,9 +6,8 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { useRouter } from "expo-router";
 import ArtifactRenderer from "../components/advisor/ArtifactRenderer";
 import { Skeleton } from "../components/LoadingSkeleton";
+import { API_BASE_URL } from "../lib/apiBaseUrl";
 import type { AdvisorResponse } from "../types/advisor";
-
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ?? "https://personal-financial-advisor-os.vercel.app";
 
 type ChatTurn = { question: string; response: AdvisorResponse | null; runAt?: string };
 

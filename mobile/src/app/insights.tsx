@@ -17,10 +17,9 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import Markdown from "react-native-markdown-display";
 import { InsightsSkeleton } from "../components/LoadingSkeleton";
+import { API_BASE_URL } from "../lib/apiBaseUrl";
 import { beginHorizontalScroll, endHorizontalScroll, updateHorizontalScroll } from "../lib/horizontalScrollPriority";
 import { fetchCachedValue } from "../lib/clientCache";
-
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ?? "https://personal-financial-advisor-os.vercel.app";
 
 type Insight = {
     id?: string;

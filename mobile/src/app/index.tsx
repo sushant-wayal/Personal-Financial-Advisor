@@ -21,11 +21,11 @@ import Svg, { Circle, Defs, G, Line, LinearGradient, Path, Rect, Stop } from "re
 import { DashboardSkeleton } from "../components/LoadingSkeleton";
 import { formatCurrencyAmount, getGlobalCurrencyCode, useCurrency } from "../providers/CurrencyProvider";
 import { useUserProfile } from "../providers/UserProfileProvider";
+import { API_BASE_URL } from "../lib/apiBaseUrl";
 import { beginHorizontalScroll, endHorizontalScroll, updateHorizontalScroll } from "../lib/horizontalScrollPriority";
 import { fetchCachedValue } from "../lib/clientCache";
 
 function mapIconName(name: string) {
-  // convert underscores to hyphens for MaterialIcons naming convention
   return name ? name.replace(/_/g, "-") : name;
 }
 
@@ -141,108 +141,23 @@ type DashboardData = {
   insights: Insight[];
 };
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ?? "https://personal-financial-advisor-os.vercel.app";
-
-const FALLBACK_MONTHLY: MonthlyPoint[] = [
-  { month: "Jan", income: 52, expense: 38 },
-  { month: "Feb", income: 58, expense: 41 },
-  { month: "Mar", income: 62, expense: 50 },
-  { month: "Apr", income: 56, expense: 44 },
-  { month: "May", income: 68, expense: 47 },
-  { month: "Jun", income: 72, expense: 39 },
-];
-
-const FALLBACK_CATEGORIES: CategoryPoint[] = [
-  { name: "Housing", value: 38 },
-  { name: "Travel", value: 30 },
-  { name: "Dining", value: 32 },
-];
-
-const FALLBACK_INSIGHTS: Insight[] = [
-  {
-    type: "liquidity",
-    message: "Liquidity buffers exceed target by 12%. Consider deploying excess cash to fixed-yield instruments.",
-  },
-  {
-    type: "tax",
-    message: "Tax liability estimation for the quarter is slightly elevated due to recent gains realization.",
-  },
-  {
-    type: "burn_rate",
-    message: "Discretionary burn rate is tracking below historical average, driven by reduced travel spend.",
-  },
-];
-
-function generateFallbackHeatmap(): HeatmapPoint[] {
-  const cells: HeatmapPoint[] = [];
-
-  for (let index = 0; index < 63; index += 1) {
-    cells.push({
-      date: `2026-03-${String((index % 31) + 1).padStart(2, "0")}`,
-      amount: [0, 60, 120, 250, 420, 680, 980][index % 7] ?? 0,
-      weekday: index % 7,
-      weekIndex: Math.floor(index / 7),
-    });
-  }
-
-  return cells;
-}
-
-const FALLBACK_HEATMAP = generateFallbackHeatmap();
-
-const FALLBACK_DASHBOARD: DashboardData = {
-  balance: {
-    balance: 14285400,
-    lastMonthDelta: 0,
-    percentChange: 2.4,
-  },
-  savings: {
-    monthlyIncome: 0,
-    monthlyExpenses: 0,
-    monthlySavings: 0,
-    savingsRate: 64,
-    savingsMessage: "Target: 60%",
-    currentMonthSavingsRate: 64,
-    previousMonthSavingsRate: 0,
-    savingsRateChange: 0,
-    savingsRateChangeDirection: "increase",
-    previousMonthHasData: false,
-  },
-  burn: {
-    burnRate: 42500,
-    previousBurnRate: 0,
-    burnRateChange: -5,
-    burnRateChangeDirection: "decrease",
-    previousPeriodHasData: false,
-  },
-  runway: {
-    runwayMonths: 18.4,
-    previousRunwayMonths: null,
-    runwayChange: 0,
-    runwayChangeDirection: "neutral",
-  },
-  monthly: FALLBACK_MONTHLY,
-  categories: FALLBACK_CATEGORIES,
-  heatmap: FALLBACK_HEATMAP,
-  seasonality: null,
-  insights: FALLBACK_INSIGHTS,
-};
-
 function apiUrl(path: string) {
   return `${API_BASE_URL}${path}`;
 }
 
-async function fetchJson<T>(path: string): Promise<T | null> {
-  try {
-    const response = await fetch(apiUrl(path));
-    if (!response.ok) {
-      throw new Error(`Request failed for ${path}`);
-    }
-    const payload = await response.json();
-    return (payload.data ?? payload.insights ?? null) as T | null;
-  } catch {
-    return null;
+async function fetchJson<T>(path: string): Promise<T> {
+  const response = await fetch(apiUrl(path));
+  if (!response.ok) {
+    throw new Error(`Request failed for ${path}`);
   }
+
+  const payload = await response.json();
+  const data = payload.data ?? payload.insights;
+  if (data === undefined || data === null) {
+    throw new Error(`Empty response for ${path}`);
+  }
+
+  return data as T;
 }
 
 async function loadDashboard(force = false): Promise<DashboardData> {
@@ -261,7 +176,7 @@ async function loadDashboard(force = false): Promise<DashboardData> {
         fetchJson<Insight[]>("/api/insights/generate"),
       ]);
 
-      const resolvedBalance: BalanceData = balance ?? FALLBACK_DASHBOARD.balance!;
+      const resolvedBalance: BalanceData = balance;
       const nextBalance: BalanceData =
         resolvedBalance.percentChange === null || resolvedBalance.percentChange === undefined
           ? (() => {
@@ -273,14 +188,14 @@ async function loadDashboard(force = false): Promise<DashboardData> {
 
       return {
         balance: nextBalance,
-        savings: savings ?? FALLBACK_DASHBOARD.savings,
-        burn: burn ?? FALLBACK_DASHBOARD.burn,
-        runway: runway ?? FALLBACK_DASHBOARD.runway,
-        monthly: monthly?.length ? monthly : FALLBACK_MONTHLY,
-        categories: categories?.length ? categories : FALLBACK_CATEGORIES,
-        heatmap: heatmap?.length ? heatmap : FALLBACK_HEATMAP,
-        seasonality: seasonality ?? FALLBACK_DASHBOARD.seasonality,
-        insights: insights?.length ? insights : FALLBACK_INSIGHTS,
+        savings,
+        burn,
+        runway,
+        monthly,
+        categories,
+        heatmap,
+        seasonality,
+        insights,
       };
     },
     { force },
@@ -340,6 +255,15 @@ function SectionHeading({ title, actionLabel, iconName, onActionPress }: { title
           <Text style={styles.actionArrow}>→</Text>
         </Pressable>
       ) : null}
+    </View>
+  );
+}
+
+function EmptyPanel({ title, message }: { title: string; message: string }) {
+  return (
+    <View style={styles.emptyPanel}>
+      <Text style={styles.emptyPanelTitle}>{title}</Text>
+      <Text style={styles.emptyPanelMessage}>{message}</Text>
     </View>
   );
 }
@@ -412,9 +336,18 @@ function TrendChart({
   onBoundsChange?: (bounds: { x: number; y: number; width: number; height: number }) => void;
 }) {
   const chartRef = useRef<View>(null);
-  const chartData = (data.length ? data : FALLBACK_MONTHLY).slice(-6);
   const chartHeight = "100%";
   const chartWidth = Math.max(240, width - 32);
+
+  if (!data.length) {
+    return (
+      <View ref={chartRef} style={[styles.chartWrap, { height: chartHeight, width: chartWidth }]}>
+        <EmptyPanel title="No cashflow data" message="Monthly analytics have not been returned by the backend yet." />
+      </View>
+    );
+  }
+
+  const chartData = data.slice(-6);
   const viewBoxWidth = 360;
   const viewBoxHeight = 180;
   const padding = { top: 14, right: 12, bottom: 28, left: 12 };
@@ -600,7 +533,17 @@ function Heatmap({
   onBoundsChange?: (bounds: { x: number; y: number; width: number; height: number }) => void;
 }) {
   const heatmapRef = useRef<View>(null);
-  const visibleCells = (cells.length ? cells : FALLBACK_HEATMAP).slice(-30);
+
+  if (!cells.length) {
+    return (
+      <View style={styles.heatmapCard}>
+        <EmptyPanel title="No heatmap data" message="Spend activity for the last 30 days is unavailable right now." />
+      </View>
+    );
+  }
+
+  // Tooltip removed: keep the chart and list only.
+  const visibleCells = cells.slice(-30);
   const max = Math.max(...visibleCells.map((item) => item.amount), 1);
   const weekCount = Math.max(1, Math.ceil(visibleCells.length / 7));
   const weekMatrix = Array.from({ length: weekCount }, () => Array.from({ length: 7 }, () => null as HeatmapPoint | null));
@@ -871,6 +814,14 @@ function CategoryRing({
 }
 
 function PatternCarousel({ seasonality }: { seasonality: SeasonalityData | null }) {
+  if (!seasonality) {
+    return (
+      <View style={styles.patternCard}>
+        <EmptyPanel title="No seasonality data" message="Day and month patterns will show up after the backend computes them." />
+      </View>
+    );
+  }
+
   const peakWeekday = seasonality?.peakWeekday?.day ?? "Wed";
   const peakMonth = seasonality?.peakMonth?.month ?? "May";
   const weekendShare = seasonality?.weekendShare ?? 3;
@@ -901,14 +852,7 @@ function PatternCarousel({ seasonality }: { seasonality: SeasonalityData | null 
 }
 
 function compactInsights(insights: Insight[]) {
-  if (!insights.length) {
-    return FALLBACK_INSIGHTS;
-  }
-
-  const primary = insights[0];
-  const secondary = insights[1] ?? FALLBACK_INSIGHTS[1];
-  const tertiary = insights[2] ?? FALLBACK_INSIGHTS[2];
-  return [primary, secondary, tertiary];
+  return insights.slice(0, 3);
 }
 
 export default function Index() {
@@ -917,10 +861,11 @@ export default function Index() {
   const { width } = useWindowDimensions();
   const router = useRouter();
   const cardWidth = Math.max(width - 48, 280);
-  const [dashboard, setDashboard] = useState<DashboardData>(FALLBACK_DASHBOARD);
+  const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [cashflowSelection, setCashflowSelection] = useState<number | null>(FALLBACK_MONTHLY.length - 1);
+  const [error, setError] = useState<string | null>(null);
+  const [cashflowSelection, setCashflowSelection] = useState<number | null>(null);
   const [cashflowChartBounds, setCashflowChartBounds] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const [heatmapSelection, setHeatmapSelection] = useState<HeatmapPoint | null>(null);
   const [heatmapBounds, setHeatmapBounds] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
@@ -930,12 +875,16 @@ export default function Index() {
   const [dynamicsScrollX] = useState(() => new Animated.Value(0));
   const [patternsScrollX] = useState(() => new Animated.Value(0));
 
-  const insights = useMemo(() => compactInsights(dashboard.insights), [dashboard.insights]);
+  const insights = useMemo(() => compactInsights(dashboard?.insights ?? []), [dashboard?.insights]);
 
   const load = async (force = false) => {
+    setError(null);
     try {
       const nextDashboard = await loadDashboard(force);
       setDashboard(nextDashboard);
+    } catch (loadError) {
+      const message = loadError instanceof Error ? loadError.message : "Failed to load dashboard data.";
+      setError(message);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -945,13 +894,6 @@ export default function Index() {
   useEffect(() => {
     load();
   }, []);
-
-  const balance: BalanceData = dashboard.balance ?? FALLBACK_DASHBOARD.balance!;
-  const savings: SavingsData = dashboard.savings ?? FALLBACK_DASHBOARD.savings!;
-  const burn: BurnData = dashboard.burn ?? FALLBACK_DASHBOARD.burn!;
-  const runway: RunwayData = dashboard.runway ?? FALLBACK_DASHBOARD.runway!;
-
-  const balanceChangeColor = balance.lastMonthDelta >= 0 ? styles.successText : styles.dangerText;
 
   const handleDashboardTouchStart = (event: { nativeEvent: { pageX: number; pageY: number } }) => {
     const { pageX, pageY } = event.nativeEvent;
@@ -1014,7 +956,7 @@ export default function Index() {
     </View>
   );
 
-  if (loading) {
+  if (loading || !dashboard) {
     return (
       <SafeAreaView style={styles.safeArea} edges={["top", "left", "right", "bottom"]}>
         <StatusBar barStyle="light-content" />
@@ -1022,6 +964,41 @@ export default function Index() {
       </SafeAreaView>
     );
   }
+
+  if (error) {
+    return (
+      <SafeAreaView style={styles.safeArea} edges={["top", "left", "right", "bottom"]}>
+        <StatusBar barStyle="light-content" />
+        <View style={styles.errorScreen}>
+          <View style={styles.errorCard}>
+            <Text style={styles.errorEyebrow}>DASHBOARD ERROR</Text>
+            <Text style={styles.errorTitle}>Could not load financial data</Text>
+            <Text style={styles.errorMessage}>{error}</Text>
+            <Pressable
+              onPress={() => {
+                setRefreshing(true);
+                void load(true);
+              }}
+              style={styles.errorButton}
+            >
+              <Text style={styles.errorButtonText}>Retry</Text>
+            </Pressable>
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!dashboard) {
+    return null;
+  }
+
+  const balance: BalanceData = dashboard.balance!;
+  const savings: SavingsData = dashboard.savings!;
+  const burn: BurnData = dashboard.burn!;
+  const runway: RunwayData = dashboard.runway!;
+
+  const balanceChangeColor = balance.lastMonthDelta >= 0 ? styles.successText : styles.dangerText;
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right", "bottom"]}>
@@ -1087,28 +1064,36 @@ export default function Index() {
         </View>
 
         <SectionHeading title="Advisor Summary" actionLabel="INSIGHTS" iconName="psychology" onActionPress={() => router.push("/insights")} />
-        <Animated.ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          snapToInterval={cardWidth + 16}
-          decelerationRate="fast"
-          contentContainerStyle={styles.carouselContent}
-          onTouchStart={beginHorizontalScroll}
-          onTouchEnd={endHorizontalScroll}
-          onTouchCancel={endHorizontalScroll}
-          onScrollBeginDrag={beginHorizontalScroll}
-          onScrollEndDrag={endHorizontalScroll}
-          onMomentumScrollEnd={endHorizontalScroll}
-          onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: advisorScrollX } } }], { useNativeDriver: false, listener: syncHorizontalScrollPriority })}
-          scrollEventThrottle={16}
-        >
-          {insights.map((insight, index) => (
-            <View key={insight.id ?? `${insight.type ?? "insight"}-${index}`} style={[styles.carouselItem, { width: cardWidth }]}>
-              <InsightCard insight={insight} />
-            </View>
-          ))}
-        </Animated.ScrollView>
-        {renderCarouselDots(advisorScrollX, insights.length)}
+        {insights.length ? (
+          <>
+            <Animated.ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              snapToInterval={cardWidth + 16}
+              decelerationRate="fast"
+              contentContainerStyle={styles.carouselContent}
+              onTouchStart={beginHorizontalScroll}
+              onTouchEnd={endHorizontalScroll}
+              onTouchCancel={endHorizontalScroll}
+              onScrollBeginDrag={beginHorizontalScroll}
+              onScrollEndDrag={endHorizontalScroll}
+              onMomentumScrollEnd={endHorizontalScroll}
+              onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: advisorScrollX } } }], { useNativeDriver: false, listener: syncHorizontalScrollPriority })}
+              scrollEventThrottle={16}
+            >
+              {insights.map((insight, index) => (
+                <View key={insight.id ?? `${insight.type ?? "insight"}-${index}`} style={[styles.carouselItem, { width: cardWidth }]}>
+                  <InsightCard insight={insight} />
+                </View>
+              ))}
+            </Animated.ScrollView>
+            {renderCarouselDots(advisorScrollX, insights.length)}
+          </>
+        ) : (
+          <View style={[styles.carouselItem, { width: cardWidth }]}>
+            <EmptyPanel title="No insights yet" message="The backend has not generated dashboard insights yet." />
+          </View>
+        )}
 
         <SectionHeading title="Spending Dynamics" />
         <Animated.ScrollView
@@ -1152,7 +1137,7 @@ export default function Index() {
 
         <SectionHeading title="Category Analysis" />
         <CategoryRing
-          categories={dashboard.categories.length ? dashboard.categories : FALLBACK_CATEGORIES}
+          categories={dashboard.categories}
           selectedCategory={categorySelection}
           onSelectCategory={setCategorySelection}
           onBoundsChange={setCategoryBounds}
@@ -1883,6 +1868,127 @@ const styles = StyleSheet.create({
     padding: 14,
   },
   patternCalloutText: {
+    color: "#c4c7c8",
+    fontSize: fs(13),
+    lineHeight: 19,
+  },
+  errorScreen: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+    backgroundColor: "#131313",
+  },
+  errorCard: {
+    width: "100%",
+    maxWidth: 420,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "#1c1b1b",
+    borderRadius: 20,
+    padding: 22,
+    gap: 12,
+  },
+  errorEyebrow: {
+    color: "#ffb4ab",
+    fontSize: fs(11),
+    letterSpacing: 2.4,
+    fontWeight: "700",
+  },
+  errorTitle: {
+    color: "#ffffff",
+    fontSize: fs(22),
+    lineHeight: 28,
+    fontWeight: "700",
+    letterSpacing: -0.4,
+  },
+  errorMessage: {
+    color: "#c4c7c8",
+    fontSize: fs(14),
+    lineHeight: 20,
+  },
+  errorButton: {
+    alignSelf: "flex-start",
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(255,180,171,0.32)",
+    backgroundColor: "rgba(255,180,171,0.12)",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  errorButtonText: {
+    color: "#ffb4ab",
+    fontSize: fs(12),
+    fontWeight: "700",
+    letterSpacing: 1,
+  },
+  emptyScreen: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+    backgroundColor: "#131313",
+  },
+  emptyStateCard: {
+    width: "100%",
+    maxWidth: 420,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "#1c1b1b",
+    borderRadius: 20,
+    padding: 22,
+    gap: 12,
+  },
+  emptyEyebrow: {
+    color: "#c4c7c8",
+    fontSize: fs(11),
+    letterSpacing: 2.4,
+    fontWeight: "700",
+  },
+  emptyTitle: {
+    color: "#ffffff",
+    fontSize: fs(22),
+    lineHeight: 28,
+    fontWeight: "700",
+    letterSpacing: -0.4,
+  },
+  emptyMessage: {
+    color: "#c4c7c8",
+    fontSize: fs(14),
+    lineHeight: 20,
+  },
+  emptyButton: {
+    alignSelf: "flex-start",
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(125,255,162,0.32)",
+    backgroundColor: "rgba(125,255,162,0.12)",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  emptyButtonText: {
+    color: "#7dffa2",
+    fontSize: fs(12),
+    fontWeight: "700",
+    letterSpacing: 1,
+  },
+  emptyPanel: {
+    minHeight: 120,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "rgba(58,57,57,0.16)",
+    borderRadius: 14,
+    padding: 16,
+    gap: 8,
+    justifyContent: "center",
+  },
+  emptyPanelTitle: {
+    color: "#ffffff",
+    fontSize: fs(16),
+    lineHeight: 20,
+    fontWeight: "700",
+  },
+  emptyPanelMessage: {
     color: "#c4c7c8",
     fontSize: fs(13),
     lineHeight: 19,

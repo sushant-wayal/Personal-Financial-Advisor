@@ -19,10 +19,9 @@ import { useRouter } from "expo-router";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Skeleton, TransactionsSkeleton } from "../components/LoadingSkeleton";
 import { getCurrencySymbol, useCurrency } from "../providers/CurrencyProvider";
+import { API_BASE_URL } from "../lib/apiBaseUrl";
 import { beginHorizontalScroll, endHorizontalScroll, updateHorizontalScroll } from "../lib/horizontalScrollPriority";
 import { clearClientCache, fetchCachedValue } from "../lib/clientCache";
-
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ?? "https://personal-financial-advisor-os.vercel.app";
 
 type Transaction = {
   id: string;

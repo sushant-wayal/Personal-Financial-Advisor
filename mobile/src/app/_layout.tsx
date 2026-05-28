@@ -13,6 +13,7 @@ import AdvisorFab from "../components/AdvisorFab";
 import { AppBootstrapSkeleton } from "../components/LoadingSkeleton";
 import { CurrencyProvider, DEFAULT_CURRENCY_CODE, normalizeCurrencyCode } from "../providers/CurrencyProvider";
 import { UserProfileProvider } from "../providers/UserProfileProvider";
+import { API_BASE_URL } from "../lib/apiBaseUrl";
 import { shouldStartAppSwipe } from "../lib/horizontalScrollPriority";
 import { fetchCachedValue } from "../lib/clientCache";
 
@@ -65,8 +66,6 @@ const APP_SWIPE_HANDLERS = PanResponder.create({
   onPanResponderTerminationRequest: () => false,
   onShouldBlockNativeResponder: () => false,
 }).panHandlers;
-
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ?? "https://personal-financial-advisor-os.vercel.app";
 
 type ProfilePayload = {
   profile?: {

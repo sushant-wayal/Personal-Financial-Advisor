@@ -4,9 +4,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { Skeleton } from "../components/LoadingSkeleton";
+import { API_BASE_URL } from "../lib/apiBaseUrl";
 import { formatCurrencyAmount, getCurrencySymbol, useCurrency } from "../providers/CurrencyProvider";
-
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ?? "https://personal-financial-advisor-os.vercel.app";
 
 type ScenarioKey = "capacity-delta" | "spending-reduction" | "large-expense";
 
