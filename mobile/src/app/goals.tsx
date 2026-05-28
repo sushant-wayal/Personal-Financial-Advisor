@@ -865,11 +865,14 @@ function GoalDetailView({ goal, onBack, onEdit }: { goal: Goal; onBack: () => vo
           <View style={styles.detailCardHeader}>
             <View style={styles.detailTitleBlock}>
               <Text style={styles.detailGoalTitle}>{goal.title}</Text>
-              <Text style={styles.detailMeta}>Target: {goal.targetAmountLabel ?? formatCurrency(goal.targetAmount)} <Text style={styles.pipe}>|</Text> Current: {goal.currentAmountLabel ?? formatCurrency(goal.currentAmount)}</Text>
+              <Text style={styles.detailMetaLine}>Target: <Text style={styles.detailMetaStrong}>{goal.targetAmountLabel ?? formatCurrency(goal.targetAmount)}</Text></Text>
+              <Text style={styles.detailMetaLine}>Current: <Text style={styles.detailMetaStrong}>{goal.currentAmountLabel ?? formatCurrency(goal.currentAmount)}</Text></Text>
             </View>
             <View style={styles.detailHealthBlock}>
               <Text style={styles.healthLabel}>Health</Text>
-              <Text style={[styles.healthValue, toneStyle(goal).text]} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.76}>{healthLabel(goal)}</Text>
+              <Text style={[styles.healthValue, toneStyle(goal).text]} numberOfLines={1}>
+                {healthLabel(goal)}
+              </Text>
               <Text style={styles.confidenceText}>Confidence: {Math.round(goal.confidenceScore ?? progressOf(goal))}%</Text>
             </View>
           </View>
@@ -1360,12 +1363,12 @@ const styles = StyleSheet.create({
   detailTopTitle: { color: "#ffffff", fontFamily: "Hanken Grotesk", fontSize: fs(22), fontWeight: "700" },
   detailMainCard: { borderRadius: 12, borderWidth: 1, borderColor: "#333333", backgroundColor: "#1A1A1A", padding: 22, gap: 16 },
   detailCardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 12 },
-  detailTitleBlock: { flex: 1, minWidth: 0 },
+  detailTitleBlock: { flex: 1, minWidth: 0, paddingRight: 6 },
   detailGoalTitle: { color: "#ffffff", fontFamily: "Hanken Grotesk", fontSize: fs(24), fontWeight: "700", marginBottom: 4 },
-  detailMeta: { color: "#c4c7c8", fontFamily: "JetBrains Mono", fontSize: fs(12), lineHeight: 18 },
+  detailMetaLine: { color: "#c4c7c8", fontFamily: "JetBrains Mono", fontSize: fs(12), lineHeight: 18 },
   pipe: { color: "#333333" },
-  detailHealthBlock: { flexShrink: 0, alignItems: "flex-end", width: 112 },
-  healthValue: { fontFamily: "Hanken Grotesk", fontSize: fs(18), lineHeight: 23, fontWeight: "700", textAlign: "right" },
+  detailHealthBlock: { flexShrink: 0, alignItems: "flex-end", width: 168 },
+  healthValue: { fontFamily: "Hanken Grotesk", fontSize: fs(17), lineHeight: 22, fontWeight: "700", textAlign: "right" },
   detailMetaRow: { flexDirection: "row", justifyContent: "space-between", flexWrap: "wrap", rowGap: 8, columnGap: 12 },
   detailMetaSmall: { color: "#c4c7c8", fontFamily: "Inter", fontSize: fs(13), lineHeight: 19 },
   detailMetaStrong: { color: "#ffffff", fontWeight: "700" },
