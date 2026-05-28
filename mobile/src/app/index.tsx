@@ -122,6 +122,17 @@ type SeasonalityData = {
   topMonths: Array<{ month: string; value: number }>;
 };
 
+type AccelerationData = {
+  weekly: Array<{ week: string; expense: number }>;
+  recentAverage: number;
+  previousAverage: number;
+  recentWindowHasData: boolean;
+  previousWindowHasData: boolean;
+  acceleration: number;
+  accelerationPercent: number;
+  direction: "increase" | "decrease" | "neutral";
+};
+
 type Insight = {
   id?: string;
   type?: string;
@@ -138,6 +149,7 @@ type DashboardData = {
   categories: CategoryPoint[];
   heatmap: HeatmapPoint[];
   seasonality: SeasonalityData | null;
+  acceleration: AccelerationData | null;
   insights: Insight[];
 };
 
@@ -162,9 +174,9 @@ async function fetchJson<T>(path: string): Promise<T> {
 
 async function loadDashboard(force = false): Promise<DashboardData> {
   return fetchCachedValue(
-    "dashboard",
+    "dashboard-v2",
     async () => {
-      const [balance, savings, burn, runway, monthly, categories, heatmap, seasonality, insights] = await Promise.all([
+      const [balance, savings, burn, runway, monthly, categories, heatmap, seasonality, acceleration, insights] = await Promise.all([
         fetchJson<BalanceData>("/api/analytics/balance"),
         fetchJson<SavingsData>("/api/analytics/savings-rate"),
         fetchJson<BurnData>("/api/analytics/burn-rate"),
@@ -173,6 +185,7 @@ async function loadDashboard(force = false): Promise<DashboardData> {
         fetchJson<CategoryPoint[]>("/api/analytics/categories"),
         fetchJson<HeatmapPoint[]>("/api/analytics/heatmap"),
         fetchJson<SeasonalityData>("/api/analytics/seasonality"),
+        fetchJson<AccelerationData>("/api/analytics/acceleration"),
         fetchJson<Insight[]>("/api/insights/generate"),
       ]);
 
@@ -195,6 +208,7 @@ async function loadDashboard(force = false): Promise<DashboardData> {
         categories,
         heatmap,
         seasonality,
+        acceleration,
         insights,
       };
     },
@@ -813,7 +827,7 @@ function CategoryRing({
   );
 }
 
-function PatternCarousel({ seasonality }: { seasonality: SeasonalityData | null }) {
+function PatternCarousel({ seasonality, acceleration }: { seasonality: SeasonalityData | null; acceleration: AccelerationData | null }) {
   if (!seasonality) {
     return (
       <View style={styles.patternCard}>
@@ -822,30 +836,48 @@ function PatternCarousel({ seasonality }: { seasonality: SeasonalityData | null 
     );
   }
 
+  if (!acceleration) {
+    return (
+      <View style={styles.patternCard}>
+        <EmptyPanel title="No acceleration data" message="Weekly spending acceleration will show up after the backend computes it." />
+      </View>
+    );
+  }
+
   const peakWeekday = seasonality?.peakWeekday?.day ?? "Wed";
   const peakMonth = seasonality?.peakMonth?.month ?? "May";
   const weekendShare = seasonality?.weekendShare ?? 3;
+  const recentAverage = acceleration.recentAverage;
+  const previousAverage = acceleration.previousWindowHasData ? acceleration.previousAverage : null;
+  const accelerationDirectionLabel = acceleration.direction === "increase" ? "rising" : acceleration.direction === "decrease" ? "cooling" : "stable";
+  const accelerationTone = acceleration.direction === "increase" ? styles.dangerText : acceleration.direction === "decrease" ? styles.successText : styles.mutedText;
 
   return (
     <View style={styles.patternCard}>
       <View>
-        <Text style={styles.carouselEyebrow}>SPENDING BEHAVIOR</Text>
-        <Text style={styles.cardSubcopy}>Day-of-week and month-of-year spending behavior</Text>
+        <Text style={styles.carouselEyebrow}>SPENDING ACCELERATION</Text>
+        <Text style={styles.cardSubcopy}>Weekly spend compared to the prior 4 weeks</Text>
       </View>
       <View style={styles.patternGrid}>
         <View style={styles.patternStatBox}>
-          <Text style={styles.patternStatLabel}>Peak weekday</Text>
-          <Text style={styles.patternStatValue}>{peakWeekday}</Text>
+          <Text style={styles.patternStatLabel}>Recent avg</Text>
+          <Text style={styles.patternStatValue}>{formatCompactCurrency(recentAverage)}</Text>
         </View>
         <View style={styles.patternStatBox}>
-          <Text style={styles.patternStatLabel}>Peak month</Text>
-          <Text style={styles.patternStatValue}>{peakMonth}</Text>
+          <Text style={styles.patternStatLabel}>Previous avg</Text>
+          <Text style={styles.patternStatValue}>{previousAverage === null ? "N/A" : formatCompactCurrency(previousAverage)}</Text>
         </View>
       </View>
       <View style={styles.patternCallout}>
-        <Text style={styles.patternCalloutText}>
-          Weekend spending accounts for <Text style={styles.successInline}>{weekendShare}%</Text> of tracked spend.
-        </Text>
+        {acceleration.previousWindowHasData ? (
+          <Text style={styles.patternCalloutText}>
+            Weekly spend is <Text style={accelerationTone}>{accelerationDirectionLabel}</Text> by {formatCompactCurrency(Math.abs(acceleration.acceleration))} ({Math.abs(acceleration.accelerationPercent)}%).
+          </Text>
+        ) : (
+          <Text style={styles.patternCalloutText}>
+            Not enough prior spending history to compute a meaningful acceleration comparison yet.
+          </Text>
+        )}
       </View>
     </View>
   );
@@ -1160,26 +1192,28 @@ export default function Index() {
           scrollEventThrottle={16}
         >
           <View style={[styles.carouselItem, { width: cardWidth }]}>
-            <PatternCarousel seasonality={dashboard.seasonality} />
+            <PatternCarousel seasonality={dashboard.seasonality} acceleration={dashboard.acceleration} />
           </View>
           <View style={[styles.carouselItem, { width: cardWidth }]}>
             <View style={styles.patternCard}>
               <View>
-                <Text style={styles.carouselEyebrow}>SPENDING ACCELERATION</Text>
-                <Text style={styles.cardSubcopy}>Compares recent weekly spend vs the prior 4 weeks</Text>
+                <Text style={styles.carouselEyebrow}>SEASONAL PATTERNS</Text>
+                <Text style={styles.cardSubcopy}>Day-of-week and month-of-year spending behavior</Text>
               </View>
               <View style={styles.patternGrid}>
                 <View style={styles.patternStatBox}>
-                  <Text style={styles.patternStatLabel}>Recent avg</Text>
-                  <Text style={styles.patternStatValue}>{formatCompactCurrency(burn.burnRate)}</Text>
+                  <Text style={styles.patternStatLabel}>Peak weekday</Text>
+                  <Text style={styles.patternStatValue}>{dashboard.seasonality?.peakWeekday?.day ?? "-"}</Text>
                 </View>
                 <View style={styles.patternStatBox}>
-                  <Text style={styles.patternStatLabel}>Previous avg</Text>
-                  <Text style={[styles.patternStatValue, styles.mutedText]}>N/A</Text>
+                  <Text style={styles.patternStatLabel}>Peak month</Text>
+                  <Text style={styles.patternStatValue}>{dashboard.seasonality?.peakMonth?.month ?? "-"}</Text>
                 </View>
               </View>
               <View style={styles.patternCallout}>
-                <Text style={styles.patternCalloutText}>Not enough prior spending history to compute a meaningful acceleration comparison yet.</Text>
+                <Text style={styles.patternCalloutText}>
+                  Weekend spending accounts for <Text style={styles.successInline}>{dashboard.seasonality?.weekendShare ?? 0}%</Text> of tracked spend.
+                </Text>
               </View>
             </View>
           </View>
