@@ -17,21 +17,53 @@ type GmailPushPayload = {
     historyId?: string;
 };
 
-function decodePushEnvelope(body: PubSubEnvelope): GmailPushPayload {
+type DecodedPushEnvelope =
+    | { ok: true; payload: Required<GmailPushPayload>; decodedKeys: string[] }
+    | { ok: false; reason: string; decodedKeys?: string[] };
+
+function decodeBase64Url(value: string) {
+    const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
+    return Buffer.from(normalized, "base64").toString("utf-8");
+}
+
+function readPayloadField(payload: Record<string, unknown>, names: string[]) {
+    for (const name of names) {
+        const value = payload[name];
+        if (value !== undefined && value !== null && String(value).trim()) {
+            return String(value).trim();
+        }
+    }
+    return undefined;
+}
+
+function decodePushEnvelope(body: PubSubEnvelope): DecodedPushEnvelope {
     const encodedData = body?.message?.data;
     if (!encodedData) {
-        throw new Error("missing Pub/Sub message data");
+        return { ok: false, reason: "missing-pubsub-message-data" };
     }
 
-    const decoded = Buffer.from(encodedData, "base64").toString("utf-8");
-    const payload = JSON.parse(decoded) as GmailPushPayload;
-    if (!payload?.emailAddress || !payload?.historyId) {
-        throw new Error("invalid Gmail notification payload");
+    let payload: Record<string, unknown>;
+    try {
+        payload = JSON.parse(decodeBase64Url(encodedData)) as Record<string, unknown>;
+    } catch {
+        return { ok: false, reason: "invalid-pubsub-json" };
+    }
+
+    const decodedKeys = Object.keys(payload);
+    const emailAddress = readPayloadField(payload, ["emailAddress", "email", "email_address", "userEmail"]);
+    const historyId = readPayloadField(payload, ["historyId", "historyID", "history_id"]);
+
+    if (!emailAddress || !historyId) {
+        return { ok: false, reason: "invalid-gmail-notification-payload", decodedKeys };
     }
 
     return {
-        emailAddress: String(payload.emailAddress).trim().toLowerCase(),
-        historyId: String(payload.historyId),
+        ok: true,
+        decodedKeys,
+        payload: {
+            emailAddress: emailAddress.toLowerCase(),
+            historyId,
+        },
     };
 }
 
@@ -41,7 +73,46 @@ export async function handleGmailWebhookPush(rawBody: PubSubEnvelope) {
         subscription: rawBody?.subscription,
         messageId: rawBody?.message?.messageId,
     });
-    const payload = decodePushEnvelope(rawBody);
+    const decoded = decodePushEnvelope(rawBody);
+
+    if (!decoded.ok) {
+        console.warn("[gmail-webhook] malformed push payload, attempting watch-based recovery", {
+            reason: decoded.reason,
+            decodedKeys: decoded.decodedKeys,
+            subscription: rawBody?.subscription,
+            messageId: rawBody?.message?.messageId,
+        });
+
+        const watch = await getStoredGmailWatch();
+        if (!watch) {
+            return {
+                ok: true,
+                ignored: true,
+                reason: decoded.reason,
+                recovered: false,
+            };
+        }
+
+        await withGmailAuth(async (accessToken) => {
+            console.info("[gmail-webhook] starting recovery incremental sync", {
+                emailAddress: watch.email,
+                storedHistoryId: watch.historyId,
+            });
+            await syncGmailIncrementally({
+                accessToken,
+                emailAddress: watch.email,
+            });
+        });
+
+        return {
+            ok: true,
+            accepted: true,
+            recovered: true,
+            reason: decoded.reason,
+        };
+    }
+
+    const payload = decoded.payload;
     console.info("[gmail-webhook] decoded payload", payload);
     const watch = await getStoredGmailWatch(payload.emailAddress);
 
