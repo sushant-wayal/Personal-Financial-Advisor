@@ -1,3 +1,5 @@
+import { createHash } from "crypto";
+import { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { deterministicParse } from "./transactionParser";
 import { autoCategorize, findOrCreateCategory } from "./categorizer";
@@ -23,10 +25,148 @@ type TransactionIngestionInput = {
     sourceMessageId?: string | null;
 };
 
+type IngestionKeyInput = {
+    source?: string | null;
+    sourceMessageId?: string | null;
+    amount: number;
+    merchant: string;
+    timestamp: Date;
+    transactionType?: string | null;
+};
+
 function toDate(value?: string | Date) {
     if (!value) return undefined;
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? undefined : date;
+}
+
+function normalizeKeyPart(value?: string | null) {
+    return String(value || "unknown")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, " ")
+        .trim()
+        .replace(/\s+/g, " ") || "unknown";
+}
+
+function hashKey(value: string) {
+    return createHash("sha256").update(value).digest("hex");
+}
+
+export function buildTransactionIngestionKeys(input: IngestionKeyInput) {
+    const source = normalizeKeyPart(input.source);
+    const fingerprint = [
+        "tx:v1",
+        source,
+        normalizeKeyPart(input.merchant),
+        Math.abs(input.amount || 0).toFixed(2),
+        input.timestamp.toISOString(),
+        String(input.transactionType || "OTHER").toUpperCase(),
+    ].join(":");
+
+    const keys = [fingerprint];
+    if (input.sourceMessageId) {
+        keys.unshift(`message:${source}:${String(input.sourceMessageId)}`);
+    }
+    return keys;
+}
+
+function getIngestionKeyModel(client: any = prisma) {
+    const model = client.transactionIngestionKey;
+    if (!model) throw new Error("transaction ingestion key model not available");
+    return model;
+}
+
+async function findTransactionById(transactionId?: string | null) {
+    if (!transactionId) return null;
+    return prisma.transaction.findUnique({
+        where: { id: transactionId },
+        include: { category: true },
+    });
+}
+
+async function findExistingIngestionKey(keys: string[]) {
+    if (!keys.length) return null;
+    return getIngestionKeyModel().findFirst({
+        where: { key: { in: keys } },
+        orderBy: { createdAt: "asc" },
+    });
+}
+
+function isUniqueConstraintError(error: unknown) {
+    return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
+}
+
+async function skipExistingIngestion(keys: string[]) {
+    const existingKey = await findExistingIngestionKey(keys);
+    if (!existingKey) return null;
+
+    const existingTransaction = await findTransactionById(existingKey.transactionId);
+    console.info("[transaction-ingestion] duplicate ingestion key skipped", {
+        key: existingKey.key,
+        status: existingKey.status,
+        transactionId: existingKey.transactionId,
+    });
+
+    return {
+        ok: true,
+        duplicate: true,
+        skipped: !existingTransaction,
+        reason: existingKey.reason || "duplicate-ingestion-key",
+        transaction: existingTransaction,
+    };
+}
+
+async function reserveIngestionKey(args: { key: string; source: string; sourceMessageId?: string | null }) {
+    const model = getIngestionKeyModel();
+    try {
+        return await model.create({
+            data: {
+                id: `tik_${hashKey(args.key).slice(0, 32)}`,
+                key: args.key,
+                source: args.source,
+                sourceMessageId: args.sourceMessageId || null,
+                status: "PROCESSING",
+            },
+        });
+    } catch (error) {
+        if (!isUniqueConstraintError(error)) throw error;
+        return model.findUnique({ where: { key: args.key } });
+    }
+}
+
+async function recordIngestionKeys(args: {
+    keys: string[];
+    source: string;
+    sourceMessageId?: string | null;
+    transactionId?: string | null;
+    status?: string;
+    reason?: string | null;
+}) {
+    const model = getIngestionKeyModel();
+    const now = new Date();
+    await model.createMany({
+        data: args.keys.map((key) => ({
+            id: `tik_${hashKey(key).slice(0, 32)}`,
+            key,
+            source: args.source,
+            sourceMessageId: args.sourceMessageId || null,
+            transactionId: args.transactionId || null,
+            status: args.status || "RECORDED",
+            reason: args.reason || null,
+            createdAt: now,
+            updatedAt: now,
+        })),
+        skipDuplicates: true,
+    });
+    await model.updateMany({
+        where: { key: { in: args.keys } },
+        data: {
+            transactionId: args.transactionId || null,
+            status: args.status || "RECORDED",
+            reason: args.reason || null,
+            sourceMessageId: args.sourceMessageId || null,
+        },
+    });
 }
 
 async function applyTransactionSideEffects(amount: number, transactionType: string) {
@@ -47,7 +187,7 @@ async function findTransactionBySourceMessageId(sourceMessageId: string) {
     if (!transactionModel) {
         throw new Error("transaction model not available");
     }
-    return transactionModel.findFirst({ where: { sourceMessageId } });
+    return transactionModel.findFirst({ where: { sourceMessageId }, include: { category: true } });
 }
 
 export async function ingestTransaction(input: TransactionIngestionInput) {
@@ -75,6 +215,20 @@ export async function ingestTransaction(input: TransactionIngestionInput) {
     if (sourceMessageId) {
         const existing = await findTransactionBySourceMessageId(sourceMessageId);
         if (existing) {
+            const source = input.source || existing.source || "email";
+            await recordIngestionKeys({
+                keys: buildTransactionIngestionKeys({
+                    source,
+                    sourceMessageId,
+                    amount: existing.amount,
+                    merchant: existing.merchant,
+                    timestamp: existing.timestamp,
+                    transactionType: existing.transactionType || existing.type || "OTHER",
+                }),
+                source,
+                sourceMessageId,
+                transactionId: existing.id,
+            });
             console.info("[transaction-ingestion] duplicate sourceMessageId skipped", { sourceMessageId, transactionId: existing.id });
             return { ok: true, duplicate: true, transaction: existing };
         }
@@ -97,12 +251,47 @@ export async function ingestTransaction(input: TransactionIngestionInput) {
         const amountWasNegative = amount < 0;
         amount = Math.abs(amount);
 
+        if (!Number.isFinite(amount) || amount <= 0) {
+            console.warn("[transaction-ingestion] structured transaction skipped because amount is invalid", {
+                amount: input.amount,
+                merchant: input.merchant,
+                sourceMessageId,
+            });
+            return { ok: false, skipped: true, reason: "invalid-amount" };
+        }
+
         const merchant = String(input.merchant || "").trim() || "Unknown";
         const timestamp = toDate(input.timestamp) || new Date();
         let transactionType = String(input.transactionType || input.type || "OTHER").toUpperCase();
 
         if (amountWasNegative && !input.transactionType && !input.type) {
             transactionType = "DEBIT";
+        }
+
+        const source = input.source || "manual";
+        const ingestionKeys = buildTransactionIngestionKeys({
+            source,
+            sourceMessageId,
+            amount,
+            merchant,
+            timestamp,
+            transactionType,
+        });
+        const duplicate = await skipExistingIngestion(ingestionKeys);
+        if (duplicate) return duplicate;
+
+        const reservation = await reserveIngestionKey({
+            key: ingestionKeys[0],
+            source,
+            sourceMessageId,
+        });
+        if (reservation?.status !== "PROCESSING" || reservation?.transactionId) {
+            return await skipExistingIngestion(ingestionKeys) || {
+                ok: true,
+                duplicate: true,
+                skipped: true,
+                reason: "duplicate-ingestion-key",
+            };
         }
 
         let categoryId: string | null = null;
@@ -141,7 +330,7 @@ export async function ingestTransaction(input: TransactionIngestionInput) {
                 merchant,
                 categoryId,
                 timestamp,
-                source: input.source || "manual",
+                source,
                 sourceMessageId: sourceMessageId || undefined,
                 type: transactionType,
                 notes: input.notes || null,
@@ -161,6 +350,13 @@ export async function ingestTransaction(input: TransactionIngestionInput) {
         `;
 
         console.info("[transaction-ingestion] created structured transaction", { transactionId: tx.id, merchant: tx.merchant });
+
+        await recordIngestionKeys({
+            keys: ingestionKeys,
+            source,
+            sourceMessageId,
+            transactionId: tx.id,
+        });
 
         await applyTransactionSideEffects(tx.amount, transactionType);
 
@@ -183,21 +379,68 @@ export async function ingestTransaction(input: TransactionIngestionInput) {
         type: parsed.type,
         transactionType: parsed.transactionType,
     });
+    const normalizedAmount = Math.abs(parsed.amount);
+    const parsedTimestamp = parsed.timestamp && !isNaN(new Date(parsed.timestamp).getTime())
+        ? new Date(parsed.timestamp)
+        : toDate(input.timestamp) || new Date();
+    const parsedTransactionType = parsed.transactionType || parsed.type || "OTHER";
+    const source = input.source || parsed.source || "email";
+    const ingestionKeys = buildTransactionIngestionKeys({
+        source,
+        sourceMessageId,
+        amount: normalizedAmount,
+        merchant: parsed.merchant,
+        timestamp: parsedTimestamp,
+        transactionType: parsedTransactionType,
+    });
+
+    const duplicate = await skipExistingIngestion(ingestionKeys);
+    if (duplicate) return duplicate;
+
+    if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
+        console.warn("[transaction-ingestion] parsed transaction skipped because amount is missing", {
+            merchant: parsed.merchant,
+            source,
+            sourceMessageId,
+        });
+        await recordIngestionKeys({
+            keys: ingestionKeys,
+            source,
+            sourceMessageId,
+            status: "SKIPPED",
+            reason: "missing-amount",
+        });
+        return { ok: true, skipped: true, reason: "missing-amount" };
+    }
+
+    const reservation = await reserveIngestionKey({
+        key: ingestionKeys[0],
+        source,
+        sourceMessageId,
+    });
+    if (reservation?.status !== "PROCESSING" || reservation?.transactionId) {
+        return await skipExistingIngestion(ingestionKeys) || {
+            ok: true,
+            duplicate: true,
+            skipped: true,
+            reason: "duplicate-ingestion-key",
+        };
+    }
+
     const catInfo = await autoCategorize(parsed.merchant, {
         rawText: parsed.rawText || raw,
         transactionType: parsed.transactionType,
         fallback: parsed.category,
     });
     const category = await findOrCreateCategory(catInfo.category);
-    const normalizedAmount = Math.abs(parsed.amount);
 
     const tx = await prisma.transaction.create({
         data: {
             amount: normalizedAmount,
             merchant: parsed.merchant,
             categoryId: category.id,
-            timestamp: parsed.timestamp && !isNaN(new Date(parsed.timestamp).getTime()) ? new Date(parsed.timestamp) : new Date(),
-            source: input.source || parsed.source || "email",
+            timestamp: parsedTimestamp,
+            source,
             sourceMessageId: sourceMessageId || undefined,
             account: parsed.account || null,
             type: parsed.type || "OTHER",
@@ -223,6 +466,13 @@ export async function ingestTransaction(input: TransactionIngestionInput) {
             "rawText" = ${parsed.rawText || raw}
         WHERE "id" = ${tx.id}
     `;
+
+    await recordIngestionKeys({
+        keys: ingestionKeys,
+        source,
+        sourceMessageId,
+        transactionId: tx.id,
+    });
 
     await applyTransactionSideEffects(tx.amount, parsed.type || parsed.transactionType || "OTHER");
 

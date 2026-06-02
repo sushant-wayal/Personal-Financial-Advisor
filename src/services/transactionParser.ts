@@ -365,10 +365,16 @@ function extractTransactionType(text: string): ParseResult["transactionType"] {
 }
 
 function merchantFromDictionary(text: string) {
-    const lc = text.toLowerCase();
+    const normalizedText = keyFor(text);
+    const textTokens = new Set(normalizedText.split(" ").filter(Boolean));
     for (const [key, entry] of Object.entries(merchantDict as Record<string, { merchant: string; category: string }>)) {
-        if (providerWords.has(keyFor(key))) continue;
-        if (lc.includes(key.toLowerCase())) return entry.merchant;
+        const normalizedKey = keyFor(key);
+        if (!normalizedKey || providerWords.has(normalizedKey)) continue;
+
+        const isShortToken = !normalizedKey.includes(" ") && normalizedKey.length <= 3;
+        if (isShortToken ? textTokens.has(normalizedKey) : ` ${normalizedText} `.includes(` ${normalizedKey} `)) {
+            return entry.merchant;
+        }
     }
     return undefined;
 }
