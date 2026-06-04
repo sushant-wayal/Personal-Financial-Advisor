@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { renewExpiringGmailWatches, startGmailWatch } from "../../../../../src/services/gmail-watch.service";
+import { ensureActiveGmailWatch } from "../../../../../src/services/gmail-watch.service";
 
 export async function POST() {
     try {
-        const renewed = await renewExpiringGmailWatches();
+        const renewed = await ensureActiveGmailWatch();
         return NextResponse.json({ ok: true, renewed });
     } catch (error: any) {
         console.error("[gmail-watch] renewal failed", error);
@@ -13,10 +13,10 @@ export async function POST() {
 
 export async function GET() {
     try {
-        const started = await startGmailWatch();
-        return NextResponse.json({ ok: true, started });
+        const renewed = await ensureActiveGmailWatch();
+        return NextResponse.json({ ok: true, renewed });
     } catch (error: any) {
-        console.error("[gmail-watch] start failed", error);
+        console.error("[gmail-watch] renewal failed", error);
         return NextResponse.json({ error: error?.message || String(error) }, { status: 500 });
     }
 }

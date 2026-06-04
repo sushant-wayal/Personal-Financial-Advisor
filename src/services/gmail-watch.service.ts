@@ -86,3 +86,17 @@ export async function renewExpiringGmailWatches() {
 
     return renewGmailWatch(watch.email);
 }
+
+export async function ensureActiveGmailWatch() {
+    const watch = await getStoredGmailWatch();
+    if (!watch) {
+        return startGmailWatch();
+    }
+
+    const expiresAt = new Date(watch.expiration).getTime();
+    if (Number.isNaN(expiresAt) || expiresAt - Date.now() <= RENEW_WITHIN_MS) {
+        return renewGmailWatch(watch.email);
+    }
+
+    return watch;
+}

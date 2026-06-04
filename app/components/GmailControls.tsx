@@ -4,6 +4,13 @@ import { Button } from "@/components/ui/button";
 
 type Status = "idle" | "connecting" | "connected" | "error";
 
+type GmailStatusResponse = {
+    connected?: boolean;
+    watchActive?: boolean;
+    watchExpired?: boolean;
+    renewalError?: string | null;
+};
+
 export default function GmailControls() {
     const [status, setStatus] = useState<Status>("idle");
     const [message, setMessage] = useState("");
@@ -13,10 +20,16 @@ export default function GmailControls() {
         async function loadStatus() {
             try {
                 const res = await fetch("/api/gmail/status");
-                const data = await res.json();
+                const data = await res.json() as GmailStatusResponse;
                 if (!cancelled) {
                     setStatus(data.connected ? "connected" : "idle");
-                    setMessage(data.connected ? (data.watchActive ? "Automatic sync is active." : "Connected. Watch setup is pending.") : "");
+                    setMessage(data.connected
+                        ? data.watchActive
+                            ? "Automatic sync is active."
+                            : data.watchExpired
+                                ? `Automatic sync expired${data.renewalError ? ": renewal failed." : "."}`
+                                : "Connected. Watch setup is pending."
+                        : "");
                 }
             } catch {
                 if (!cancelled) setStatus("error");
