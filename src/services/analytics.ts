@@ -7,6 +7,7 @@ const EXPENSE_TYPES = ["DEBIT", "DEBITED", "EXPENSE", "PURCHASE", "WITHDRAWAL", 
 
 type AnalyticsTransaction = {
     amount: number | null;
+    timestamp?: string | Date | null;
     type?: string | null;
     transactionType?: string | null;
     category?: { name?: string | null } | null;
@@ -293,15 +294,17 @@ export async function spendingHeatmap(days = 90) {
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
     const txs = await prisma.transaction.findMany({
         where: { timestamp: { gte: since } },
-        select: { amount: true, timestamp: true },
+        select: { amount: true, timestamp: true, type: true, transactionType: true },
         orderBy: { timestamp: "asc" },
     });
 
     const map = new Map<string, number>();
-    for (const tx of txs) {
+    for (const tx of txs as AnalyticsTransaction[]) {
+        const impact = getTransactionImpact(tx.amount || 0, tx.type, tx.transactionType);
+        if (impact >= 0) continue;
         const date = new Date(tx.timestamp as any);
         const key = date.toISOString().slice(0, 10);
-        map.set(key, (map.get(key) || 0) + Math.abs(tx.amount || 0));
+        map.set(key, (map.get(key) || 0) + Math.abs(impact));
     }
 
     const daysOut: Array<{ date: string; amount: number; weekday: number; weekIndex: number }> = [];
