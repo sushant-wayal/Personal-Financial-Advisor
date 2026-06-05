@@ -44,18 +44,57 @@ export async function POST(req: Request) {
 
         const advisorMessages = buildAdvisorChatMessages(question, context, normalizedHistory, { structured: true });
 
+        let rawResponse: string | undefined;
+
         try {
             const response = await generateText(advisorMessages, {
                 temperature: 0.05,
-                complexity: "complex"
+                complexity: "complex",
             });
-            console.log(`[gemini-advisor] raw response for requestId=${requestId}:`, response);
 
-            const parsed = parseAdvisorResponse(response.text);
-            return NextResponse.json(parsed, { headers: { "X-Request-Id": requestId } });
-        } catch (structuredError: unknown) {
-            console.error(`[gemini-advisor] structured response failed requestId=${requestId}`);
-            return NextResponse.json({ error: structuredError instanceof Error ? structuredError.message : String(structuredError) }, { status: 502 });
+            rawResponse = response.text;
+
+            console.log(
+                `[gemini-advisor] raw response for requestId=${requestId}:`,
+                rawResponse
+            );
+
+            const parsed = parseAdvisorResponse(rawResponse);
+
+            return NextResponse.json(parsed, {
+                headers: {
+                    "X-Request-Id": requestId,
+                },
+            });
+        }
+        catch (structuredError: unknown) {
+            console.error(
+                `[gemini-advisor] structured response failed requestId=${requestId}`,
+                {
+                    message:
+                        structuredError instanceof Error
+                            ? structuredError.message
+                            : String(structuredError),
+
+                    stack:
+                        structuredError instanceof Error
+                            ? structuredError.stack
+                            : undefined,
+
+                    rawResponsePreview:
+                        rawResponse?.slice(0, 5000),
+                }
+            );
+
+            return NextResponse.json(
+                {
+                    error:
+                        structuredError instanceof Error
+                            ? structuredError.message
+                            : String(structuredError),
+                },
+                { status: 502 }
+            );
         }
     }
     catch (error: unknown) {
