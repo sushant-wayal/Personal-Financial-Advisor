@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, ScrollView, StatusBar, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StatusBar, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import Markdown from "react-native-markdown-display";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
@@ -132,7 +132,10 @@ export default function AdvisorScreen() {
     return (
         <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
             <StatusBar barStyle="light-content" backgroundColor="#131313" />
-            <View style={styles.screen}>
+            <KeyboardAvoidingView
+                style={styles.screen}
+                behavior={Platform.OS === "ios" ? "padding" : "height"}
+            >
                 <View style={styles.topBar}>
                     <Pressable style={({ pressed }) => [styles.topBarButton, pressed ? styles.pressed : null]} onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Close advisor">
                         <MaterialIcons name="support-agent" size={22} color="#e5e2e1" />
@@ -218,7 +221,7 @@ export default function AdvisorScreen() {
                     </View>
                     {error ? <Text style={styles.errorText}>{error}</Text> : null}
                 </View>
-            </View>
+            </KeyboardAvoidingView>
         </SafeAreaView>
     );
 }
