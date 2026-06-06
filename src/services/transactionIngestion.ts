@@ -372,7 +372,7 @@ export async function ingestTransaction(input: TransactionIngestionInput) {
         };
     }
 
-    const parsed = deterministicParse(raw);
+    const parsed = deterministicParse(raw, input.timestamp);
     console.info("[transaction-ingestion] parsed email text", {
         merchant: parsed.merchant,
         amount: parsed.amount,

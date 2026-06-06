@@ -3,6 +3,11 @@ import { TransactionRecord } from "../types/transaction";
 
 type ParseResult = TransactionRecord & { confidence: number };
 
+type ExtractedTimestamp = {
+    timestamp?: Date;
+    hasExplicitTime: boolean;
+};
+
 const amountRegexes = [
     /(?:Rs\.?|INR|₹)\s*(-?\s?[0-9,]+(?:\.[0-9]{1,2})?)/i,
     /(?:amount|amt)\s*(?:of)?\s*(?:Rs\.?|INR|₹)?\s*(-?\s?[0-9,]+(?:\.[0-9]{1,2})?)/i,
@@ -320,16 +325,16 @@ function timeParts(match: RegExpMatchArray, startIndex: number) {
     };
 }
 
-function extractTimestamp(text: string) {
+function extractTimestamp(text: string): ExtractedTimestamp {
     const numeric = text.match(/\b(\d{1,2})[\s\-/](\d{1,2})[\s\-/](\d{2,4})\b/);
     if (numeric) {
         const first = Number(numeric[1]);
         const second = Number(numeric[2]);
         const year = Number(numeric[3]);
         const ddmmyyyy = parseDateParts(first, second, year);
-        if (ddmmyyyy) return ddmmyyyy;
+        if (ddmmyyyy) return { timestamp: ddmmyyyy, hasExplicitTime: false };
         const mmddyyyy = parseDateParts(second, first, year);
-        if (mmddyyyy) return mmddyyyy;
+        if (mmddyyyy) return { timestamp: mmddyyyy, hasExplicitTime: false };
     }
 
     const dayMonthName = text.match(/\b(\d{1,2})\s+([A-Za-z]{3,9}),?\s+(\d{2,4})(?:\s+(?:at|on)?\s*(\d{1,2}):(\d{2})(?::(\d{2}))?)?\b/i);
@@ -337,7 +342,7 @@ function extractTimestamp(text: string) {
         const month = monthNumbers[dayMonthName[2].toLowerCase()];
         const { hour, minute, second } = timeParts(dayMonthName, 4);
         const parsed = month ? parseDateParts(Number(dayMonthName[1]), month, Number(dayMonthName[3]), hour, minute, second) : undefined;
-        if (parsed) return parsed;
+        if (parsed) return { timestamp: parsed, hasExplicitTime: Boolean(dayMonthName[4] || dayMonthName[5] || dayMonthName[6]) };
     }
 
     const monthNameDay = text.match(/\b([A-Za-z]{3,9})\s+(\d{1,2}),?\s+(\d{2,4})(?:\s+(?:at|on)?\s*(\d{1,2}):(\d{2})(?::(\d{2}))?)?\b/i);
@@ -345,13 +350,30 @@ function extractTimestamp(text: string) {
         const month = monthNumbers[monthNameDay[1].toLowerCase()];
         const { hour, minute, second } = timeParts(monthNameDay, 4);
         const parsed = month ? parseDateParts(Number(monthNameDay[2]), month, Number(monthNameDay[3]), hour, minute, second) : undefined;
-        if (parsed) return parsed;
+        if (parsed) return { timestamp: parsed, hasExplicitTime: Boolean(monthNameDay[4] || monthNameDay[5] || monthNameDay[6]) };
     }
 
     const iso = text.match(/\b(\d{4})-(\d{1,2})-(\d{1,2})\b/);
-    if (iso) return parseDateParts(Number(iso[3]), Number(iso[2]), Number(iso[1]));
+    if (iso) return { timestamp: parseDateParts(Number(iso[3]), Number(iso[2]), Number(iso[1])), hasExplicitTime: false };
 
-    return undefined;
+    return { hasExplicitTime: false };
+}
+
+function mergeDateWithFallbackTime(dateValue: Date, fallbackTimestamp?: string | Date) {
+    if (!fallbackTimestamp) return dateValue;
+
+    const fallback = new Date(fallbackTimestamp);
+    if (Number.isNaN(fallback.getTime())) return dateValue;
+
+    return new Date(
+        dateValue.getFullYear(),
+        dateValue.getMonth(),
+        dateValue.getDate(),
+        fallback.getHours(),
+        fallback.getMinutes(),
+        fallback.getSeconds(),
+        fallback.getMilliseconds(),
+    );
 }
 
 function extractTransactionType(text: string): ParseResult["transactionType"] {
@@ -393,11 +415,14 @@ function merchantFromVpaContext(text: string) {
     return undefined;
 }
 
-export function deterministicParse(raw: string): ParseResult {
+export function deterministicParse(raw: string, fallbackTimestamp?: string | Date): ParseResult {
     console.log("Parsing transaction text:", raw);
     const text = normalizeText(raw);
     const amount = extractAmount(text);
-    const timestamp = extractTimestamp(text);
+    const extractedTimestamp = extractTimestamp(text);
+    const timestamp = extractedTimestamp.timestamp && !extractedTimestamp.hasExplicitTime
+        ? mergeDateWithFallbackTime(extractedTimestamp.timestamp, fallbackTimestamp)
+        : extractedTimestamp.timestamp;
     const transactionType = extractTransactionType(text);
     const paymentMethod = extractPaymentMethod(text);
     const bankName = extractBankName(text);
