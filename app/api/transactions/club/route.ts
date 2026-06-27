@@ -53,10 +53,6 @@ export async function POST(req: Request) {
         if (selected.length !== ids.length) {
             return NextResponse.json({ error: "One or more selected transactions no longer exist" }, { status: 409 });
         }
-        if (selected.some((transaction) => transaction.isClubbed)) {
-            return NextResponse.json({ error: "A clubbed transaction cannot be clubbed again" }, { status: 400 });
-        }
-
         const signedTotal = selected.reduce(
             (total, transaction) => total + getTransactionImpact(transaction.amount, transaction.type, transaction.transactionType),
             0,
@@ -78,6 +74,17 @@ export async function POST(req: Request) {
             selected[0].timestamp,
         );
         const category = await findOrCreateCategory(categoryName);
+        const sourceIds = Array.from(new Set(selected.flatMap((transaction) => {
+            if (!transaction.isClubbed) return [transaction.id];
+            try {
+                const parsed = JSON.parse(transaction.clubbedSourceIds);
+                return Array.isArray(parsed)
+                    ? parsed.filter((id): id is string => typeof id === "string" && Boolean(id))
+                    : [transaction.id];
+            } catch {
+                return [transaction.id];
+            }
+        })));
         const previousImpact = selected.reduce(
             (total, transaction) => total + getTransactionImpact(transaction.amount, transaction.type, transaction.transactionType),
             0,
@@ -100,9 +107,9 @@ export async function POST(req: Request) {
                     notes: optionalText(body.notes),
                     confidence: 1,
                     rawText: "",
-                    raw: JSON.stringify({ clubbedSourceIds: ids }),
+                    raw: JSON.stringify({ clubbedSourceIds: sourceIds }),
                     isClubbed: true,
-                    clubbedSourceIds: JSON.stringify(ids),
+                    clubbedSourceIds: JSON.stringify(sourceIds),
                 },
                 include: { category: true },
             });

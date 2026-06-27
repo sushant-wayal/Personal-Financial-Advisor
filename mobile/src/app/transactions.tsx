@@ -663,7 +663,6 @@ export default function TransactionsScreen() {
   }
 
   function toggleClubSelection(tx: Transaction) {
-    if (tx.isClubbed) return;
     setSelectedForClub((current) => {
       const next = new Set(current);
       if (next.has(tx.id)) next.delete(tx.id);
@@ -673,7 +672,6 @@ export default function TransactionsScreen() {
   }
 
   function beginClubSelection(tx: Transaction) {
-    if (tx.isClubbed) return;
     setClubMode(true);
     setSelectedForClub(new Set([tx.id]));
   }
@@ -929,9 +927,8 @@ export default function TransactionsScreen() {
         onPress={() => clubMode ? toggleClubSelection(item) : setActionTransaction(item)}
         onLongPress={() => clubMode ? toggleClubSelection(item) : beginClubSelection(item)}
         delayLongPress={350}
-        disabled={clubMode && item.isClubbed}
         android_ripple={{ color: "rgba(255,255,255,0.025)" }}
-        style={({ pressed }) => [styles.row, selected ? styles.rowSelected : null, clubMode && item.isClubbed ? styles.rowDisabled : null, pressed ? styles.rowPressed : null]}
+        style={({ pressed }) => [styles.row, selected ? styles.rowSelected : null, pressed ? styles.rowPressed : null]}
       >
         {clubMode ? (
           <View style={[styles.clubCheckbox, selected ? styles.clubCheckboxSelected : null]}>
