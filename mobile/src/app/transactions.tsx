@@ -444,6 +444,11 @@ export default function TransactionsScreen() {
   const sheetTranslateY = useMemo(() => sheetAnim.interpolate({ inputRange: [0, 1], outputRange: [680, 0] }), [sheetAnim]);
   const currencySymbol = getCurrencySymbol();
 
+  const hasActiveFilters =
+    timeRange !== "all" ||
+    selectedCategory !== null ||
+    selectedType !== null ||
+    Boolean(filterSearch || filterMerchant || filterMin || filterMax);
   const timeLabel = TIME_OPTIONS.find((option) => option.id === timeRange)?.label ?? "All Time";
   const customRangeLabel = timeRange === "custom" ? `${compactDateLabel(customFrom)} - ${compactDateLabel(customTo)}` : timeLabel;
   const calendarDays = useMemo(() => buildCalendarDays(visibleMonth), [visibleMonth]);
@@ -765,6 +770,28 @@ export default function TransactionsScreen() {
     await reload(buildFilters({ merchant: null, amountMin: null, amountMax: null }));
   }
 
+  async function clearAllFilters() {
+    setTimeRange("all");
+    setSelectedCategory(null);
+    setSelectedType(null);
+    setFilterSearch("");
+    setFilterMerchant("");
+    setFilterMin("");
+    setFilterMax("");
+    setCategoryQuery("");
+    setCustomModalVisible(false);
+    await reload({
+      dateRange: "all",
+      dateFrom: null,
+      dateTo: null,
+      category: null,
+      type: null,
+      merchant: null,
+      amountMin: null,
+      amountMax: null,
+    });
+  }
+
   async function applyAdvancedFilters() {
     closeSheet();
     await reload(buildFilters());
@@ -868,6 +895,16 @@ export default function TransactionsScreen() {
           }}
           scrollEventThrottle={16}
         >
+          {hasActiveFilters ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Clear all transaction filters"
+              onPress={() => void clearAllFilters()}
+              style={({ pressed }) => [styles.clearFiltersChip, pressed ? styles.chipPressed : null]}
+            >
+              <MaterialIcons name="filter-alt-off" size={18} color="#ffb4ab" />
+            </Pressable>
+          ) : null}
           <Pressable onPress={() => openSheet("advanced")} style={({ pressed }) => [styles.chip, pressed ? styles.chipPressed : null]}>
             <MaterialIcons name="tune" size={15} color="#e5e2e1" />
             <Text style={styles.chipText}>Filter</Text>
@@ -1794,6 +1831,16 @@ const styles = StyleSheet.create({
     fontFamily: "JetBrains Mono",
   },
   chipTextActive: { color: "#7dffa2" },
+  clearFiltersChip: {
+    height: 38,
+    width: 38,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(255,180,171,0.5)",
+    backgroundColor: "rgba(255,180,171,0.08)",
+  },
   chipPressed: { opacity: 0.78, transform: [{ scale: 0.98 }] },
   listWrap: { flex: 1, paddingHorizontal: 24 },
   listContent: { paddingBottom: 136 },
