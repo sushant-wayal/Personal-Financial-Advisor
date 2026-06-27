@@ -220,6 +220,7 @@ export async function getTransactions(input: TransactionQueryInput): Promise<Tra
                     confidence: true,
                     isClubbed: true,
                     clubbedSourceIds: true,
+                    clubbedSources: true,
                     category: {
                         select: {
                             id: true,

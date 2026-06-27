@@ -30,6 +30,7 @@ model Transaction {
   updatedAt     DateTime @updatedAt
   isClubbed     Boolean  @default(false)
   clubbedSourceIds String @default("[]")
+  clubbedSources String @default("[]")
 }
 
 model TransactionIngestionKey {

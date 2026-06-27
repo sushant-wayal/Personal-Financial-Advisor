@@ -36,6 +36,7 @@ type Transaction = {
   confidence?: number | null;
   isClubbed?: boolean;
   clubbedSourceIds?: string;
+  clubbedSources?: string;
   category?: { id?: string; name?: string } | null;
 };
 
@@ -48,6 +49,15 @@ type TransactionFilters = {
   amountMin?: number | null;
   amountMax?: number | null;
   merchant?: string | null;
+};
+type ClubSource = {
+  id: string;
+  amount: number;
+  merchant: string;
+  timestamp: string;
+  type: string;
+  transactionType: string;
+  category?: string | null;
 };
 
 type SheetName = "advanced" | "time" | "category" | "type" | null;
@@ -257,6 +267,21 @@ async function clubTransactions(input: {
   return payload;
 }
 
+async function separateClubTransaction(clubId: string, sourceId: string, transactionType?: string) {
+  const res = await fetch(apiUrl(`/api/transactions/club/${clubId}/separate`), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sourceId, transactionType }),
+  });
+  const payload = await res.json().catch(() => null);
+  if (!res.ok) {
+    const error = new Error(payload?.error || "Failed to separate transaction") as Error & { payload?: typeof payload };
+    error.payload = payload;
+    throw error;
+  }
+  return payload;
+}
+
 function formatDate(value?: string) {
   if (!value) return "";
   const d = new Date(value);
@@ -462,6 +487,10 @@ export default function TransactionsScreen() {
   const [clubMode, setClubMode] = useState(false);
   const [selectedForClub, setSelectedForClub] = useState<Set<string>>(() => new Set());
   const [clubSourceIds, setClubSourceIds] = useState<string[]>([]);
+  const [originalsTarget, setOriginalsTarget] = useState<Transaction | null>(null);
+  const [separatingSourceId, setSeparatingSourceId] = useState<string | null>(null);
+  const [separateTypeRequest, setSeparateTypeRequest] = useState<{ sourceId: string; direction: "credit" | "debit" } | null>(null);
+  const [separateError, setSeparateError] = useState<string | null>(null);
 
   const insets = useSafeAreaInsets();
 
@@ -545,6 +574,15 @@ export default function TransactionsScreen() {
     const eligibleTypes = netAmount >= 0 ? CREDIT_TRANSACTION_TYPES : DEBIT_TRANSACTION_TYPES;
     return ADD_TRANSACTION_TYPES.filter((type) => eligibleTypes.has(type));
   }, [clubSourceIds, items]);
+  const originalTransactions = useMemo(() => {
+    if (!originalsTarget?.clubbedSources) return [] as ClubSource[];
+    try {
+      const parsed = JSON.parse(originalsTarget.clubbedSources);
+      return Array.isArray(parsed) ? parsed as ClubSource[] : [];
+    } catch {
+      return [];
+    }
+  }, [originalsTarget]);
 
   const buildFilters = useCallback(
     (overrides: Partial<TransactionFilters> = {}) => ({
@@ -809,6 +847,28 @@ export default function TransactionsScreen() {
       setDeleteError(e instanceof Error ? e.message : String(e));
     } finally {
       setDeletingTransaction(false);
+    }
+  }
+
+  async function separateOriginal(sourceId: string, transactionType?: string) {
+    if (!originalsTarget) return;
+    setSeparatingSourceId(sourceId);
+    setSeparateError(null);
+    try {
+      await separateClubTransaction(originalsTarget.id, sourceId, transactionType);
+      clearClientCache();
+      setSeparateTypeRequest(null);
+      setOriginalsTarget(null);
+      await reload(buildFilters(), true);
+    } catch (e: unknown) {
+      const error = e as Error & { payload?: { requiresType?: boolean; direction?: "credit" | "debit" } };
+      if (error.payload?.requiresType && error.payload.direction) {
+        setSeparateTypeRequest({ sourceId, direction: error.payload.direction });
+      } else {
+        setSeparateError(error.message || String(e));
+      }
+    } finally {
+      setSeparatingSourceId(null);
     }
   }
 
@@ -1098,6 +1158,23 @@ export default function TransactionsScreen() {
             <Text style={styles.txActionMeta}>
               {actionTransaction ? `${formatDate(actionTransaction.timestamp)} · ${currencySymbol}${Math.abs(actionTransaction.amount ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : ""}
             </Text>
+            {actionTransaction?.isClubbed ? (
+              <Pressable
+                style={({ pressed }) => [styles.txActionOption, pressed ? styles.optionPressed : null]}
+                onPress={() => {
+                  setSeparateError(null);
+                  setSeparateTypeRequest(null);
+                  setOriginalsTarget(actionTransaction);
+                  setActionTransaction(null);
+                }}
+              >
+                <View style={styles.txActionIcon}>
+                  <MaterialIcons name="account-tree" size={22} color="#d0bcff" />
+                </View>
+                <Text style={styles.txActionOptionText}>Original transactions</Text>
+                <MaterialIcons name="chevron-right" size={22} color="#8e9192" />
+              </Pressable>
+            ) : null}
             <Pressable
               style={({ pressed }) => [styles.txActionOption, pressed ? styles.optionPressed : null]}
               onPress={() => {
@@ -1128,6 +1205,63 @@ export default function TransactionsScreen() {
               <Text style={styles.txActionCancelText}>Cancel</Text>
             </Pressable>
           </View>
+        </SafeAreaView>
+      </Modal>
+
+      <Modal visible={!!originalsTarget} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setOriginalsTarget(null)}>
+        <SafeAreaView style={styles.originalsScreen} edges={["top", "bottom"]}>
+          <View style={styles.originalsHeader}>
+            <View>
+              <Text style={styles.originalsTitle}>Original transactions</Text>
+              <Text style={styles.originalsSubtitle}>{originalTransactions.length} transactions in this club</Text>
+            </View>
+            <Pressable onPress={() => setOriginalsTarget(null)} style={styles.sheetIconButton}>
+              <MaterialIcons name="close" size={22} color="#c4c7c8" />
+            </Pressable>
+          </View>
+          {separateTypeRequest ? (
+            <View style={styles.typeChangeCard}>
+              <Text style={styles.typeChangeTitle}>The remaining amount changed to {separateTypeRequest.direction}.</Text>
+              <Text style={styles.typeChangeCopy}>Choose a compatible type to finish separating this transaction.</Text>
+              <View style={styles.typeChangeOptions}>
+                {(separateTypeRequest.direction === "credit"
+                  ? ["CREDIT", "SALARY", "REFUND", "INCOME"]
+                  : ["DEBIT", "TRANSFER", "SUBSCRIPTION", "EXPENSE"]
+                ).map((type) => (
+                  <Pressable key={type} disabled={!!separatingSourceId} onPress={() => void separateOriginal(separateTypeRequest.sourceId, type)} style={styles.typeChangeButton}>
+                    <Text style={styles.typeChangeButtonText}>{type}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              <Pressable onPress={() => setSeparateTypeRequest(null)}><Text style={styles.typeChangeCancel}>Cancel</Text></Pressable>
+            </View>
+          ) : (
+            <ScrollView contentContainerStyle={styles.originalsList}>
+              {originalTransactions.length ? originalTransactions.map((source) => {
+                const credit = ["CREDIT", "SALARY", "REFUND", "INCOME", "BONUS"].includes(String(source.transactionType || source.type).toUpperCase());
+                return (
+                  <View key={source.id} style={styles.originalCard}>
+                    <View style={styles.originalCopy}>
+                      <Text style={styles.originalMerchant}>{source.merchant || "Unknown"}</Text>
+                      <Text style={styles.originalMeta}>{formatDate(source.timestamp)} · {source.category || source.transactionType}</Text>
+                    </View>
+                    <Text style={[styles.originalAmount, credit ? styles.credit : styles.debit]}>
+                      {credit ? "+" : "-"}{currencySymbol}{Math.abs(source.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </Text>
+                    <Pressable disabled={!!separatingSourceId} onPress={() => void separateOriginal(source.id)} style={styles.separateButton}>
+                      <Text style={styles.separateButtonText}>{separatingSourceId === source.id ? "Separating…" : "Separate"}</Text>
+                    </Pressable>
+                  </View>
+                );
+              }) : (
+                <View style={styles.emptyWrap}>
+                  <Text style={styles.emptyTitle}>Original details unavailable</Text>
+                  <Text style={styles.emptyText}>This club was created before source details were retained.</Text>
+                </View>
+              )}
+              {separateError ? <Text style={styles.addError}>{separateError}</Text> : null}
+            </ScrollView>
+          )}
         </SafeAreaView>
       </Modal>
 
@@ -2105,6 +2239,25 @@ const styles = StyleSheet.create({
   txActionDangerText: { color: "#ffb4ab" },
   txActionCancel: { height: 54, borderRadius: 999, borderWidth: 1, borderColor: "rgba(255,255,255,0.10)", alignItems: "center", justifyContent: "center", marginTop: 6 },
   txActionCancelText: { color: "#ffffff", fontFamily: "JetBrains Mono", fontSize: fs(14), lineHeight: 20, letterSpacing: 1.4, textTransform: "uppercase" },
+  originalsScreen: { flex: 1, backgroundColor: "#0a0a0a" },
+  originalsHeader: { minHeight: 82, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: "#292929", flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
+  originalsTitle: { color: "#ffffff", fontFamily: "Hanken Grotesk", fontSize: fs(22), lineHeight: 28, fontWeight: "700" },
+  originalsSubtitle: { color: "#8e9192", fontFamily: "Inter", fontSize: fs(12), lineHeight: 18 },
+  originalsList: { padding: 16, gap: 12, paddingBottom: 40 },
+  originalCard: { borderRadius: 16, borderWidth: 1, borderColor: "#303030", backgroundColor: "#171717", padding: 14, flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 10 },
+  originalCopy: { flex: 1, minWidth: 130 },
+  originalMerchant: { color: "#ffffff", fontFamily: "Inter", fontSize: fs(15), lineHeight: 21, fontWeight: "600" },
+  originalMeta: { color: "#8e9192", fontFamily: "Inter", fontSize: fs(11), lineHeight: 16 },
+  originalAmount: { fontFamily: "JetBrains Mono", fontSize: fs(12), fontWeight: "700" },
+  separateButton: { width: "100%", height: 40, borderRadius: 10, borderWidth: 1, borderColor: "rgba(208,188,255,0.42)", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(208,188,255,0.08)" },
+  separateButtonText: { color: "#d0bcff", fontFamily: "Inter", fontSize: fs(13), fontWeight: "800" },
+  typeChangeCard: { margin: 16, borderRadius: 18, borderWidth: 1, borderColor: "rgba(208,188,255,0.38)", backgroundColor: "#19171c", padding: 18, gap: 12 },
+  typeChangeTitle: { color: "#ffffff", fontFamily: "Hanken Grotesk", fontSize: fs(18), lineHeight: 24, fontWeight: "700" },
+  typeChangeCopy: { color: "#aaa5ad", fontFamily: "Inter", fontSize: fs(13), lineHeight: 19 },
+  typeChangeOptions: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  typeChangeButton: { paddingHorizontal: 12, height: 40, borderRadius: 999, backgroundColor: "#d0bcff", alignItems: "center", justifyContent: "center" },
+  typeChangeButtonText: { color: "#131313", fontFamily: "JetBrains Mono", fontSize: fs(10), fontWeight: "800" },
+  typeChangeCancel: { color: "#c4c7c8", fontFamily: "Inter", fontSize: fs(13), fontWeight: "700", textAlign: "center", paddingVertical: 6 },
   confirmOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.74)", alignItems: "center", justifyContent: "center", padding: 24 },
   confirmCard: { width: "100%", borderRadius: 20, borderWidth: 1, borderColor: "rgba(255,255,255,0.12)", backgroundColor: "#131313", padding: 24, gap: 14 },
   confirmIcon: { width: 52, height: 52, borderRadius: 26, backgroundColor: "rgba(255,180,171,0.08)", alignItems: "center", justifyContent: "center" },

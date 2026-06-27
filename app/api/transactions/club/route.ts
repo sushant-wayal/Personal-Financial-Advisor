@@ -85,6 +85,29 @@ export async function POST(req: Request) {
                 return [transaction.id];
             }
         })));
+        const sourceSnapshots = selected.flatMap((transaction) => {
+            if (transaction.isClubbed) {
+                try {
+                    const parsed = JSON.parse(transaction.clubbedSources);
+                    if (Array.isArray(parsed) && parsed.length) return parsed;
+                } catch {
+                    // Fall back to a snapshot of the club when legacy details are unavailable.
+                }
+            }
+            return [{
+                id: transaction.id,
+                amount: transaction.amount,
+                merchant: transaction.merchant,
+                timestamp: transaction.timestamp.toISOString(),
+                type: transaction.type,
+                transactionType: transaction.transactionType,
+                paymentMethod: transaction.paymentMethod,
+                bankName: transaction.bankName,
+                notes: transaction.notes,
+                category: transaction.category?.name ?? null,
+                source: transaction.source,
+            }];
+        });
         const previousImpact = selected.reduce(
             (total, transaction) => total + getTransactionImpact(transaction.amount, transaction.type, transaction.transactionType),
             0,
@@ -110,6 +133,7 @@ export async function POST(req: Request) {
                     raw: JSON.stringify({ clubbedSourceIds: sourceIds }),
                     isClubbed: true,
                     clubbedSourceIds: JSON.stringify(sourceIds),
+                    clubbedSources: JSON.stringify(sourceSnapshots),
                 },
                 include: { category: true },
             });
