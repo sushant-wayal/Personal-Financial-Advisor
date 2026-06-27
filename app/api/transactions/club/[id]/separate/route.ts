@@ -46,8 +46,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         const requestedType = body.transactionType?.trim().toUpperCase();
         const currentType = club.transactionType || club.type;
         const requiredTypes = remainingImpact >= 0 ? CREDIT_TYPES : DEBIT_TYPES;
-        const nextType = remaining.length ? (requestedType || currentType) : currentType;
-        if (remaining.length && !requiredTypes.has(nextType)) {
+        const nextType = remaining.length > 1 ? (requestedType || currentType) : currentType;
+        if (remaining.length > 1 && !requiredTypes.has(nextType)) {
             return NextResponse.json({
                 error: "The remaining amount changed direction. Select a compatible type.",
                 requiresType: true,
@@ -56,9 +56,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         }
 
         const sourceCategory = source.category ? await findOrCreateCategory(source.category) : null;
+        const remainingSource = remaining.length === 1 ? remaining[0] : null;
+        const remainingCategory = remainingSource?.category ? await findOrCreateCategory(remainingSource.category) : null;
         const sourceImpact = getTransactionImpact(source.amount, source.type, source.transactionType);
         const oldImpact = getTransactionImpact(club.amount, club.type, club.transactionType);
-        const newClubImpact = remaining.length ? getTransactionImpact(Math.abs(remainingImpact), nextType, nextType) : 0;
+        const newClubImpact = remaining.length > 1
+            ? getTransactionImpact(Math.abs(remainingImpact), nextType, nextType)
+            : remainingImpact;
 
         await prisma.$transaction(async (tx) => {
             await tx.transaction.create({
@@ -77,7 +81,25 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
                     raw: JSON.stringify({ separatedFrom: club.id, originalId: source.id }),
                 },
             });
-            if (remaining.length) {
+            if (remainingSource) {
+                await tx.transaction.create({
+                    data: {
+                        amount: Math.abs(remainingSource.amount),
+                        merchant: remainingSource.merchant || "Unknown",
+                        timestamp: new Date(remainingSource.timestamp),
+                        type: remainingSource.type || remainingSource.transactionType || "OTHER",
+                        transactionType: remainingSource.transactionType || remainingSource.type || "OTHER",
+                        paymentMethod: remainingSource.paymentMethod,
+                        bankName: remainingSource.bankName,
+                        notes: remainingSource.notes,
+                        categoryId: remainingCategory?.id,
+                        source: remainingSource.source || "separated",
+                        rawText: "",
+                        raw: JSON.stringify({ separatedFrom: club.id, originalId: remainingSource.id }),
+                    },
+                });
+                await tx.transaction.delete({ where: { id: club.id } });
+            } else if (remaining.length > 1) {
                 await tx.transaction.update({
                     where: { id: club.id },
                     data: {
