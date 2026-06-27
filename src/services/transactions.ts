@@ -218,6 +218,8 @@ export async function getTransactions(input: TransactionQueryInput): Promise<Tra
                     bankName: true,
                     notes: true,
                     confidence: true,
+                    isClubbed: true,
+                    clubbedSourceIds: true,
                     category: {
                         select: {
                             id: true,

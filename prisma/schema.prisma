@@ -28,6 +28,8 @@ model Transaction {
   raw           String
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  isClubbed     Boolean  @default(false)
+  clubbedSourceIds String @default("[]")
 }
 
 model TransactionIngestionKey {

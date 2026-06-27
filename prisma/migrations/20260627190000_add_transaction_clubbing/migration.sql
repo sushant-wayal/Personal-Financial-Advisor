@@ -1,0 +1,3 @@
+ALTER TABLE "Transaction"
+ADD COLUMN "isClubbed" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN "clubbedSourceIds" TEXT NOT NULL DEFAULT '[]';

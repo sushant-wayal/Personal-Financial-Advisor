@@ -34,6 +34,8 @@ type Transaction = {
   bankName?: string | null;
   notes?: string | null;
   confidence?: number | null;
+  isClubbed?: boolean;
+  clubbedSourceIds?: string;
   category?: { id?: string; name?: string } | null;
 };
 
@@ -49,7 +51,7 @@ type TransactionFilters = {
 };
 
 type SheetName = "advanced" | "time" | "category" | "type" | null;
-type AddPickerName = "category" | "method" | "type" | "date" | null;
+type AddPickerName = "merchant" | "category" | "method" | "type" | "date" | null;
 
 const TIME_OPTIONS = [
   { id: "all", label: "All Time" },
@@ -83,6 +85,8 @@ const EXTRA_CATEGORIES = [
 const EXTRA_TYPES = ["Income", "Expense"];
 const FALLBACK_TYPES = ["Debit", "Credit", ...EXTRA_TYPES];
 const ADD_TRANSACTION_TYPES = ["Debit", "Credit", "Salary", "Refund", "Transfer", "Subscription", "Income", "Expense"];
+const CREDIT_TRANSACTION_TYPES = new Set(["Credit", "Salary", "Refund", "Income"]);
+const DEBIT_TRANSACTION_TYPES = new Set(["Debit", "Transfer", "Subscription", "Expense"]);
 const PAYMENT_METHODS = [
   { label: "UPI", description: "Unified Payments Interface", icon: "qr-code-scanner" },
   { label: "Net Banking", description: "Direct bank transfer", icon: "account-balance" },
@@ -231,6 +235,25 @@ async function deleteTransaction(id: string) {
   if (!res.ok) {
     throw new Error(payload?.error || "Failed to delete transaction");
   }
+  return payload;
+}
+
+async function clubTransactions(input: {
+  transactionIds: string[];
+  merchant: string;
+  category: string;
+  paymentMethod: string;
+  bankName: string;
+  transactionType: string;
+  notes: string;
+}) {
+  const res = await fetch(apiUrl("/api/transactions/club"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  const payload = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(payload?.error || "Failed to club transactions");
   return payload;
 }
 
@@ -436,6 +459,9 @@ export default function TransactionsScreen() {
   const [deleteTarget, setDeleteTarget] = useState<Transaction | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deletingTransaction, setDeletingTransaction] = useState(false);
+  const [clubMode, setClubMode] = useState(false);
+  const [selectedForClub, setSelectedForClub] = useState<Set<string>>(() => new Set());
+  const [clubSourceIds, setClubSourceIds] = useState<string[]>([]);
 
   const insets = useSafeAreaInsets();
 
@@ -503,6 +529,22 @@ export default function TransactionsScreen() {
     const query = addCategoryQuery.trim().toLowerCase();
     return categoryOptions.filter((category) => category.name.toLowerCase().includes(query));
   }, [addCategoryQuery, categoryOptions]);
+  const clubMerchantOptions = useMemo(() => {
+    const names = clubSourceIds
+      .map((id) => items.find((item) => item.id === id)?.merchant?.trim())
+      .filter((merchant): merchant is string => Boolean(merchant));
+    return Array.from(new Set(names));
+  }, [clubSourceIds, items]);
+  const eligibleAddTransactionTypes = useMemo(() => {
+    if (!clubSourceIds.length) return ADD_TRANSACTION_TYPES;
+    const netAmount = clubSourceIds.reduce((total, id) => {
+      const transaction = items.find((item) => item.id === id);
+      if (!transaction) return total;
+      return total + (isCreditTransaction(transaction) ? Math.abs(transaction.amount) : -Math.abs(transaction.amount));
+    }, 0);
+    const eligibleTypes = netAmount >= 0 ? CREDIT_TRANSACTION_TYPES : DEBIT_TRANSACTION_TYPES;
+    return ADD_TRANSACTION_TYPES.filter((type) => eligibleTypes.has(type));
+  }, [clubSourceIds, items]);
 
   const buildFilters = useCallback(
     (overrides: Partial<TransactionFilters> = {}) => ({
@@ -615,6 +657,56 @@ export default function TransactionsScreen() {
     setAddVisible(true);
   }
 
+  function cancelClubMode() {
+    setClubMode(false);
+    setSelectedForClub(new Set());
+  }
+
+  function toggleClubSelection(tx: Transaction) {
+    if (tx.isClubbed) return;
+    setSelectedForClub((current) => {
+      const next = new Set(current);
+      if (next.has(tx.id)) next.delete(tx.id);
+      else next.add(tx.id);
+      return next;
+    });
+  }
+
+  function beginClubSelection(tx: Transaction) {
+    if (tx.isClubbed) return;
+    setClubMode(true);
+    setSelectedForClub(new Set([tx.id]));
+  }
+
+  function openClubFlow() {
+    const selected = items.filter((item) => selectedForClub.has(item.id));
+    if (selected.length < 2) return;
+    const latest = selected.reduce((current, item) =>
+      new Date(item.timestamp).getTime() > new Date(current.timestamp).getTime() ? item : current,
+    );
+    const netAmount = selected.reduce(
+      (total, item) => total + (isCreditTransaction(item) ? Math.abs(item.amount) : -Math.abs(item.amount)),
+      0,
+    );
+    const parts = datePartsFromTimestamp(latest.timestamp);
+    const latestDate = parseDateKey(parts.dateKey) ?? new Date();
+
+    resetAddForm();
+    setClubSourceIds(selected.map((item) => item.id));
+    setAddAmount(Math.abs(netAmount).toFixed(2));
+    setAddMerchant(latest.merchant ?? selected[0].merchant ?? "");
+    setAddCategory(latest.category?.name ?? "");
+    setAddMethod(latest.paymentMethod ?? "");
+    setAddBank(latest.bankName ?? "");
+    setAddType(netAmount >= 0 ? "CREDIT" : "DEBIT");
+    setAddDateKey(parts.dateKey);
+    setAddDateMonth(new Date(latestDate.getFullYear(), latestDate.getMonth(), 1));
+    setAddHour(parts.hour);
+    setAddMinute(parts.minute);
+    setAddNotes("");
+    setAddVisible(true);
+  }
+
   function openEditFlow(tx: Transaction) {
     const parts = datePartsFromTimestamp(tx.timestamp);
     const clamped = clampTransactionDateTime(parts.dateKey, parts.hour, parts.minute);
@@ -675,7 +767,17 @@ export default function TransactionsScreen() {
         notes: addNotes.trim(),
       };
 
-      if (editingTransaction) {
+      if (clubSourceIds.length) {
+        await clubTransactions({
+          transactionIds: clubSourceIds,
+          merchant: payload.merchant,
+          category: payload.category,
+          paymentMethod: payload.paymentMethod,
+          bankName: payload.bankName,
+          transactionType: payload.transactionType,
+          notes: payload.notes,
+        });
+      } else if (editingTransaction) {
         await updateTransaction(editingTransaction.id, payload);
       } else {
         await createTransaction(payload);
@@ -684,6 +786,8 @@ export default function TransactionsScreen() {
       setAddVisible(false);
       setAddPicker(null);
       setEditingTransaction(null);
+      setClubSourceIds([]);
+      cancelClubMode();
       await reload(buildFilters(), true);
     } catch (e: unknown) {
       setAddError(e instanceof Error ? e.message : String(e));
@@ -818,19 +922,34 @@ export default function TransactionsScreen() {
     const method = item.paymentMethod ?? item.transactionType ?? "";
     const bank = item.bankName ?? "";
     const isCredit = isCreditTransaction(item);
+    const selected = selectedForClub.has(item.id);
 
     return (
       <Pressable
-        onPress={() => setActionTransaction(item)}
+        onPress={() => clubMode ? toggleClubSelection(item) : setActionTransaction(item)}
+        onLongPress={() => clubMode ? toggleClubSelection(item) : beginClubSelection(item)}
+        delayLongPress={350}
+        disabled={clubMode && item.isClubbed}
         android_ripple={{ color: "rgba(255,255,255,0.025)" }}
-        style={({ pressed }) => [styles.row, pressed ? styles.rowPressed : null]}
+        style={({ pressed }) => [styles.row, selected ? styles.rowSelected : null, clubMode && item.isClubbed ? styles.rowDisabled : null, pressed ? styles.rowPressed : null]}
       >
+        {clubMode ? (
+          <View style={[styles.clubCheckbox, selected ? styles.clubCheckboxSelected : null]}>
+            {selected ? <MaterialIcons name="check" size={16} color="#131313" /> : null}
+          </View>
+        ) : null}
         <View style={styles.rowCopy}>
           <View style={styles.rowTop}>
             <View style={styles.rowTitleGroup}>
-              <Text style={styles.merchant} numberOfLines={1}>
-                {merchant}
-              </Text>
+              <View style={styles.merchantLine}>
+                <Text style={styles.merchant} numberOfLines={1}>{merchant}</Text>
+                {item.isClubbed ? (
+                  <View style={styles.clubbedBadge}>
+                    <MaterialIcons name="call-merge" size={13} color="#d0bcff" />
+                    <Text style={styles.clubbedBadgeText}>CLUBBED</Text>
+                  </View>
+                ) : null}
+              </View>
               <Text style={styles.date}>{date}</Text>
             </View>
             <Text style={[styles.amount, isCredit ? styles.credit : styles.debit]} numberOfLines={1}>
@@ -943,13 +1062,33 @@ export default function TransactionsScreen() {
                 <Text style={styles.emptyText}>Try clearing filters or refreshing the ledger.</Text>
               </View>
             }
-            contentContainerStyle={styles.listContent}
+            contentContainerStyle={[styles.listContent, clubMode ? styles.listContentSelecting : null]}
             onEndReached={loadMore}
             onEndReachedThreshold={0.45}
             ListFooterComponent={loadingMore ? <TransactionsListFooterSkeleton /> : null}
           />
         )}
       </View>
+
+      {clubMode ? (
+        <View style={[styles.clubActionBar, { bottom: Math.max(insets.bottom + 84, 98) }]}>
+          <Pressable accessibilityLabel="Cancel transaction selection" onPress={cancelClubMode} style={styles.clubActionClose}>
+            <MaterialIcons name="close" size={20} color="#c4c7c8" />
+          </Pressable>
+          <View style={styles.clubActionCopy}>
+            <Text style={styles.clubActionCount}>{selectedForClub.size} selected</Text>
+            {selectedForClub.size === 1 ? <Text style={styles.clubActionHint}>Select at least 2</Text> : null}
+          </View>
+          <Pressable
+            disabled={selectedForClub.size < 2}
+            onPress={openClubFlow}
+            style={({ pressed }) => [styles.clubActionButton, selectedForClub.size < 2 ? styles.rangeApplyDisabled : null, pressed ? styles.footerPressed : null]}
+          >
+            <MaterialIcons name="call-merge" size={18} color="#131313" />
+            <Text style={styles.clubActionButtonText}>Club</Text>
+          </Pressable>
+        </View>
+      ) : null}
 
       <Modal visible={!!actionTransaction} transparent animationType="fade" onRequestClose={() => setActionTransaction(null)}>
         <SafeAreaView style={styles.popupSafeArea} edges={["top", "bottom"]}>
@@ -1211,13 +1350,15 @@ export default function TransactionsScreen() {
         {addPicker === null ? (
           <SafeAreaView style={styles.addScreen} edges={["top", "bottom"]}>
             <View style={styles.addHeader}>
-              <Text style={styles.addTitle}>{editingTransaction ? "EDIT TRANSACTION" : "ADD NEW TRANSACTION"}</Text>
-              <Pressable onPress={() => setAddVisible(false)} style={({ pressed }) => [styles.sheetIconButton, pressed ? styles.iconPressed : null]}>
+              <Text style={styles.addTitle}>{clubSourceIds.length ? "CLUB TRANSACTIONS" : editingTransaction ? "EDIT TRANSACTION" : "ADD NEW TRANSACTION"}</Text>
+              <Pressable onPress={() => { setAddVisible(false); setClubSourceIds([]); }} style={({ pressed }) => [styles.sheetIconButton, pressed ? styles.iconPressed : null]}>
                 <MaterialIcons name="close" size={22} color="#c4c7c8" />
               </Pressable>
             </View>
             <ScrollView style={styles.addScroll} contentContainerStyle={styles.addContent} showsVerticalScrollIndicator={false}>
-              <Text style={styles.addHint}>Enter the details below. This uses the same spacing and rounded controls as the edit dialog.</Text>
+              <Text style={styles.addHint}>
+                {clubSourceIds.length ? `${clubSourceIds.length} transactions will become one. Amount and time are calculated automatically.` : "Enter the details below. This uses the same spacing and rounded controls as the edit dialog."}
+              </Text>
 
               <View style={styles.addField}>
                 <Text style={styles.addLabel}>Amount</Text>
@@ -1226,6 +1367,7 @@ export default function TransactionsScreen() {
                   <TextInput
                     value={addAmount}
                     onChangeText={(text) => setAddAmount(text.replace(/[^0-9.]/g, ""))}
+                    editable={!clubSourceIds.length}
                     placeholder="0.00"
                     placeholderTextColor="rgba(196,199,200,0.48)"
                     keyboardType="numeric"
@@ -1234,16 +1376,14 @@ export default function TransactionsScreen() {
                 </View>
               </View>
 
-              <View style={styles.addField}>
-                <Text style={styles.addLabel}>Merchant</Text>
-                <TextInput
-                  value={addMerchant}
-                  onChangeText={setAddMerchant}
-                  placeholder="Enter merchant name"
-                  placeholderTextColor="rgba(196,199,200,0.48)"
-                  style={styles.addInput}
-                />
-              </View>
+              {clubSourceIds.length ? (
+                <AddSelectRow label="Merchant" value={addMerchant || "Select a merchant"} muted={!addMerchant} onPress={() => setAddPicker("merchant")} />
+              ) : (
+                <View style={styles.addField}>
+                  <Text style={styles.addLabel}>Merchant</Text>
+                  <TextInput value={addMerchant} onChangeText={setAddMerchant} placeholder="Enter merchant name" placeholderTextColor="rgba(196,199,200,0.48)" style={styles.addInput} />
+                </View>
+              )}
 
               <AddSelectRow label="Category" value={addCategory || "Select a category"} muted={!addCategory} onPress={() => setAddPicker("category")} />
               <AddSelectRow label="Method" value={addMethod || "Select a payment method"} muted={!addMethod} onPress={() => setAddPicker("method")} />
@@ -1260,7 +1400,7 @@ export default function TransactionsScreen() {
               </View>
 
               <AddSelectRow label="Type" value={addType} onPress={() => setAddPicker("type")} compact />
-              <AddSelectRow label="Date" value={formatDateTimeLabel(addDateKey, addHour, addMinute)} onPress={() => setAddPicker("date")} />
+              <AddSelectRow label="Date" value={formatDateTimeLabel(addDateKey, addHour, addMinute)} onPress={() => { if (!clubSourceIds.length) setAddPicker("date"); }} />
 
               <View style={styles.addField}>
                 <Text style={styles.addLabel}>Notes</Text>
@@ -1278,7 +1418,7 @@ export default function TransactionsScreen() {
               {addError ? <Text style={styles.addError}>{addError}</Text> : null}
             </ScrollView>
             <View style={styles.addFooter}>
-              <Pressable style={({ pressed }) => [styles.addCancelButton, pressed ? styles.footerPressed : null]} onPress={() => setAddVisible(false)}>
+              <Pressable style={({ pressed }) => [styles.addCancelButton, pressed ? styles.footerPressed : null]} onPress={() => { setAddVisible(false); setClubSourceIds([]); }}>
                 <Text style={styles.addCancelText}>Cancel</Text>
               </Pressable>
               <Pressable
@@ -1286,9 +1426,32 @@ export default function TransactionsScreen() {
                 style={({ pressed }) => [styles.addSaveButton, savingTransaction ? styles.rangeApplyDisabled : null, pressed ? styles.footerPressed : null]}
                 onPress={() => void saveTransaction()}
               >
-                {savingTransaction ? <Skeleton width={72} height={16} radius={8} /> : <Text style={styles.addSaveText}>{editingTransaction ? "Save Changes" : "Save"}</Text>}
+                {savingTransaction ? <Skeleton width={72} height={16} radius={8} /> : <Text style={styles.addSaveText}>{clubSourceIds.length ? "Create Club" : editingTransaction ? "Save Changes" : "Save"}</Text>}
               </Pressable>
             </View>
+          </SafeAreaView>
+        ) : null}
+
+        {addPicker === "merchant" ? (
+          <SafeAreaView style={styles.addPickerScreen} edges={["top", "bottom"]}>
+            <View style={styles.addPickerHeader}>
+              <Pressable onPress={() => setAddPicker(null)} style={styles.addBackButton}>
+                <MaterialIcons name="arrow-back" size={24} color="#c4c7c8" />
+              </Pressable>
+              <Text pointerEvents="none" style={styles.addPickerTitle}>SELECT MERCHANT</Text>
+              <View style={styles.headerSpacer} />
+            </View>
+            <ScrollView style={styles.addPickerList} showsVerticalScrollIndicator={false}>
+              {clubMerchantOptions.map((merchant) => (
+                <AddListOption
+                  key={merchant}
+                  label={merchant}
+                  icon="storefront"
+                  selected={addMerchant === merchant}
+                  onPress={() => { setAddMerchant(merchant); setAddPicker(null); }}
+                />
+              ))}
+            </ScrollView>
           </SafeAreaView>
         ) : null}
 
@@ -1366,7 +1529,7 @@ export default function TransactionsScreen() {
               <View style={styles.headerSpacer} />
             </View>
             <ScrollView contentContainerStyle={styles.addTypeContent} showsVerticalScrollIndicator={false}>
-              {ADD_TRANSACTION_TYPES.map((type) => (
+              {eligibleAddTransactionTypes.map((type) => (
                 <AddTypeOption
                   key={type}
                   label={type}
@@ -1842,8 +2005,9 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,180,171,0.08)",
   },
   chipPressed: { opacity: 0.78, transform: [{ scale: 0.98 }] },
-  listWrap: { flex: 1, paddingHorizontal: 24 },
+  listWrap: { flex: 1, paddingHorizontal: 12 },
   listContent: { paddingBottom: 136 },
+  listContentSelecting: { paddingBottom: 220 },
   listFooterSkeleton: {
     marginTop: 16,
     padding: 18,
@@ -1871,12 +2035,19 @@ const styles = StyleSheet.create({
   emptyWrap: { paddingTop: 96, alignItems: "center", gap: 8 },
   emptyTitle: { color: "#ffffff", fontFamily: "Hanken Grotesk", fontSize: fs(22), fontWeight: "700" },
   emptyText: { color: "#8e9192", fontSize: fs(14) },
-  row: { paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: "#262626" },
+  row: { paddingVertical: 16, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: "#262626", borderRadius: 14, flexDirection: "row", alignItems: "center", gap: 12 },
   rowPressed: { backgroundColor: "#1F1F1F" },
-  rowCopy: { gap: 8 },
+  rowSelected: { backgroundColor: "rgba(208,188,255,0.11)", borderBottomColor: "rgba(208,188,255,0.22)" },
+  rowDisabled: { opacity: 0.42 },
+  clubCheckbox: { width: 24, height: 24, borderRadius: 7, borderWidth: 1.5, borderColor: "#8e9192", alignItems: "center", justifyContent: "center" },
+  clubCheckboxSelected: { backgroundColor: "#d0bcff", borderColor: "#d0bcff" },
+  rowCopy: { gap: 8, flex: 1, minWidth: 0 },
   rowTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 14 },
   rowTitleGroup: { flex: 1, minWidth: 0 },
+  merchantLine: { flexDirection: "row", alignItems: "center", gap: 8 },
   merchant: { color: "#ffffff", fontSize: fs(16), lineHeight: 24, fontWeight: "500", fontFamily: "Inter" },
+  clubbedBadge: { flexDirection: "row", alignItems: "center", gap: 3, paddingHorizontal: 6, height: 21, borderRadius: 999, backgroundColor: "rgba(208,188,255,0.12)", borderWidth: 1, borderColor: "rgba(208,188,255,0.35)" },
+  clubbedBadgeText: { color: "#d0bcff", fontFamily: "JetBrains Mono", fontSize: fs(8), lineHeight: 11, fontWeight: "800", letterSpacing: 0.7 },
   date: {
     color: "#c4c7c8",
     marginTop: 4,
@@ -1893,6 +2064,13 @@ const styles = StyleSheet.create({
   amount: { minWidth: 118, textAlign: "right", fontFamily: "JetBrains Mono", fontSize: fs(14), lineHeight: 20, fontWeight: "500" },
   debit: { color: "#ffb4ab" },
   credit: { color: "#00e475" },
+  clubActionBar: { position: "absolute", left: 16, right: 84, zIndex: 60, minHeight: 76, borderRadius: 20, borderWidth: 1, borderColor: "rgba(208,188,255,0.32)", backgroundColor: "#1a181d", paddingHorizontal: 12, paddingVertical: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, shadowColor: "#000", shadowOpacity: 0.45, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 12 },
+  clubActionClose: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.06)" },
+  clubActionCopy: { flex: 1 },
+  clubActionCount: { color: "#ffffff", fontFamily: "Hanken Grotesk", fontSize: fs(17), lineHeight: 22, fontWeight: "700" },
+  clubActionHint: { color: "#9d999f", fontFamily: "Inter", fontSize: fs(11), lineHeight: 16 },
+  clubActionButton: { height: 44, paddingHorizontal: 16, borderRadius: 999, backgroundColor: "#d0bcff", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
+  clubActionButtonText: { color: "#131313", fontFamily: "Inter", fontSize: fs(14), fontWeight: "800" },
   actionOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.68)" },
   popupSafeArea: { flex: 1, backgroundColor: "transparent" },
   txActionSheet: {
