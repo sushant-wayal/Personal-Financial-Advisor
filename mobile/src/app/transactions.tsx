@@ -998,15 +998,7 @@ export default function TransactionsScreen() {
         <View style={styles.rowCopy}>
           <View style={styles.rowTop}>
             <View style={styles.rowTitleGroup}>
-              <View style={styles.merchantLine}>
-                <Text style={styles.merchant} numberOfLines={1}>{merchant}</Text>
-                {item.isClubbed ? (
-                  <View style={styles.clubbedBadge}>
-                    <MaterialIcons name="call-merge" size={13} color="#d0bcff" />
-                    <Text style={styles.clubbedBadgeText}>CLUBBED</Text>
-                  </View>
-                ) : null}
-              </View>
+              <Text style={styles.merchant} numberOfLines={1}>{merchant}</Text>
               <Text style={styles.date}>{date}</Text>
             </View>
             <Text style={[styles.amount, isCredit ? styles.credit : styles.debit]} numberOfLines={1}>
@@ -1015,6 +1007,12 @@ export default function TransactionsScreen() {
           </View>
 
           <View style={styles.metaRow}>
+            {item.isClubbed ? (
+              <View style={styles.clubbedBadge}>
+                <MaterialIcons name="call-merge" size={13} color="#d0bcff" />
+                <Text style={styles.clubbedBadgeText}>CLUBBED</Text>
+              </View>
+            ) : null}
             {category ? <Text style={styles.metaText}>{category}</Text> : null}
             {method ? (
               <View style={styles.metaItem}>
@@ -2175,9 +2173,8 @@ const styles = StyleSheet.create({
   rowCopy: { gap: 8, flex: 1, minWidth: 0 },
   rowTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 14 },
   rowTitleGroup: { flex: 1, minWidth: 0 },
-  merchantLine: { flexDirection: "row", alignItems: "center", gap: 8 },
   merchant: { color: "#ffffff", fontSize: fs(16), lineHeight: 24, fontWeight: "500", fontFamily: "Inter" },
-  clubbedBadge: { flexDirection: "row", alignItems: "center", gap: 3, paddingHorizontal: 6, height: 21, borderRadius: 999, backgroundColor: "rgba(208,188,255,0.12)", borderWidth: 1, borderColor: "rgba(208,188,255,0.35)" },
+  clubbedBadge: { flexDirection: "row", alignItems: "center", flexShrink: 0, gap: 3, marginRight: 8, paddingHorizontal: 6, height: 21, borderRadius: 999, backgroundColor: "rgba(208,188,255,0.12)", borderWidth: 1, borderColor: "rgba(208,188,255,0.35)" },
   clubbedBadgeText: { color: "#d0bcff", fontFamily: "JetBrains Mono", fontSize: fs(8), lineHeight: 11, fontWeight: "800", letterSpacing: 0.7 },
   date: {
     color: "#c4c7c8",
@@ -2192,7 +2189,7 @@ const styles = StyleSheet.create({
   metaText: { color: "#c4c7c8", fontSize: fs(14), lineHeight: 20, fontFamily: "Inter" },
   metaItem: { flexDirection: "row", alignItems: "center" },
   metaDot: { color: "#333333", marginHorizontal: 8, fontSize: fs(25), lineHeight: 20 },
-  amount: { minWidth: 118, textAlign: "right", fontFamily: "JetBrains Mono", fontSize: fs(14), lineHeight: 20, fontWeight: "500" },
+  amount: { minWidth: 118, flexShrink: 0, textAlign: "right", fontFamily: "JetBrains Mono", fontSize: fs(14), lineHeight: 20, fontWeight: "500" },
   debit: { color: "#ffb4ab" },
   credit: { color: "#00e475" },
   clubActionBar: { position: "absolute", left: 16, right: 84, zIndex: 60, minHeight: 76, borderRadius: 20, borderWidth: 1, borderColor: "rgba(208,188,255,0.32)", backgroundColor: "#1a181d", paddingHorizontal: 12, paddingVertical: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, shadowColor: "#000", shadowOpacity: 0.45, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 12 },
