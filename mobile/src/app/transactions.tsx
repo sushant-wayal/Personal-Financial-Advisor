@@ -1254,7 +1254,7 @@ export default function TransactionsScreen() {
               }) : (
                 <View style={styles.emptyWrap}>
                   <Text style={styles.emptyTitle}>Original details unavailable</Text>
-                  <Text style={styles.emptyText}>This club was created before source details were retained.</Text>
+                  <Text style={[styles.emptyText, styles.originalsUnavailableText]}>This club was created before source details were retained.</Text>
                 </View>
               )}
               {separateError ? <Text style={styles.addError}>{separateError}</Text> : null}
@@ -2240,6 +2240,7 @@ const styles = StyleSheet.create({
   originalsHeader: { minHeight: 82, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: "#292929", flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
   originalsTitle: { color: "#ffffff", fontFamily: "Hanken Grotesk", fontSize: fs(22), lineHeight: 28, fontWeight: "700" },
   originalsSubtitle: { color: "#8e9192", fontFamily: "Inter", fontSize: fs(12), lineHeight: 18 },
+  originalsUnavailableText: { textAlign: "center", maxWidth: 280 },
   originalsList: { padding: 16, gap: 12, paddingBottom: 40 },
   originalCard: { borderRadius: 16, borderWidth: 1, borderColor: "#303030", backgroundColor: "#171717", padding: 14, flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 10 },
   originalCopy: { flex: 1, minWidth: 130 },
