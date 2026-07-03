@@ -1,8 +1,8 @@
 import React, { useEffect, useRef } from "react";
-import { Animated, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import { Animated, StyleSheet, View, Text, type StyleProp, type ViewStyle, type DimensionValue } from "react-native";
 
 type SkeletonProps = {
-    width?: number | string;
+    width?: DimensionValue;
     height?: number;
     radius?: number;
     style?: StyleProp<ViewStyle>;
@@ -49,7 +49,7 @@ export function DashboardSkeleton() {
             </View>
 
             <View style={styles.heroCard}>
-                <Skeleton width="56%" height={22} />
+                <Text style={styles.skeletonSectionEyebrow}>BALANCE</Text>
                 <Skeleton width="82%" height={14} />
                 <View style={styles.chartBlock}>
                     <Skeleton width="100%" height={110} radius={22} />
@@ -63,7 +63,7 @@ export function DashboardSkeleton() {
             </View>
 
             <View style={styles.sectionCard}>
-                <Skeleton width="40%" height={18} />
+                <Text style={styles.skeletonSectionTitle}>Advisor Summary</Text>
                 <Skeleton width="88%" height={14} />
                 <Skeleton width="100%" height={16} radius={8} />
                 <Skeleton width="84%" height={16} radius={8} />
@@ -71,7 +71,7 @@ export function DashboardSkeleton() {
             </View>
 
             <View style={styles.listCard}>
-                <Skeleton width="36%" height={18} />
+                <Text style={styles.skeletonSectionTitle}>Category Analysis</Text>
                 <View style={styles.listRow}>
                     <Skeleton width={56} height={56} radius={18} />
                     <View style={styles.listCopy}>
@@ -94,17 +94,6 @@ export function DashboardSkeleton() {
 export function TransactionsSkeleton() {
     return (
         <View style={styles.screen}>
-            <View style={styles.topRow}>
-                <Skeleton width={140} height={20} />
-                <Skeleton width={92} height={40} radius={20} />
-            </View>
-
-            <View style={styles.chipRow}>
-                <Skeleton width={112} height={40} radius={20} />
-                <Skeleton width={96} height={40} radius={20} />
-                <Skeleton width={88} height={40} radius={20} />
-            </View>
-
             <View style={styles.listStack}>
                 {Array.from({ length: 5 }).map((_, index) => (
                     <View key={index} style={styles.transactionCard}>
@@ -474,5 +463,18 @@ const styles = StyleSheet.create({
         borderColor: "#26282a",
         borderRadius: 28,
         padding: 14,
+    },
+    skeletonSectionTitle: {
+        color: "#ffffff",
+        fontSize: 20,
+        lineHeight: 26,
+        fontWeight: "700",
+        letterSpacing: -0.4,
+    },
+    skeletonSectionEyebrow: {
+        color: "#c4c7c8",
+        fontSize: 11,
+        letterSpacing: 3,
+        fontWeight: "700",
     },
 });
