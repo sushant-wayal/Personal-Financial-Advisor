@@ -16,7 +16,7 @@ export async function POST(req: Request) {
     const title = typeof body?.title === "string" ? body.title.trim() : "";
     const targetAmount = asFiniteNumber(body?.targetAmount);
     const priority = body?.priority == null ? undefined : asFiniteNumber(body.priority);
-    const initialAllocation = body?.initialAllocation == null ? undefined : asFiniteNumber(body.initialAllocation);
+    const initialAllocation = body?.initialAllocation == null ? 0 : asFiniteNumber(body.initialAllocation);
 
     if (!title) {
         return NextResponse.json({ error: "title is required" }, { status: 400 });
@@ -47,7 +47,7 @@ export async function POST(req: Request) {
         targetDate: body.targetDate,
         priority: priority == null ? undefined : priority,
         notes: typeof body?.notes === "string" ? body.notes : undefined,
-        initialAllocation,
+        initialAllocation: initialAllocation ?? 0,
     });
     return NextResponse.json({ ok: true, goal: g });
 }

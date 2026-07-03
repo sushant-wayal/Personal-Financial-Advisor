@@ -150,6 +150,7 @@ async function fetchAIStatus(force = false): Promise<{ lastRun: string | null; r
 }
 
 async function createGoal(input: GoalFormState) {
+  const initialAllocation = input.initialAllocation.trim() === "" ? 0 : Number(input.initialAllocation);
   const res = await fetch(apiUrl("/api/goals"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -159,7 +160,7 @@ async function createGoal(input: GoalFormState) {
       targetDate: input.targetDate || undefined,
       priority: Number(input.priority || 3),
       notes: input.notes.trim() || undefined,
-      initialAllocation: input.initialAllocation ? Number(input.initialAllocation) : undefined,
+      initialAllocation,
     }),
   });
   const payload = await res.json().catch(() => null);
