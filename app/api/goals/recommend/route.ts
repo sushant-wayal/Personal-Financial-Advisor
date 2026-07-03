@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getGoalOverview } from "../../../../src/services/goals";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
     try {
         const overview = await getGoalOverview();

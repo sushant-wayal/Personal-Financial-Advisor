@@ -92,6 +92,7 @@ model FinancialProfile {
   currency         String   @default("INR")
   balance          Float    @default(0)
   emergencyFund    Float    @default(0)
+  emergencyFundMonths Int   @default(6)
   monthlyIncome    Float    @default(0)
   monthlyExpenses  Float    @default(0)
   createdAt        DateTime @default(now())

@@ -83,16 +83,21 @@ function estimateGoalMonthlyNeed(goal: GoalProgressSeed, monthsLeft: number | nu
 
 export async function buildGoalProgressSignals(): Promise<GoalProgressSignals> {
     const [profile, savingsRate, savingsCapacity] = await Promise.all([
-        prisma.financialProfile.findUnique({
-            where: { id: "default" },
-            select: { currency: true, balance: true, emergencyFund: true, monthlyIncome: true, monthlyExpenses: true },
+        prisma.financialProfile.findFirst({
+            select: { currency: true, balance: true, emergencyFundMonths: true, monthlyIncome: true, monthlyExpenses: true },
         }),
         calculateMonthlySavingsRate(),
         computeSavingsCapacity(3),
     ]);
 
     const currentBalanceValue = Number(profile?.balance || 0);
-    const availableBalance = Math.max(0, currentBalanceValue - Number(profile?.emergencyFund || 0));
+    // Auto-derive how much of the balance is earmarked for the emergency fund.
+    // Formula: min(efTarget, balance) — EF is filled first, remainder goes to goals.
+    const efMonths = Math.max(3, profile?.emergencyFundMonths ?? 6);
+    const efMonthlyExp = Math.max(0, profile?.monthlyExpenses ?? 0);
+    const efTarget = efMonths * efMonthlyExp;
+    const efSaved = Math.min(efTarget, currentBalanceValue);
+    const availableBalance = Math.max(0, currentBalanceValue - efSaved);
     const monthlyCapacity = Math.max(
         0,
         Number(profile?.monthlyIncome || 0) - Number(profile?.monthlyExpenses || 0),

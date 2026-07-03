@@ -1,12 +1,12 @@
 import { prisma } from "../lib/prisma";
 
 export async function predictMonthEndBalance() {
-    const profile = await prisma.financialProfile.findUnique({ where: { id: "default" } });
+    const profile = await prisma.financialProfile.findFirst();
     const txs = await prisma.transaction.findMany({ orderBy: { timestamp: "desc" }, take: 90, include: { category: true } });
 
     const monthlyExpense = profile?.monthlyExpenses ?? estimateMonthlyExpenses(txs);
     const monthlyIncome = profile?.monthlyIncome ?? estimateMonthlyIncome(txs);
-    const balance = (profile?.emergencyFund ?? 0) + (monthlyIncome - monthlyExpense);
+    const balance = (profile?.balance ?? 0) + (monthlyIncome - monthlyExpense);
 
     // simple projection over next 6 months
     const projection: Array<{ month: string; balance: number }> = [];

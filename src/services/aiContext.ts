@@ -77,7 +77,7 @@ export async function buildFinancialContext(limit = 24) {
     const [transactions, goals, profile, subscriptions, memories, monthly, categoryData, savings, burn, runway] = await Promise.all([
         prisma.transaction.findMany({ orderBy: { timestamp: "desc" }, take: Math.max(12, Math.min(limit, 30)), include: { category: true } }),
         listGoals(),
-        prisma.financialProfile.findUnique({ where: { id: "default" } }),
+        prisma.financialProfile.findFirst(),
         prisma.subscription.findMany({ orderBy: { updatedAt: "desc" } }),
         prisma.aIMemory.findMany({ orderBy: { updatedAt: "desc" }, take: 20 }),
         monthlyTrend(6),
@@ -183,7 +183,7 @@ export async function buildFinancialContext(limit = 24) {
     const runwayMonths = (runway && typeof runway === "object" && "runwayMonths" in (runway as any))
         ? Number((runway as any).runwayMonths ?? 0)
         : Number(runway ?? 0);
-    const emergencyFundCoverageMonths = profile && profile.emergencyFund && profile.monthlyExpenses ? Number(profile.emergencyFund) / Math.max(1, Number(profile.monthlyExpenses)) : null;
+    const emergencyFundCoverageMonths = profile ? Number(profile.emergencyFundMonths ?? 6) : null;
     const savingsRate = (savings && typeof savings === "object" && "savingsRate" in (savings as any))
         ? Number((savings as any).savingsRate ?? 0)
         : Number(savings ?? 0);
@@ -201,8 +201,7 @@ export async function buildFinancialContext(limit = 24) {
                 currency,
                 balance: profile.balance,
                 balanceLabel: formatCurrency(profile.balance || 0, currency),
-                emergencyFund: profile.emergencyFund,
-                emergencyFundLabel: formatCurrency(profile.emergencyFund || 0, currency),
+                emergencyFundMonths: profile.emergencyFundMonths,
                 monthlyIncome: profile.monthlyIncome,
                 monthlyIncomeLabel: formatCurrency(profile.monthlyIncome || 0, currency),
                 monthlyExpenses: profile.monthlyExpenses,

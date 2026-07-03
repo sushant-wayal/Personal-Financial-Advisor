@@ -22,9 +22,22 @@ type Profile = {
   ownerName?: string | null;
   currency?: string | null;
   balance?: number | null;
-  emergencyFund?: number | null;
+  emergencyFundMonths?: number | null;
   monthlyIncome?: number | null;
   monthlyExpenses?: number | null;
+};
+
+type EmergencyFundData = {
+    targetMonths: number;
+    avgMonthlyExpenses: number;
+    targetAmount: number;
+    savedAmount: number;
+    progressPct: number;
+    shortfall: number;
+    monthsToComplete: number | null;
+    estimatedCompletionDate: string | null;
+    isComplete: boolean;
+    monthlyCapacity: number;
 };
 
 type Memory = {
@@ -39,7 +52,7 @@ const blankProfile: Profile = {
   ownerName: "",
   currency: DEFAULT_CURRENCY_CODE,
   balance: 0,
-  emergencyFund: 0,
+  emergencyFundMonths: 6,
   monthlyIncome: 0,
   monthlyExpenses: 0,
 };
@@ -68,7 +81,7 @@ async function saveProfileApi(profile: Profile): Promise<Profile> {
     body: JSON.stringify({
       ...profile,
       balance: Number(profile.balance ?? 0),
-      emergencyFund: Number(profile.emergencyFund ?? 0),
+      emergencyFundMonths: Math.max(3, Number(profile.emergencyFundMonths ?? 6)),
       monthlyIncome: Number(profile.monthlyIncome ?? 0),
       monthlyExpenses: Number(profile.monthlyExpenses ?? 0),
     }),
@@ -164,6 +177,7 @@ export default function SettingsScreen() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [efStatus, setEfStatus] = useState<EmergencyFundData | null>(null);
 
   const senderText = useMemo(() => senders.join(", "), [senders]);
 
@@ -196,6 +210,25 @@ export default function SettingsScreen() {
       mounted = false;
     };
   }, [setCurrencyCode, setOwnerName]);
+
+  useEffect(() => {
+    if (!profile) return;
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await fetch(apiUrl("/api/emergency-fund"));
+        const d = await res.json();
+        if (mounted && d.ok) {
+          setEfStatus(d);
+        }
+      } catch (e) {
+        // ignore
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [profile?.emergencyFundMonths]);
 
   async function refresh() {
     setRefreshing(true);
@@ -307,10 +340,69 @@ export default function SettingsScreen() {
               <SettingInput label="Balance" value={String(profile.balance ?? 0)} keyboardType="numeric" onChangeText={(balance) => updateProfile({ balance: Number(balance || 0) })} />
             </View>
             <View style={styles.twoColumn}>
-              <SettingInput label="Emergency Fund" value={String(profile.emergencyFund ?? 0)} keyboardType="numeric" onChangeText={(emergencyFund) => updateProfile({ emergencyFund: Number(emergencyFund || 0) })} />
               <SettingInput label="Monthly Income" value={String(profile.monthlyIncome ?? 0)} keyboardType="numeric" onChangeText={(monthlyIncome) => updateProfile({ monthlyIncome: Number(monthlyIncome || 0) })} />
+              <SettingInput label="Monthly Expenses" value={String(profile.monthlyExpenses ?? 0)} keyboardType="numeric" onChangeText={(monthlyExpenses) => updateProfile({ monthlyExpenses: Number(monthlyExpenses || 0) })} />
             </View>
-            <SettingInput label="Monthly Expenses" value={String(profile.monthlyExpenses ?? 0)} keyboardType="numeric" onChangeText={(monthlyExpenses) => updateProfile({ monthlyExpenses: Number(monthlyExpenses || 0) })} />
+
+            <View style={styles.efContainer}>
+                <View style={styles.efHeaderRow}>
+                    <Text style={styles.efIcon}>🛡️</Text>
+                    <View style={styles.efHeaderTexts}>
+                        <Text style={styles.efHeaderTitle}>Emergency Fund Configuration</Text>
+                        <Text style={styles.efHeaderSubtitle}>Set how many months your fund should cover. We calculate the required amount from your actual spending.</Text>
+                    </View>
+                </View>
+
+                <SettingInput 
+                    label="Coverage (months, min 3)" 
+                    value={String(profile.emergencyFundMonths ?? 6)} 
+                    keyboardType="numeric" 
+                    onChangeText={(v) => {
+                        const parsed = Math.max(3, Number(v || 0));
+                        updateProfile({ emergencyFundMonths: parsed });
+                    }} 
+                />
+
+                {efStatus && (
+                    <View style={styles.efSummaryBox}>
+                        <View style={styles.efSummaryRow}>
+                            <Text style={styles.efSummaryLabel}>Avg monthly spending</Text>
+                            <Text style={styles.efSummaryValue}>{formatCurrency(efStatus.avgMonthlyExpenses, profile.currency ?? "INR")}</Text>
+                        </View>
+                        <View style={styles.efSummaryRow}>
+                            <Text style={styles.efSummaryLabel}>Target ({profile.emergencyFundMonths ?? 6} months)</Text>
+                            <Text style={styles.efSummaryTarget}>{formatCurrency(efStatus.targetAmount, profile.currency ?? "INR")}</Text>
+                        </View>
+                        <View style={styles.efSummaryRow}>
+                            <Text style={styles.efSummaryLabel}>Saved (auto · from balance)</Text>
+                            <Text style={styles.efSummaryValue}>{formatCurrency(efStatus.savedAmount, profile.currency ?? "INR")}</Text>
+                        </View>
+                        <View style={styles.efSummaryRow}>
+                            <Text style={styles.efSummaryLabel}>Shortfall</Text>
+                            <Text style={[styles.efSummaryValue, efStatus.shortfall > 0 ? styles.efShortfallText : styles.efCompleteText]}>
+                                {efStatus.shortfall > 0 ? `−${formatCurrency(efStatus.shortfall, profile.currency ?? "INR")}` : "✓ Fully funded"}
+                            </Text>
+                        </View>
+                        
+                        <View style={styles.efProgressContainer}>
+                            <View style={styles.efProgressHeader}>
+                                <Text style={styles.efSummaryLabel}>Progress</Text>
+                                <Text style={styles.efSummaryLabel}>{efStatus.progressPct.toFixed(1)}%</Text>
+                            </View>
+                            <View style={styles.efProgressBarBg}>
+                                <View 
+                                    style={[
+                                        styles.efProgressBarFill, 
+                                        { width: `${Math.min(100, efStatus.progressPct)}%` },
+                                        efStatus.isComplete ? { backgroundColor: "#7dffa2" } : { backgroundColor: "#fb923c" }
+                                    ]} 
+                                />
+                            </View>
+                        </View>
+                        <Text style={styles.efSummaryFooter}>Saved amount is auto-derived from your account balance.</Text>
+                    </View>
+                )}
+            </View>
 
             <View style={styles.senderBlock}>
               <Text style={styles.inputLabel}>Gmail Senders</Text>
@@ -481,6 +573,14 @@ function SettingInput({
   );
 }
 
+function formatCurrency(amount: number, currency: string) {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency,
+    maximumFractionDigits: 0,
+  }).format(amount || 0);
+}
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#0A0A0A" },
   header: { height: 96, paddingTop: 14, paddingHorizontal: 24, borderBottomWidth: 1, borderBottomColor: "#333333", backgroundColor: "#0A0A0A", flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
@@ -501,7 +601,25 @@ const styles = StyleSheet.create({
   inputGroup: { flex: 1 },
   inputLabel: { color: "#c4c7c8", fontFamily: "JetBrains Mono", fontSize: fs(12), lineHeight: 18, letterSpacing: 1.6, textTransform: "uppercase", marginBottom: 8 },
   underlineInput: { minHeight: 42, color: "#ffffff", borderBottomWidth: 1, borderBottomColor: "#333333", fontFamily: "Inter", fontSize: fs(16), lineHeight: 24, paddingVertical: 8 },
-  senderBlock: { gap: 10 },
+  efContainer: { borderRadius: 12, borderWidth: 1, borderColor: "rgba(249, 115, 22, 0.2)", backgroundColor: "rgba(67, 20, 7, 0.1)", padding: 16, gap: 16 },
+  efHeaderRow: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
+  efIcon: { fontSize: fs(18), lineHeight: 24 },
+  efHeaderTexts: { flex: 1, gap: 4 },
+  efHeaderTitle: { color: "#fdba74", fontFamily: "Hanken Grotesk", fontSize: fs(15), lineHeight: 20, fontWeight: "700" },
+  efHeaderSubtitle: { color: "#8e9192", fontFamily: "Inter", fontSize: fs(13), lineHeight: 18 },
+  efSummaryBox: { borderRadius: 8, backgroundColor: "rgba(0, 0, 0, 0.2)", padding: 16, gap: 10 },
+  efSummaryRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  efSummaryLabel: { color: "#8e9192", fontFamily: "Inter", fontSize: fs(13), lineHeight: 18 },
+  efSummaryValue: { color: "#ffffff", fontFamily: "JetBrains Mono", fontSize: fs(13), lineHeight: 18, fontWeight: "500" },
+  efSummaryTarget: { color: "#fdba74", fontFamily: "JetBrains Mono", fontSize: fs(13), lineHeight: 18, fontWeight: "700" },
+  efShortfallText: { color: "#ffb4ab" },
+  efCompleteText: { color: "#7dffa2" },
+  efProgressContainer: { paddingTop: 4, gap: 6 },
+  efProgressHeader: { flexDirection: "row", justifyContent: "space-between" },
+  efProgressBarBg: { height: 6, borderRadius: 3, backgroundColor: "rgba(255, 255, 255, 0.1)" },
+  efProgressBarFill: { height: 6, borderRadius: 3 },
+  efSummaryFooter: { color: "#8e9192", fontFamily: "Inter", fontSize: fs(12), lineHeight: 16, paddingTop: 6 },
+  senderBlock: { gap: 10, marginTop: 16 },
   senderChips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   senderChip: { maxWidth: "100%", borderRadius: 999, borderWidth: 1, borderColor: "#333333", backgroundColor: "#0A0A0A", paddingLeft: 12, paddingRight: 8, paddingVertical: 7, flexDirection: "row", alignItems: "center", gap: 8 },
   senderChipText: { color: "#ffffff", fontFamily: "Inter", fontSize: fs(14), lineHeight: 20, maxWidth: 235 },

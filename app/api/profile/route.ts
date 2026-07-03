@@ -13,17 +13,25 @@ export async function GET() {
 export async function PUT(req: Request) {
     try {
         const body = await req.json();
+
+        // Validate emergencyFundMonths: must be >= 3 if provided
+        const incomingMonths = body.emergencyFundMonths != null ? Number(body.emergencyFundMonths) : null;
+        if (incomingMonths !== null && (!Number.isInteger(incomingMonths) || incomingMonths < 3)) {
+            return NextResponse.json({ error: "emergencyFundMonths must be an integer >= 3" }, { status: 400 });
+        }
+
         const existing = await prisma.financialProfile.findFirst();
         if (existing) {
             const updated = await prisma.financialProfile.update({
-                where: { id: existing.id }, data: {
+                where: { id: existing.id },
+                data: {
                     ownerName: body.ownerName ?? existing.ownerName,
                     currency: body.currency ?? existing.currency,
-                    balance: typeof body.balance === 'number' ? body.balance : existing.balance,
-                    emergencyFund: typeof body.emergencyFund === 'number' ? body.emergencyFund : existing.emergencyFund,
-                    monthlyIncome: typeof body.monthlyIncome === 'number' ? body.monthlyIncome : existing.monthlyIncome,
-                    monthlyExpenses: typeof body.monthlyExpenses === 'number' ? body.monthlyExpenses : existing.monthlyExpenses,
-                }
+                    balance: typeof body.balance === "number" ? body.balance : existing.balance,
+                    emergencyFundMonths: incomingMonths !== null ? incomingMonths : existing.emergencyFundMonths,
+                    monthlyIncome: typeof body.monthlyIncome === "number" ? body.monthlyIncome : existing.monthlyIncome,
+                    monthlyExpenses: typeof body.monthlyExpenses === "number" ? body.monthlyExpenses : existing.monthlyExpenses,
+                },
             });
             return NextResponse.json({ ok: true, profile: updated });
         }
@@ -32,11 +40,11 @@ export async function PUT(req: Request) {
             data: {
                 ownerName: body.ownerName || null,
                 currency: body.currency || "INR",
-                balance: typeof body.balance === 'number' ? body.balance : 0,
-                emergencyFund: typeof body.emergencyFund === 'number' ? body.emergencyFund : 0,
-                monthlyIncome: typeof body.monthlyIncome === 'number' ? body.monthlyIncome : 0,
-                monthlyExpenses: typeof body.monthlyExpenses === 'number' ? body.monthlyExpenses : 0,
-            }
+                balance: typeof body.balance === "number" ? body.balance : 0,
+                emergencyFundMonths: incomingMonths !== null ? incomingMonths : 6,
+                monthlyIncome: typeof body.monthlyIncome === "number" ? body.monthlyIncome : 0,
+                monthlyExpenses: typeof body.monthlyExpenses === "number" ? body.monthlyExpenses : 0,
+            },
         });
         return NextResponse.json({ ok: true, profile: created });
     } catch (e: any) {

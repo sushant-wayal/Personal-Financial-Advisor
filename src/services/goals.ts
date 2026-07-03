@@ -4,6 +4,7 @@ import { computeHealthStatus, computeConfidenceScore } from "./GoalFeasibilitySe
 import { allocateMonthlyCapacity, simulateCapacityShift } from "./GoalAllocationService";
 import { impactMessageForChange } from "./GoalInsightService";
 import { buildGoalProgressSignals, deriveGoalProgress } from "./goalProgress";
+import { getEmergencyFundStatus } from "./emergencyFund";
 
 export type GoalMilestone = {
     label: string;
@@ -238,8 +239,28 @@ export async function listGoals() {
 }
 
 export async function getGoalOverview() {
-    const { goals, signals } = await loadDerivedGoals();
-    return analyzeGoalConflicts(goals as GoalRecord[], signals.monthlyCapacity, signals.currency);
+    const [{ goals, signals }, efStatus] = await Promise.all([
+        loadDerivedGoals(),
+        getEmergencyFundStatus(),
+    ]);
+
+    // When emergency fund is not yet fully funded, zero out monthly capacity
+    // for regular goals so the allocation engine gives them nothing.
+    const effectiveCapacity = efStatus.isComplete ? signals.monthlyCapacity : 0;
+
+    const overview = analyzeGoalConflicts(goals as GoalRecord[], effectiveCapacity, signals.currency);
+
+    if (!efStatus.isComplete) {
+        const shortfallLabel = new Intl.NumberFormat("en-IN", { style: "currency", currency: signals.currency || "INR", maximumFractionDigits: 0 }).format(efStatus.shortfall);
+        overview.conflicts.unshift({
+            type: "budget" as const,
+            severity: "high" as const,
+            message: `Emergency fund is not yet complete (${efStatus.progressPct.toFixed(1)}% funded, ${shortfallLabel} remaining). All goal allocations are paused until the emergency fund reaches its target.`,
+            affectedGoalIds: goals.map((g) => g.id),
+        });
+    }
+
+    return { ...overview, emergencyFund: efStatus };
 }
 
 export async function createGoal(data: { title: string; targetAmount: number; targetDate?: string; priority?: number; notes?: string; initialAllocation?: number; currentAmount?: number }) {
