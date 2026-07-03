@@ -354,17 +354,35 @@ export default function GoalsScreen() {
   const selectedGoal = goals.find((goal) => goal.id === selectedGoalId) ?? goals[0] ?? null;
 
   const totals = useMemo(() => {
-    const currentSaved = goals.reduce((sum, goal) => sum + Number(goal.currentAmount ?? 0), 0);
-    const targetTotal = goals.reduce((sum, goal) => sum + Number(goal.targetAmount ?? 0), 0);
-    const required = overview?.totalRecommendedMonthlyContribution ?? goals.reduce((sum, goal) => sum + Number(goal.requiredMonthly ?? 0), 0);
+    let currentSaved = goals.reduce((sum, goal) => sum + Number(goal.currentAmount ?? 0), 0);
+    let targetTotal = goals.reduce((sum, goal) => sum + Number(goal.targetAmount ?? 0), 0);
+    let fullyFunded = goals.filter((goal) => progressOf(goal) >= 100).length;
+    let required = 0;
+
+    if (overview?.emergencyFund && !overview.emergencyFund.isComplete) {
+      // EF is blocking all other goals. The only recommended contribution this month is for the EF.
+      required = Math.min(overview.emergencyFund.monthlyCapacity, overview.emergencyFund.shortfall);
+    } else {
+      // EF is complete (or missing), so sum the recommended contributions for regular goals.
+      required = overview?.totalRecommendedMonthlyContribution ?? goals.reduce((sum, goal) => sum + Number(goal.requiredMonthly ?? 0), 0);
+    }
+
+    if (overview?.emergencyFund) {
+      currentSaved += overview.emergencyFund.savedAmount;
+      targetTotal += overview.emergencyFund.targetAmount;
+      if (overview.emergencyFund.isComplete) {
+        fullyFunded += 1;
+      }
+    }
+
     return {
       currentSaved,
       targetTotal,
       gap: Math.max(0, targetTotal - currentSaved),
       required,
-      fullyFunded: goals.filter((goal) => progressOf(goal) >= 100).length,
+      fullyFunded,
     };
-  }, [goals, overview?.totalRecommendedMonthlyContribution]);
+  }, [goals, overview]);
 
   const load = useCallback(async (force = false) => {
     setError(null);
@@ -736,14 +754,14 @@ function DashboardView({
           <View style={styles.fundingGapRow}>
             <Text style={styles.gapLabel}>Funding Gap</Text>
             <Text style={styles.gapValue}>{formatCurrency(totals.gap)}</Text>
-            <Text style={styles.gapMeta}>Across {goals.length} goals</Text>
+            <Text style={styles.gapMeta}>Across {overview?.emergencyFund ? goals.length + 1 : goals.length} goals</Text>
           </View>
         </View>
         <View style={styles.statsGrid}>
-          <StatCard label="Goals Tracked" value={String(goals.length)} note={`${totals.fullyFunded} fully funded`} icon="add" onIconPress={onAdd} />
+          <StatCard label="Goals Tracked" value={String(overview?.emergencyFund ? goals.length + 1 : goals.length)} note={`${totals.fullyFunded} fully funded`} icon="add" onIconPress={onAdd} />
           <StatCard label="Current Saved" value={formatCurrency(totals.currentSaved)} note={`Gap remaining ${formatCurrency(totals.gap)}`} />
           <StatCard label="Monthly Capacity" value={overview?.monthlyCapacityLabel ?? formatCurrency(overview?.monthlyCapacity ?? 0)} note={`${overview?.conflicts?.length ?? 0} conflicts flagged`} tone="danger" />
-          <StatCard label="Required Monthly" value={overview?.totalRecommendedMonthlyContributionLabel ?? formatCurrency(totals.required)} note="Planned commitments" />
+          <StatCard label="Required Monthly" value={formatCurrency(totals.required)} note="Planned commitments" />
         </View>
       </View>
 

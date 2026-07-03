@@ -21,7 +21,7 @@ export function getCurrencySymbol(currencyCode = globalCurrencyCode) {
     const normalized = normalizeCurrencyCode(currencyCode);
 
     try {
-        const part = new Intl.NumberFormat("en", {
+        const part = new Intl.NumberFormat("en-IN", {
             style: "currency",
             currency: normalized,
             currencyDisplay: "narrowSymbol",
@@ -40,14 +40,14 @@ export function formatCurrencyAmount(value: number, currencyCode = globalCurrenc
     const normalized = normalizeCurrencyCode(currencyCode);
 
     try {
-        return new Intl.NumberFormat("en-US", {
+        return new Intl.NumberFormat("en-IN", {
             style: "currency",
             currency: normalized,
             minimumFractionDigits: digits,
             maximumFractionDigits: digits,
         }).format(value);
     } catch {
-        const amount = new Intl.NumberFormat("en-US", {
+        const amount = new Intl.NumberFormat("en-IN", {
             minimumFractionDigits: digits,
             maximumFractionDigits: digits,
         }).format(value);

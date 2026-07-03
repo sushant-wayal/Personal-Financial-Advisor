@@ -221,7 +221,7 @@ function formatCurrency(value: number, digits = 0) {
 }
 
 function formatCompactCurrency(value: number) {
-  return new Intl.NumberFormat("en-US", {
+  return new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: getGlobalCurrencyCode(),
     notation: "compact",

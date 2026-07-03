@@ -337,7 +337,7 @@ export default function SettingsScreen() {
             <SettingInput label="Owner Name" value={profile.ownerName ?? ""} placeholder="Your name" onChangeText={(ownerName) => updateProfile({ ownerName })} />
             <View style={styles.twoColumn}>
               <SettingInput label="Currency" value={profile.currency ?? "INR"} placeholder="INR" onChangeText={(currency) => updateProfile({ currency: currency.toUpperCase() })} />
-              <SettingInput label="Balance" value={String(profile.balance ?? 0)} keyboardType="numeric" onChangeText={(balance) => updateProfile({ balance: Number(balance || 0) })} />
+              <SettingInput label="Balance" value={String(Math.round((profile.balance ?? 0) * 100) / 100)} keyboardType="numeric" onChangeText={(balance) => updateProfile({ balance: Number(balance || 0) })} />
             </View>
             <View style={styles.twoColumn}>
               <SettingInput label="Monthly Income" value={String(profile.monthlyIncome ?? 0)} keyboardType="numeric" onChangeText={(monthlyIncome) => updateProfile({ monthlyIncome: Number(monthlyIncome || 0) })} />

@@ -178,7 +178,7 @@ export default function SettingsClient() {
                                     <Input
                                         id="balance"
                                         type="number"
-                                        value={profile?.balance ?? 0}
+                                        value={Math.round((profile?.balance ?? 0) * 100) / 100}
                                         onChange={(e) => setProfile({ ...profile, balance: Number(e.target.value) })}
                                         placeholder="0"
                                     />
