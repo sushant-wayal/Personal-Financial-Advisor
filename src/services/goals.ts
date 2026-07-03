@@ -105,7 +105,12 @@ export function analyzeGoalConflicts(goals: GoalRecord[], monthlyCapacity: numbe
             currentSavingsVelocity: monthlyCapacity,
         });
 
-        const progressPct = goal.targetAmount > 0 ? Math.min(100, (goal.currentAmount / goal.targetAmount) * 100) : 0;
+        const rawProgressPct = goal.targetAmount > 0 ? (goal.currentAmount / goal.targetAmount) * 100 : 0;
+        const progressPct = goal.targetAmount > 0
+            ? (goal.currentAmount >= goal.targetAmount
+                ? 100
+                : Math.max(0, Math.min(99.9, Math.round(rawProgressPct * 10) / 10)))
+            : 0;
         const health = computeHealthStatus(forecast.requiredMonthly, monthlyCapacity);
         const confidence = computeConfidenceScore(forecast.requiredMonthly, monthlyCapacity, 0.25);
 
@@ -123,7 +128,7 @@ export function analyzeGoalConflicts(goals: GoalRecord[], monthlyCapacity: numbe
             currency,
             targetAmountLabel: formatCurrency(goal.targetAmount, currency),
             currentAmountLabel: formatCurrency(goal.currentAmount, currency),
-            progressPct: Math.round(progressPct),
+            progressPct,
             monthsLeft,
             requiredMonthly: Math.round(forecast.requiredMonthly),
             requiredMonthlyLabel: formatCurrency(forecast.requiredMonthly, currency),

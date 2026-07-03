@@ -93,6 +93,9 @@ type AdvisorPayload = {
 
 type ViewMode = "dashboard" | "all" | "detail";
 
+const GOALS_OVERVIEW_TTL_MS = 30 * 1000;
+const GOALS_AI_TTL_MS = 5 * 60 * 1000;
+
 function apiUrl(path: string) {
   return `${API_BASE_URL}${path}`;
 }
@@ -113,7 +116,7 @@ async function fetchGoalsOverview(force = false): Promise<Overview> {
         totalRecommendedMonthlyContributionLabel: payload.totalRecommendedMonthlyContributionLabel,
       };
     },
-    { force },
+    { force, ttlMs: GOALS_OVERVIEW_TTL_MS },
   );
 }
 
@@ -126,7 +129,7 @@ async function fetchAIRecommendations(force = false): Promise<AdvisorPayload> {
       if (!res.ok || payload.ok === false) throw new Error(payload.error || "Failed to load AI recommendations");
       return payload as AdvisorPayload;
     },
-    { force },
+    { force, ttlMs: GOALS_AI_TTL_MS },
   );
 }
 
@@ -142,7 +145,7 @@ async function fetchAIStatus(force = false): Promise<{ lastRun: string | null; r
         recommendations: payload.recommendations ?? null,
       };
     },
-    { force },
+    { force, ttlMs: GOALS_AI_TTL_MS },
   );
 }
 

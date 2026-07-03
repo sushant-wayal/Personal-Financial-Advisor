@@ -144,6 +144,13 @@ function formatCurrency(amount: number, currency = "INR") {
     return new Intl.NumberFormat("en-IN", { style: "currency", currency, maximumFractionDigits: 0 }).format(amount || 0);
 }
 
+function getDisplayProgress(currentAmount: number, targetAmount: number) {
+    if (targetAmount <= 0) return 0;
+    if (currentAmount >= targetAmount) return 100;
+    const pct = (currentAmount / targetAmount) * 100;
+    return Math.max(0, Math.min(99.9, Math.round(pct * 10) / 10));
+}
+
 async function fetchAIRecommendations(force = false) {
     const url = "/api/goals/ai" + (force ? "?force=true" : "");
     const res = await fetch(url);
@@ -701,7 +708,7 @@ export default function GoalsManager() {
                     <div className="text-sm text-slate-500">No goals yet. Create one above to get started.</div>
                 )}
                 {goals.map((goal) => {
-                    const progress = Math.round((goal.currentAmount / Math.max(1, goal.targetAmount)) * 100);
+                    const progress = getDisplayProgress(goal.currentAmount || 0, goal.targetAmount || 0);
                     const clamped = Math.min(progress, 100);
                     const edit = editing[goal.id] || {};
                     const patch = buildPatch(edit);
