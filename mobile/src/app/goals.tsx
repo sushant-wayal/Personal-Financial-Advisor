@@ -288,6 +288,7 @@ function progressOf(goal: Goal) {
 function healthTone(goal: Goal) {
   const health = String(goal.health ?? "").toLowerCase();
   if (health.includes("risk") || health.includes("behind")) return "risk";
+  if (health.includes("off track")) return "risk";
   if (health.includes("track")) return "track";
   return "ahead";
 }
@@ -295,6 +296,7 @@ function healthTone(goal: Goal) {
 function healthLabel(goal: Goal) {
   const health = goal.health || "";
   if (health.toLowerCase().includes("risk")) return "At Risk";
+  if (health.toLowerCase().includes("off track")) return "Off Track";
   if (health.toLowerCase().includes("track")) return "On Track";
   if (health) return health.replace(/_/g, " ");
   return progressOf(goal) >= 50 ? "Ahead of Schedule" : "On Track";

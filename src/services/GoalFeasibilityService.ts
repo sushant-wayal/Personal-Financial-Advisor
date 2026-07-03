@@ -18,10 +18,11 @@ export function computeHealthStatus(requiredMonthly: number, availableMonthly: n
  */
 export function computeConfidenceScore(requiredMonthly: number, availableMonthly: number, volatility = 0.3) {
     if (requiredMonthly <= 0) return 100;
+    if (availableMonthly <= 0) return 0;
     const ratio = Math.min(2, availableMonthly / requiredMonthly);
-    // base score from ratio (50..100+), penalize volatility
-    const base = Math.round(Math.min(100, Math.max(0, ratio * 50 + 50)));
-    const penalty = Math.round(volatility * 40); // up to -40
+    // base score from ratio (0..100), penalize volatility more lightly after coverage is present
+    const base = Math.round(Math.min(100, Math.max(0, ratio * 100)));
+    const penalty = Math.round(volatility * 25); // up to -25
     const score = Math.max(0, Math.min(100, base - penalty));
     return score;
 }
