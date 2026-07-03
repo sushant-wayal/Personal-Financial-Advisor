@@ -626,54 +626,18 @@ function DashboardHeader({ onSimulate }: { onSimulate: () => void }) {
 function EmergencyFundWidget({ ef }: { ef?: EmergencyFundData }) {
     if (!ef) {
         return (
-            <View style={[styles.efWidgetCard, { borderColor: "rgba(68,71,72,0.35)", backgroundColor: "#0e0e0e" }]}>
-                <View style={styles.efWidgetHeaderBlock}>
-                    <View style={styles.efWidgetHeader}>
-                        <View style={[styles.efWidgetIconBox, { backgroundColor: "rgba(255,255,255,0.05)" }]}>
-                            <Text style={styles.efWidgetIcon}>🛡️</Text>
-                        </View>
-                        <View style={styles.efWidgetHeaderTextWrap}>
-                            <View style={[styles.efWidgetBadge, { borderColor: "rgba(255,255,255,0.1)", backgroundColor: "rgba(255,255,255,0.05)" }]}>
-                                <View style={[styles.efWidgetBadgeDot, { backgroundColor: "#8e9192" }]} />
-                                <Text style={[styles.efWidgetBadgeText, { color: "#8e9192" }]}>PRIORITY</Text>
-                            </View>
-                            <Text style={styles.efWidgetBigTitle}>Emergency Fund</Text>
-                            <Text style={styles.efWidgetSubtitle}>Required before goal allocations</Text>
-                        </View>
-                    </View>
+            <View style={[styles.goalCard, { borderColor: "rgba(68,71,72,0.35)", backgroundColor: "#0e0e0e" }]}>
+                <View style={styles.goalCardHeader}>
+                    <Text style={styles.efCleanTitle}>🛡️  Emergency Fund</Text>
+                    <Text style={styles.efCleanSubtitle}>Priority</Text>
                 </View>
-
-                <View style={styles.efWidgetProgressBlock}>
-                    <View style={styles.efWidgetProgressHeader}>
-                        <View style={styles.efWidgetProgressStatRow}>
-                            <Skeleton width={50} height={28} radius={6} />
-                            <Text style={styles.efWidgetProgressLabel}>Funded</Text>
-                        </View>
-                        <View style={styles.efWidgetEtaBox}>
-                            <Skeleton width={70} height={12} radius={4} style={{ marginBottom: 4 }} />
-                            <Skeleton width={90} height={12} radius={4} />
-                        </View>
-                    </View>
-                    <View style={styles.efWidgetProgressBarBg}>
-                        <Skeleton width="100%" height="100%" radius={4} />
-                    </View>
+                <View style={styles.efAmountBlock}>
+                    <Skeleton width="60%" height={28} radius={6} />
+                    <Skeleton width="15%" height={16} radius={4} />
                 </View>
-
-                <View style={[styles.efWidgetStatGrid, { marginTop: 8 }]}>
-                    <View style={styles.efWidgetStatBox}>
-                        <Text style={styles.efWidgetStatBoxLabel}>Total Saved</Text>
-                        <Skeleton width="80%" height={20} radius={6} style={{ marginTop: 4 }} />
-                    </View>
-                    <View style={styles.efWidgetStatBox}>
-                        <Text style={styles.efWidgetStatBoxLabel}>Target</Text>
-                        <Skeleton width="80%" height={20} radius={6} style={{ marginTop: 4, marginBottom: 4 }} />
-                        <Skeleton width="50%" height={12} radius={4} />
-                    </View>
-                    <View style={styles.efWidgetStatBox}>
-                        <Text style={styles.efWidgetStatBoxLabel}>Monthly</Text>
-                        <Skeleton width="80%" height={20} radius={6} style={{ marginTop: 4, marginBottom: 4 }} />
-                        <Text style={styles.efWidgetStatBoxSub}>suggested</Text>
-                    </View>
+                <Skeleton width="100%" height={6} radius={3} style={{ marginTop: 12, marginBottom: 12 }} />
+                <View style={styles.efFooter}>
+                    <Text style={styles.efFooterText}>Loading details...</Text>
                 </View>
             </View>
         );
@@ -681,81 +645,46 @@ function EmergencyFundWidget({ ef }: { ef?: EmergencyFundData }) {
 
     const progressClamped = Math.min(100, Math.max(0, ef.progressPct));
     const isComplete = ef.isComplete;
-    
-    const etaLabel = ef.estimatedCompletionDate
-        ? new Date(ef.estimatedCompletionDate).toLocaleDateString("en-IN", { month: "short", year: "numeric" })
-        : null;
+    const etaStr = ef.estimatedCompletionDate
+        ? new Date(ef.estimatedCompletionDate).toLocaleDateString("en-US", { month: "short", year: "numeric" })
+        : "N/A";
 
     return (
-        <View style={[styles.efWidgetCard, isComplete ? { borderColor: "rgba(16, 185, 129, 0.4)", backgroundColor: "rgba(6, 78, 59, 0.3)" } : { borderColor: "rgba(249, 115, 22, 0.4)", backgroundColor: "rgba(67, 20, 7, 0.3)" }]}>
-            <View style={styles.efWidgetHeaderBlock}>
-                <View style={styles.efWidgetHeader}>
-                    <View style={[styles.efWidgetIconBox, isComplete ? { backgroundColor: "rgba(16, 185, 129, 0.2)" } : { backgroundColor: "rgba(249, 115, 22, 0.2)" }]}>
-                        <Text style={styles.efWidgetIcon}>{isComplete ? "✅" : "🛡️"}</Text>
-                    </View>
-                    <View style={styles.efWidgetHeaderTextWrap}>
-                        <Text style={[styles.efWidgetPriorityText, isComplete ? { color: "rgba(52, 211, 153, 0.8)" } : { color: "rgba(251, 146, 60, 0.8)" }]}>FIRST PRIORITY</Text>
-                        <Text style={styles.efWidgetBigTitle}>Emergency Fund</Text>
-                        <Text style={styles.efWidgetSubtitle}>{ef.targetMonths} months of expenses covered</Text>
-                    </View>
-                </View>
-
-                <View style={[styles.efWidgetBadge, isComplete ? { borderColor: "rgba(16, 185, 129, 0.3)", backgroundColor: "rgba(16, 185, 129, 0.1)" } : { borderColor: "rgba(249, 115, 22, 0.3)", backgroundColor: "rgba(249, 115, 22, 0.1)" }]}>
-                    <View style={[styles.efWidgetBadgeDot, isComplete ? { backgroundColor: "#34d399" } : { backgroundColor: "#fb923c" }]} />
-                    <Text style={[styles.efWidgetBadgeText, isComplete ? { color: "#6ee7b7" } : { color: "#fdba74" }]}>{isComplete ? "Fully Funded — Goals Unlocked" : "All Goal Allocations Paused"}</Text>
-                </View>
-            </View>
-
-            <View style={styles.efWidgetProgressBlock}>
-                <View style={styles.efWidgetProgressHeader}>
-                    <View style={styles.efWidgetProgressStatRow}>
-                        <Text style={[styles.efWidgetProgressValue, isComplete ? { color: "#6ee7b7" } : { color: "#fdba74" }]}>{progressClamped.toFixed(1)}%</Text>
-                        <Text style={styles.efWidgetProgressLabel}>funded</Text>
-                    </View>
-                    {!isComplete && etaLabel && (
-                        <View style={styles.efWidgetEtaBox}>
-                            <Text style={styles.efWidgetEtaLabel}>EST. COMPLETION</Text>
-                            <Text style={styles.efWidgetEtaValue}>{etaLabel}</Text>
-                            {ef.monthsToComplete ? <Text style={styles.efWidgetEtaSub}>{ef.monthsToComplete} month{ef.monthsToComplete === 1 ? "" : "s"} away</Text> : null}
+        <View style={[styles.goalCard, isComplete ? { borderColor: "rgba(16, 185, 129, 0.4)", backgroundColor: "rgba(6, 78, 59, 0.2)" } : { borderColor: "rgba(249, 115, 22, 0.4)", backgroundColor: "rgba(67, 20, 7, 0.2)" }]}>
+            <View style={styles.goalCardHeader}>
+                <View>
+                    <Text style={styles.efCleanTitle}>{isComplete ? "✅" : "🛡️"}  Emergency Fund</Text>
+                    {!isComplete && (
+                        <View style={styles.efWarningBadge}>
+                            <Text style={styles.efWarningBadgeText}>⏸  GOALS PAUSED UNTIL FUNDED</Text>
                         </View>
                     )}
                 </View>
-                <View style={styles.efWidgetProgressBarBg}>
-                    <View style={[styles.efWidgetProgressBarFill, isComplete ? { backgroundColor: "#34d399" } : { backgroundColor: "#f97316" }, { width: `${progressClamped}%` }]} />
-                </View>
+                <Text style={[styles.efCleanSubtitle, isComplete ? { color: "#6ee7b7" } : { color: "#fdba74" }]}>
+                    {isComplete ? "Fully Funded" : "Priority"}
+                </Text>
+            </View>
+            
+            <View style={styles.efAmountBlock}>
+                <Text>
+                    <Text style={[styles.efAmountText, isComplete ? { color: "#6ee7b7" } : { color: "#ffffff" }]}>{formatCurrency(ef.savedAmount)}</Text>
+                    <Text style={styles.efAmountTextSub}> / {formatCurrency(ef.targetAmount)}</Text>
+                </Text>
+                <Text style={[styles.efAmountTextSub, isComplete ? { color: "#6ee7b7" } : { color: "#fdba74" }]}>
+                    {progressClamped.toFixed(0)}%
+                </Text>
             </View>
 
-            <View style={styles.efWidgetStatGrid}>
-                <View style={styles.efWidgetStatBox}>
-                    <Text style={styles.efWidgetStatBoxLabel}>NEEDED</Text>
-                    <Text style={styles.efWidgetStatBoxValue}>{formatCurrency(ef.targetAmount)}</Text>
-                    <Text style={styles.efWidgetStatBoxSub}>{ef.targetMonths}mo × avg spend</Text>
-                </View>
-                <View style={styles.efWidgetStatBox}>
-                    <Text style={styles.efWidgetStatBoxLabel}>SAVED</Text>
-                    <Text style={[styles.efWidgetStatBoxValue, ef.savedAmount >= ef.targetAmount ? { color: "#6ee7b7" } : { color: "#ffffff" }]}>{formatCurrency(ef.savedAmount)}</Text>
-                    <Text style={styles.efWidgetStatBoxSub}>in emergency fund</Text>
-                </View>
-                <View style={styles.efWidgetStatBox}>
-                    <Text style={styles.efWidgetStatBoxLabel}>SHORTFALL</Text>
-                    <Text style={[styles.efWidgetStatBoxValue, ef.shortfall === 0 ? { color: "#6ee7b7" } : { color: "#fda4af" }]}>{ef.shortfall === 0 ? "None" : formatCurrency(ef.shortfall)}</Text>
-                    <Text style={styles.efWidgetStatBoxSub}>remaining to save</Text>
-                </View>
-                <View style={styles.efWidgetStatBox}>
-                    <Text style={styles.efWidgetStatBoxLabel}>AVG SPEND/MO</Text>
-                    <Text style={styles.efWidgetStatBoxValue}>{formatCurrency(ef.avgMonthlyExpenses)}</Text>
-                    <Text style={styles.efWidgetStatBoxSub}>3-month avg</Text>
-                </View>
+            <View style={styles.efProgressBg}>
+                <View style={[styles.efProgressFill, isComplete ? { backgroundColor: "#34d399" } : { backgroundColor: "#f97316" }, { width: `${progressClamped}%` }]} />
             </View>
 
-            {!isComplete && (
-                <View style={styles.efWidgetBlockerBox}>
-                    <Text style={styles.efWidgetBlockerIcon}>⚠️</Text>
-                    <View style={{ flex: 1 }}>
-                        <Text style={styles.efWidgetBlockerText}><Text style={{ fontWeight: "600", color: "#fdba74" }}>Goal allocations are paused.</Text> Your monthly savings capacity ({formatCurrency(ef.monthlyCapacity)}) is being routed entirely to the Emergency Fund until it is completely filled.</Text>
-                    </View>
-                </View>
-            )}
+            <View style={styles.efFooter}>
+                <Text style={styles.efFooterText}>
+                    {isComplete ? `Target of ${ef.targetMonths} months of expenses achieved.` : `ETA: ${etaStr} • ${formatCurrency(ef.monthlyCapacity)}/mo suggested`}
+                </Text>
+            </View>
+
         </View>
     );
 }
@@ -816,7 +745,7 @@ function DashboardView({
         </View>
       </View>
 
-      <View style={{ paddingHorizontal: 24, marginTop: -24 }}>
+      <View style={{ marginTop: -24 }}>
           <EmergencyFundWidget ef={overview?.emergencyFund} />
       </View>
 
@@ -1615,36 +1544,15 @@ const styles = StyleSheet.create({
   toneAheadAccent: { backgroundColor: "#05e777" },
   toneTrackAccent: { backgroundColor: "#b0c6ff" },
   toneRiskAccent: { backgroundColor: "#ffb4ab" },
-  efWidgetCard: { borderRadius: 16, borderWidth: 1, padding: 20, marginBottom: 24 },
-  efWidgetHeaderBlock: { gap: 16, marginBottom: 20 },
-  efWidgetHeader: { flexDirection: "row", alignItems: "center", gap: 12 },
-  efWidgetIconBox: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
-  efWidgetIcon: { fontSize: 20 },
-  efWidgetHeaderTextWrap: { flex: 1, gap: 2 },
-  efWidgetPriorityText: { fontFamily: "JetBrains Mono", fontSize: fs(10), letterSpacing: 1.5, fontWeight: "700" },
-  efWidgetBigTitle: { color: "#ffffff", fontFamily: "Hanken Grotesk", fontSize: fs(24), lineHeight: 30, fontWeight: "700" },
-  efWidgetSubtitle: { color: "#8e9192", fontFamily: "Inter", fontSize: fs(13) },
-  efWidgetBadge: { alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, borderWidth: 1 },
-  efWidgetBadgeDot: { width: 6, height: 6, borderRadius: 3 },
-  efWidgetBadgeText: { fontFamily: "JetBrains Mono", fontSize: fs(11), fontWeight: "600" },
-  efWidgetProgressBlock: { marginBottom: 20, gap: 10 },
-  efWidgetProgressHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end" },
-  efWidgetProgressStatRow: { flexDirection: "row", alignItems: "baseline", gap: 6 },
-  efWidgetProgressValue: { fontFamily: "Hanken Grotesk", fontSize: fs(24), fontWeight: "700" },
-  efWidgetProgressLabel: { color: "#8e9192", fontFamily: "JetBrains Mono", fontSize: fs(11) },
-  efWidgetEtaBox: { alignItems: "flex-end" },
-  efWidgetEtaLabel: { color: "#8e9192", fontFamily: "JetBrains Mono", fontSize: fs(9), letterSpacing: 0.5 },
-  efWidgetEtaValue: { color: "#ffffff", fontFamily: "Inter", fontSize: fs(13), fontWeight: "600", marginTop: 2 },
-  efWidgetEtaSub: { color: "#8e9192", fontFamily: "Inter", fontSize: fs(11), marginTop: 2 },
-  efWidgetProgressBarBg: { height: 8, borderRadius: 4, backgroundColor: "rgba(0,0,0,0.4)", overflow: "hidden" },
-  efWidgetProgressBarFill: { height: "100%", borderRadius: 4 },
-  efWidgetStatGrid: { flexDirection: "row", gap: 12 },
-  efWidgetStatBox: { flex: 1, backgroundColor: "rgba(0,0,0,0.3)", padding: 12, borderRadius: 10, borderWidth: 1, borderColor: "rgba(255,255,255,0.05)" },
-  efWidgetStatBoxLabel: { color: "#8e9192", fontFamily: "JetBrains Mono", fontSize: fs(10), marginBottom: 4 },
-  efWidgetStatBoxValue: { color: "#ffffff", fontFamily: "Hanken Grotesk", fontSize: fs(16), fontWeight: "700" },
-  efWidgetStatBoxSub: { color: "#8e9192", fontFamily: "Inter", fontSize: fs(10), marginTop: 2 },
-  efWidgetBlockerBox: { marginTop: 16, backgroundColor: "rgba(67, 20, 7, 0.4)", padding: 14, borderRadius: 10, borderWidth: 1, borderColor: "rgba(249, 115, 22, 0.2)", flexDirection: "row", gap: 10, alignItems: "flex-start" },
-  efWidgetBlockerIcon: { fontSize: 16 },
-  efWidgetBlockerText: { color: "#c4c7c8", fontFamily: "Inter", fontSize: fs(13), lineHeight: 19 },
-  efWidgetTitle: { color: "#ffffff", fontFamily: "Hanken Grotesk", fontSize: fs(20), fontWeight: "600" },
+  efCleanTitle: { color: "#ffffff", fontFamily: "Hanken Grotesk", fontSize: fs(18), fontWeight: "600" },
+  efCleanSubtitle: { color: "#8e9192", fontFamily: "JetBrains Mono", fontSize: fs(11), letterSpacing: 0.5 },
+  efAmountBlock: { marginTop: -4, flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" },
+  efAmountText: { color: "#ffffff", fontFamily: "JetBrains Mono", fontSize: fs(28), fontWeight: "700" },
+  efAmountTextSub: { color: "#8e9192", fontFamily: "JetBrains Mono", fontSize: fs(16), fontWeight: "600" },
+  efProgressBg: { height: 6, borderRadius: 3, backgroundColor: "rgba(0,0,0,0.4)", overflow: "hidden", marginTop: 4, marginBottom: 4 },
+  efProgressFill: { height: "100%", borderRadius: 3 },
+  efFooter: { marginTop: 4 },
+  efFooterText: { color: "#8e9192", fontFamily: "Inter", fontSize: fs(13) },
+  efWarningBadge: { alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: "rgba(249, 115, 22, 0.15)", marginTop: 6 },
+  efWarningBadgeText: { color: "#fdba74", fontFamily: "JetBrains Mono", fontSize: fs(10), fontWeight: "700", letterSpacing: 0.5 },
 });
