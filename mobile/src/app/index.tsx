@@ -1066,7 +1066,7 @@ export default function Index() {
             <Text style={styles.balanceValue}>{formatCurrency(balance.balance, 0)}</Text>
             <View style={styles.percentPill}>
               <MaterialIcons name={toMaterialIconName(balance.lastMonthDelta >= 0 ? "trending_up" : "trending_down")} size={14} color={balance.lastMonthDelta >= 0 ? "#7dffa2" : "#ffb4ab"} />
-              <Text style={[styles.percentText, balanceChangeColor]}>{`${balance.percentChange >= 0 ? "+" : ""}${Math.abs(balance.percentChange).toFixed(1)}%`}</Text>
+              <Text style={[styles.percentText, balanceChangeColor]}>{`${Math.abs(balance.percentChange).toFixed(1)}%`}</Text>
             </View>
           </View>
         </View>
@@ -1075,21 +1075,30 @@ export default function Index() {
           <MetricCard
             label="Saving rate"
             value={`${Math.round(savings.currentMonthSavingsRate || savings.savingsRate)}%`}
-            note={savings.previousMonthHasData ? `${savings.savingsRateChange > 0 ? "+" : ""}${Math.abs(Math.round(savings.savingsRateChange))}% vs last month` : "Target: 60%"}
+            note={savings.previousMonthHasData ? `${savings.savingsRateChange > 0 ? "▲ " : savings.savingsRateChange < 0 ? "▼ " : ""}${Math.abs(Math.round(savings.savingsRateChange))}% vs last month` : "Target: 60%"}
             noteTone={savings.previousMonthHasData ? (savings.savingsRateChange > 0 ? "positive" : savings.savingsRateChange < 0 ? "negative" : "neutral") : "neutral"}
             icon="savings"
           />
           <MetricCard
             label="Burn rate"
-            value={formatCompactCurrency(burn.burnRate)}
-            note={burn.previousPeriodHasData ? `${burn.burnRateChange > 0 ? "+" : ""}${Math.abs(Math.round(burn.burnRateChange))}% vs prev mo` : "No prior period to compare"}
+            value={formatCurrency(burn.burnRate)}
+            note={burn.previousPeriodHasData ? `${burn.burnRateChange > 0 ? "▲ " : burn.burnRateChange < 0 ? "▼ " : ""}${formatCurrency(Math.abs(burn.burnRateChange))} vs prev mo` : "No prior period to compare"}
             noteTone={burn.previousPeriodHasData ? (burn.burnRateChange < 0 ? "positive" : burn.burnRateChange > 0 ? "negative" : "neutral") : "neutral"}
             icon="local_fire_department"
           />
           <MetricCard
             label="Runway"
             value={runway.runwayMonths === null ? "Unlimited" : `${runway.runwayMonths.toFixed(1)} mo`}
-            note="Cash equivalents"
+            note={
+              runway.previousRunwayMonths !== null && runway.runwayMonths !== null
+                ? `${runway.runwayChange > 0 ? "▲ " : runway.runwayChange < 0 ? "▼ " : ""}${Math.abs(runway.runwayChange).toFixed(1)} mo vs prev`
+                : "Cash equivalents"
+            }
+            noteTone={
+              runway.previousRunwayMonths !== null && runway.runwayMonths !== null
+                ? (runway.runwayChange > 0 ? "positive" : runway.runwayChange < 0 ? "negative" : "neutral")
+                : "neutral"
+            }
             icon="flight_takeoff"
             wide
           />
