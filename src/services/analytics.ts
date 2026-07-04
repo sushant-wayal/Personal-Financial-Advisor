@@ -143,8 +143,8 @@ export async function calculateMonthlySavingsRate() {
 export async function calculateBurnRate() {
     const now = new Date();
     const currentStart = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-    const previousStart = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
-    const previousEnd = currentStart;
+    const previousStart = new Date(now.getTime() - 120 * 24 * 60 * 60 * 1000);
+    const previousEnd = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
     const currentTotals = await aggregateExpenseTotals(currentStart, now);
     const previousTotals = await aggregateExpenseTotals(previousStart, previousEnd);
