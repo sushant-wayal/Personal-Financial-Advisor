@@ -1,35 +1,217 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StatusBar, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
+import {
+    Animated,
+    KeyboardAvoidingView,
+    Platform,
+    Pressable,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TextInput,
+    View,
+    useWindowDimensions,
+} from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import Markdown from "react-native-markdown-display";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import ArtifactRenderer from "../components/advisor/ArtifactRenderer";
-import { Skeleton } from "../components/LoadingSkeleton";
 import { API_BASE_URL } from "../lib/apiBaseUrl";
 import type { AdvisorResponse } from "../types/advisor";
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+
 type ChatTurn = { question: string; response: AdvisorResponse | null; runAt?: string };
+
+type StatusPhase = "thinking" | "querying" | "processing" | "done";
+
+type ToolCallState = { name: string; rowCount?: number; done: boolean };
+
+type LiveStatus = {
+    phase: StatusPhase;
+    message: string;
+    iteration: number;
+    toolCalls: ToolCallState[];
+    updatedAt?: number;
+} | null;
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const POLL_INTERVAL_MS = 1500;
 
 function apiUrl(path: string) {
     return `${API_BASE_URL}${path}`;
 }
 
-function fallbackAdvisorResponse(raw: string): AdvisorResponse {
-    return { narrative: raw.trim() || "No response", artifacts: [] };
-}
-
 function formatTimestamp(value: string) {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return value;
-    return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(date);
+    return new Intl.DateTimeFormat("en-US", {
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+    }).format(date);
 }
+
+function toolLabel(name: string): string {
+    const map: Record<string, string> = {
+        queryTransactions: "Transaction Records",
+        aggregateTransactions: "Spending Aggregation",
+        queryGoals: "Financial Goals",
+        querySubscriptions: "Subscriptions",
+        queryCategories: "Categories",
+        getFinancialProfile: "Financial Profile",
+        queryMemories: "Memory",
+        queryInsights: "Insights",
+    };
+    return map[name] ?? name;
+}
+
+// ─── Pulsing Dot ─────────────────────────────────────────────────────────────
+
+function PulsingDot({ color }: { color: string }) {
+    const scale = useRef(new Animated.Value(1)).current;
+    const opacity = useRef(new Animated.Value(0.6)).current;
+
+    useEffect(() => {
+        const anim = Animated.loop(
+            Animated.sequence([
+                Animated.parallel([
+                    Animated.timing(scale, { toValue: 1.4, duration: 600, useNativeDriver: true }),
+                    Animated.timing(opacity, { toValue: 1, duration: 600, useNativeDriver: true }),
+                ]),
+                Animated.parallel([
+                    Animated.timing(scale, { toValue: 1, duration: 600, useNativeDriver: true }),
+                    Animated.timing(opacity, { toValue: 0.6, duration: 600, useNativeDriver: true }),
+                ]),
+            ])
+        );
+        anim.start();
+        return () => anim.stop();
+    }, [scale, opacity]);
+
+    return (
+        <Animated.View
+            style={{
+                width: 7,
+                height: 7,
+                borderRadius: 3.5,
+                backgroundColor: color,
+                transform: [{ scale }],
+                opacity,
+            }}
+        />
+    );
+}
+
+// ─── Live Status Panel ────────────────────────────────────────────────────────
+
+function LiveStatusPanel({ status }: { status: NonNullable<LiveStatus> }) {
+    const isDone = status.phase === "done";
+    const dotColor =
+        status.phase === "querying"
+            ? "#a78bfa"
+            : status.phase === "processing"
+                ? "#f59e0b"
+                : status.phase === "done"
+                    ? "#34d399"
+                    : "#60a5fa";
+
+    return (
+        <View style={liveStyles.panel}>
+            {/* Header */}
+            <View style={liveStyles.headerRow}>
+                {isDone ? (
+                    <MaterialIcons name="check-circle" size={15} color="#34d399" />
+                ) : (
+                    <PulsingDot color={dotColor} />
+                )}
+                <Text style={[liveStyles.phaseText, isDone && liveStyles.doneText]}>
+                    {status.message}
+                </Text>
+                {status.iteration > 0 && !isDone && (
+                    <View style={liveStyles.iterBadge}>
+                        <Text style={liveStyles.iterText}>step {status.iteration}</Text>
+                    </View>
+                )}
+            </View>
+
+            {/* Tool call rows */}
+            {status.toolCalls.length > 0 && (
+                <View style={liveStyles.toolList}>
+                    {status.toolCalls.map((tc, i) => (
+                        <View key={`${tc.name}-${i}`} style={liveStyles.toolRow}>
+                            <MaterialIcons
+                                name={tc.done ? "check" : "storage"}
+                                size={12}
+                                color={tc.done ? "#34d399" : "#a78bfa"}
+                            />
+                            <Text style={liveStyles.toolName}>{toolLabel(tc.name)}</Text>
+                            {tc.done && tc.rowCount !== undefined && (
+                                <Text style={liveStyles.rowCount}>{tc.rowCount} rows</Text>
+                            )}
+                            {!tc.done && <PulsingDot color="#a78bfa" />}
+                        </View>
+                    ))}
+                </View>
+            )}
+        </View>
+    );
+}
+
+// ─── Status Poller Hook ───────────────────────────────────────────────────────
+
+function useAdvisorStatusPoller(requestId: string | null, active: boolean) {
+    const [status, setStatus] = useState<LiveStatus>(null);
+    const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+    useEffect(() => {
+        if (!active || !requestId) {
+            setStatus(null);
+            if (timerRef.current) clearInterval(timerRef.current);
+            return;
+        }
+
+        let cancelled = false;
+
+        async function poll() {
+            if (cancelled) return;
+            try {
+                const res = await fetch(
+                    apiUrl(`/api/ai/advisor/status?requestId=${encodeURIComponent(requestId!)}`)
+                );
+                if (!res.ok || cancelled) return;
+                const data = await res.json();
+                if (data && data.type === "status") {
+                    setStatus(data as LiveStatus);
+                }
+            } catch {
+                // swallow — polling errors are non-fatal
+            }
+        }
+
+        // Poll immediately then on interval
+        void poll();
+        timerRef.current = setInterval(() => void poll(), POLL_INTERVAL_MS);
+
+        return () => {
+            cancelled = true;
+            if (timerRef.current) clearInterval(timerRef.current);
+        };
+    }, [requestId, active]);
+
+    return status;
+}
+
+// ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function AdvisorScreen() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const { width } = useWindowDimensions();
-    const liveRef = useRef<ScrollView>(null);
+    const scrollRef = useRef<ScrollView>(null);
     const inFlightRef = useRef(false);
 
     const [q, setQ] = useState("");
@@ -37,22 +219,27 @@ export default function AdvisorScreen() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [inputHeight, setInputHeight] = useState(56);
+    const [activeRequestId, setActiveRequestId] = useState<string | null>(null);
 
     const contentWidth = useMemo(() => Math.min(width, 980), [width]);
 
+    // Start polling whenever there's an activeRequestId and we're loading
+    const liveStatus = useAdvisorStatusPoller(activeRequestId, loading);
+
     useEffect(() => {
-        if (liveRef.current) {
-            liveRef.current.scrollToEnd({ animated: true });
-        }
-    }, [threads, loading]);
+        scrollRef.current?.scrollToEnd({ animated: true });
+    }, [threads, loading, liveStatus]);
 
     const send = useCallback(async () => {
-        if (!q.trim()) return;
-        if (inFlightRef.current) return;
+        if (!q.trim() || inFlightRef.current) return;
 
         inFlightRef.current = true;
         const user = q.trim();
+        // Generate requestId client-side so polling starts before the POST resolves
+        const requestId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
         setError(null);
+        setActiveRequestId(requestId);
         setThreads((prev) => [...prev, { question: user, response: null }]);
         setQ("");
         setLoading(true);
@@ -66,7 +253,7 @@ export default function AdvisorScreen() {
             const res = await fetch(apiUrl("/api/ai/advisor"), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ question: user, history }),
+                body: JSON.stringify({ question: user, history, requestId }),
             });
 
             const contentType = res.headers.get("content-type") || "";
@@ -75,10 +262,9 @@ export default function AdvisorScreen() {
             if (contentType.includes("application/json")) {
                 const data = await res.json();
                 reply = {
-                    narrative: typeof data?.narrative === "string"
-                        ? data.narrative
-                        : typeof data?.text === "string"
-                            ? data.text
+                    narrative:
+                        typeof data?.narrative === "string"
+                            ? data.narrative
                             : typeof data?.error === "string"
                                 ? data.error
                                 : JSON.stringify(data),
@@ -86,48 +272,59 @@ export default function AdvisorScreen() {
                 };
             } else {
                 const raw = await res.text();
-                reply = fallbackAdvisorResponse(raw);
+                reply = { narrative: raw.trim() || "No response", artifacts: [] };
             }
 
-            setThreads((prev) => {
-                if (!prev.length) return prev;
-                const next = [...prev];
-                next[next.length - 1] = { ...next[next.length - 1], response: reply, runAt: new Date().toISOString() };
-                return next;
-            });
-
-            if (reply.narrative.trim()) {
-                try {
-                    await fetch(apiUrl("/api/ai/memory"), {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ key: `chat:${Date.now()}`, value: reply.narrative.trim(), tags: ["chat", "advisor"] }),
-                    });
-                } catch {
-                    // ignore memory write failures
-                }
-            }
-        } catch (e: unknown) {
             setThreads((prev) => {
                 if (!prev.length) return prev;
                 const next = [...prev];
                 next[next.length - 1] = {
                     ...next[next.length - 1],
-                    response: { narrative: `Error: ${e instanceof Error ? e.message : String(e)}`, artifacts: [] },
+                    response: reply,
+                    runAt: new Date().toISOString(),
+                };
+                return next;
+            });
+
+            // Fire-and-forget memory write
+            if (reply.narrative.trim()) {
+                fetch(apiUrl("/api/ai/memory"), {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        key: `chat:${Date.now()}`,
+                        value: reply.narrative.trim(),
+                        tags: ["chat", "advisor"],
+                    }),
+                }).catch(() => { });
+            }
+        } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : String(e);
+            setError(msg);
+            setThreads((prev) => {
+                if (!prev.length) return prev;
+                const next = [...prev];
+                next[next.length - 1] = {
+                    ...next[next.length - 1],
+                    response: { narrative: `Error: ${msg}`, artifacts: [] },
                 };
                 return next;
             });
         } finally {
             setLoading(false);
+            setActiveRequestId(null);
             inFlightRef.current = false;
         }
     }, [q, threads]);
 
-    const quickPrompts = useMemo(() => [
-        "Can I afford a purchase right now?",
-        "What should my priority be this month?",
-        "How far am I from my target date?",
-    ], []);
+    const quickPrompts = useMemo(
+        () => [
+            "Can I afford a purchase right now?",
+            "What should my priority be this month?",
+            "How far am I from my target date?",
+        ],
+        []
+    );
 
     return (
         <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
@@ -136,30 +333,51 @@ export default function AdvisorScreen() {
                 style={styles.screen}
                 behavior={Platform.OS === "ios" ? "padding" : "height"}
             >
+                {/* Top bar */}
                 <View style={styles.topBar}>
-                    <Pressable style={({ pressed }) => [styles.topBarButton, pressed ? styles.pressed : null]} onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Close advisor">
+                    <Pressable
+                        style={({ pressed }) => [styles.topBarButton, pressed ? styles.pressed : null]}
+                        onPress={() => router.back()}
+                        accessibilityRole="button"
+                        accessibilityLabel="Close advisor"
+                    >
                         <MaterialIcons name="support-agent" size={22} color="#e5e2e1" />
                         <Text style={styles.topBarTitle}>AI ADVISOR</Text>
                     </Pressable>
-                    <Pressable style={({ pressed }) => [styles.closeButton, pressed ? styles.pressed : null]} onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Close advisor">
+                    <Pressable
+                        style={({ pressed }) => [styles.closeButton, pressed ? styles.pressed : null]}
+                        onPress={() => router.back()}
+                        accessibilityRole="button"
+                        accessibilityLabel="Close advisor"
+                    >
                         <MaterialIcons name="close" size={24} color="#e5e2e1" />
                     </Pressable>
                 </View>
 
                 <ScrollView
-                    ref={liveRef}
+                    ref={scrollRef}
                     style={styles.scroll}
                     contentContainerStyle={[styles.scrollContent, { width: contentWidth }]}
                     showsVerticalScrollIndicator={false}
                 >
+                    {/* Empty state */}
                     {!threads.length ? (
                         <View style={styles.emptyWrap}>
                             <View style={styles.emptyCard}>
                                 <Text style={styles.emptyTitle}>Analysis Ready</Text>
-                                <Text style={styles.emptyBody}>Ask about a purchase, a goal deadline, cash runway, or what should move first.</Text>
+                                <Text style={styles.emptyBody}>
+                                    Ask about a purchase, a goal deadline, cash runway, or what should move first.
+                                </Text>
                                 <View style={styles.quickPromptWrap}>
                                     {quickPrompts.map((prompt) => (
-                                        <Pressable key={prompt} style={({ pressed }) => [styles.quickPrompt, pressed ? styles.pressed : null]} onPress={() => setQ(prompt)}>
+                                        <Pressable
+                                            key={prompt}
+                                            style={({ pressed }) => [
+                                                styles.quickPrompt,
+                                                pressed ? styles.pressed : null,
+                                            ]}
+                                            onPress={() => setQ(prompt)}
+                                        >
                                             <Text style={styles.quickPromptText}>{prompt}</Text>
                                         </Pressable>
                                     ))}
@@ -168,6 +386,7 @@ export default function AdvisorScreen() {
                         </View>
                     ) : null}
 
+                    {/* Chat turns */}
                     {threads.map((entry, index) => (
                         <View key={`${entry.question}-${index}`} style={styles.turn}>
                             <View style={styles.userRow}>
@@ -181,23 +400,32 @@ export default function AdvisorScreen() {
                                     <View style={styles.aiCard}>
                                         <Text style={styles.aiTitle}>Analysis Complete</Text>
                                         <Markdown style={markdownStyles}>{entry.response.narrative}</Markdown>
-
-                                        {entry.response.artifacts.length ? <ArtifactRenderer artifacts={entry.response.artifacts} /> : null}
-
-                                        {entry.runAt ? <Text style={styles.lastRun}>Last run: {formatTimestamp(entry.runAt)}</Text> : null}
+                                        {entry.response.artifacts.length ? (
+                                            <ArtifactRenderer artifacts={entry.response.artifacts} />
+                                        ) : null}
+                                        {entry.runAt ? (
+                                            <Text style={styles.lastRun}>
+                                                Last run: {formatTimestamp(entry.runAt)}
+                                            </Text>
+                                        ) : null}
                                     </View>
                                 </View>
                             ) : null}
                         </View>
                     ))}
 
-                    {loading ? (
+                    {/* Live status panel (shown while loading, data from Redis poll) */}
+                    {loading && liveStatus ? (
+                        <LiveStatusPanel status={liveStatus} />
+                    ) : loading ? (
                         <View style={styles.loadingRow}>
-                            <Skeleton width={180} height={14} radius={7} />
+                            <PulsingDot color="#60a5fa" />
+                            <Text style={styles.loadingText}>Advisor is working…</Text>
                         </View>
                     ) : null}
                 </ScrollView>
 
+                {/* Input dock */}
                 <View style={[styles.inputDock, { paddingBottom: insets.bottom - 30 }]}>
                     <View style={styles.inputShell}>
                         <TextInput
@@ -209,14 +437,31 @@ export default function AdvisorScreen() {
                             blurOnSubmit={false}
                             textAlignVertical="top"
                             onContentSizeChange={(event) => {
-                                const nextHeight = Math.min(Math.max(56, Math.ceil(event.nativeEvent.contentSize.height)), 200);
+                                const nextHeight = Math.min(
+                                    Math.max(56, Math.ceil(event.nativeEvent.contentSize.height)),
+                                    200
+                                );
                                 setInputHeight(nextHeight);
                             }}
                             onSubmitEditing={() => void send()}
                             style={[styles.input, { height: inputHeight }]}
                         />
-                        <Pressable style={({ pressed }) => [styles.sendButton, pressed ? styles.sendPressed : null, loading ? styles.sendDisabled : null]} onPress={() => void send()} disabled={loading} accessibilityRole="button" accessibilityLabel="Send message">
-                            {loading ? <Skeleton width={22} height={22} radius={11} /> : <MaterialIcons name="arrow-upward" size={22} color="#131313" />}
+                        <Pressable
+                            style={({ pressed }) => [
+                                styles.sendButton,
+                                pressed ? styles.sendPressed : null,
+                                loading ? styles.sendDisabled : null,
+                            ]}
+                            onPress={() => void send()}
+                            disabled={loading}
+                            accessibilityRole="button"
+                            accessibilityLabel="Send message"
+                        >
+                            {loading ? (
+                                <PulsingDot color="#131313" />
+                            ) : (
+                                <MaterialIcons name="arrow-upward" size={22} color="#131313" />
+                            )}
                         </Pressable>
                     </View>
                     {error ? <Text style={styles.errorText}>{error}</Text> : null}
@@ -226,43 +471,88 @@ export default function AdvisorScreen() {
     );
 }
 
-const markdownStyles = {
-    body: {
+// ─── Live Status Styles ───────────────────────────────────────────────────────
+
+const liveStyles = StyleSheet.create({
+    panel: {
+        marginBottom: 16,
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: "#2d2d2d",
+        backgroundColor: "#1a1a1a",
+        padding: 14,
+        gap: 10,
+    },
+    headerRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 8,
+    },
+    phaseText: {
+        flex: 1,
         color: "#c4c7c8",
-        fontSize: 14,
-        lineHeight: 20,
+        fontSize: 13,
+        lineHeight: 18,
         fontFamily: "Inter",
     },
-    strong: {
-        color: "#e5e2e1",
+    doneText: {
+        color: "#34d399",
     },
-    paragraph: {
-        marginTop: 0,
-        marginBottom: 10,
+    iterBadge: {
+        borderRadius: 6,
+        backgroundColor: "#252525",
+        paddingHorizontal: 7,
+        paddingVertical: 3,
     },
-    bullet_list: {
-        marginTop: 6,
-        marginBottom: 8,
+    iterText: {
+        color: "#8e9192",
+        fontSize: 10,
+        fontFamily: "JetBrains Mono",
+        letterSpacing: 0.5,
     },
-    ordered_list: {
-        marginTop: 6,
-        marginBottom: 8,
+    toolList: {
+        gap: 7,
+        marginTop: 2,
+        paddingLeft: 4,
+        borderLeftWidth: 1,
+        borderLeftColor: "#2d2d2d",
+        marginLeft: 3,
+        paddingTop: 2,
     },
-    list_item: {
-        color: "#c4c7c8",
-        marginBottom: 4,
+    toolRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 7,
     },
+    toolName: {
+        flex: 1,
+        color: "#8e9192",
+        fontSize: 12,
+        lineHeight: 16,
+        fontFamily: "Inter",
+    },
+    rowCount: {
+        color: "#34d399",
+        fontSize: 11,
+        fontFamily: "JetBrains Mono",
+        letterSpacing: 0.3,
+    },
+});
+
+// ─── Markdown & Screen Styles ─────────────────────────────────────────────────
+
+const markdownStyles = {
+    body: { color: "#c4c7c8", fontSize: 14, lineHeight: 20, fontFamily: "Inter" },
+    strong: { color: "#e5e2e1" },
+    paragraph: { marginTop: 0, marginBottom: 10 },
+    bullet_list: { marginTop: 6, marginBottom: 8 },
+    ordered_list: { marginTop: 6, marginBottom: 8 },
+    list_item: { color: "#c4c7c8", marginBottom: 4 },
 };
 
 const styles = StyleSheet.create({
-    safeArea: {
-        flex: 1,
-        backgroundColor: "#131313",
-    },
-    screen: {
-        flex: 1,
-        backgroundColor: "#131313",
-    },
+    safeArea: { flex: 1, backgroundColor: "#131313" },
+    screen: { flex: 1, backgroundColor: "#131313" },
     topBar: {
         height: 64,
         paddingHorizontal: 24,
@@ -272,11 +562,7 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "space-between",
     },
-    topBarButton: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 10,
-    },
+    topBarButton: { flexDirection: "row", alignItems: "center", gap: 10 },
     topBarTitle: {
         color: "#e5e2e1",
         fontSize: 12,
@@ -285,16 +571,8 @@ const styles = StyleSheet.create({
         fontWeight: "700",
         letterSpacing: 2,
     },
-    closeButton: {
-        width: 34,
-        height: 34,
-        borderRadius: 17,
-        alignItems: "center",
-        justifyContent: "center",
-    },
-    scroll: {
-        flex: 1,
-    },
+    closeButton: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
+    scroll: { flex: 1 },
     scrollContent: {
         alignSelf: "center",
         width: "100%",
@@ -302,9 +580,7 @@ const styles = StyleSheet.create({
         paddingTop: 28,
         paddingBottom: 220,
     },
-    emptyWrap: {
-        marginBottom: 24,
-    },
+    emptyWrap: { marginBottom: 24 },
     emptyCard: {
         borderRadius: 18,
         borderWidth: 1,
@@ -320,17 +596,8 @@ const styles = StyleSheet.create({
         fontWeight: "700",
         letterSpacing: -0.2,
     },
-    emptyBody: {
-        marginTop: 8,
-        color: "#c4c7c8",
-        fontSize: 14,
-        lineHeight: 20,
-        fontFamily: "Inter",
-    },
-    quickPromptWrap: {
-        marginTop: 16,
-        gap: 10,
-    },
+    emptyBody: { marginTop: 8, color: "#c4c7c8", fontSize: 14, lineHeight: 20, fontFamily: "Inter" },
+    quickPromptWrap: { marginTop: 16, gap: 10 },
     quickPrompt: {
         borderRadius: 14,
         borderWidth: 1,
@@ -339,19 +606,9 @@ const styles = StyleSheet.create({
         paddingVertical: 12,
         paddingHorizontal: 14,
     },
-    quickPromptText: {
-        color: "#e5e2e1",
-        fontSize: 13,
-        lineHeight: 18,
-        fontFamily: "Inter",
-    },
-    turn: {
-        marginBottom: 24,
-        gap: 16,
-    },
-    userRow: {
-        alignItems: "flex-end",
-    },
+    quickPromptText: { color: "#e5e2e1", fontSize: 13, lineHeight: 18, fontFamily: "Inter" },
+    turn: { marginBottom: 24, gap: 16 },
+    userRow: { alignItems: "flex-end" },
     userBubble: {
         maxWidth: "86%",
         borderRadius: 16,
@@ -367,20 +624,9 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 4 },
         elevation: 3,
     },
-    userText: {
-        color: "#e5e2e1",
-        fontSize: 14,
-        lineHeight: 20,
-        fontFamily: "Inter",
-    },
-    aiWrap: {
-        alignItems: "center",
-    },
-    aiCard: {
-        width: "100%",
-        backgroundColor: "#131313",
-        paddingVertical: 16,
-    },
+    userText: { color: "#e5e2e1", fontSize: 14, lineHeight: 20, fontFamily: "Inter" },
+    aiWrap: { alignItems: "center" },
+    aiCard: { width: "100%", backgroundColor: "#131313", paddingVertical: 16 },
     aiTitle: {
         color: "#e5e2e1",
         fontSize: 18,
@@ -399,18 +645,8 @@ const styles = StyleSheet.create({
         fontFamily: "JetBrains Mono",
         fontWeight: "700",
     },
-    loadingRow: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 10,
-        paddingVertical: 8,
-    },
-    loadingText: {
-        color: "#c4c7c8",
-        fontSize: 13,
-        lineHeight: 18,
-        fontFamily: "Inter",
-    },
+    loadingRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 8 },
+    loadingText: { color: "#c4c7c8", fontSize: 13, lineHeight: 18, fontFamily: "Inter" },
     inputDock: {
         position: "absolute",
         left: 0,
@@ -458,20 +694,8 @@ const styles = StyleSheet.create({
         backgroundColor: "#ffffff",
         marginBottom: 4,
     },
-    sendPressed: {
-        opacity: 0.9,
-    },
-    sendDisabled: {
-        opacity: 0.72,
-    },
-    errorText: {
-        marginTop: 10,
-        color: "#ffb4ab",
-        fontSize: 12,
-        lineHeight: 18,
-        fontFamily: "Inter",
-    },
-    pressed: {
-        opacity: 0.85,
-    },
+    sendPressed: { opacity: 0.9 },
+    sendDisabled: { opacity: 0.72 },
+    errorText: { marginTop: 10, color: "#ffb4ab", fontSize: 12, lineHeight: 18, fontFamily: "Inter" },
+    pressed: { opacity: 0.85 },
 });

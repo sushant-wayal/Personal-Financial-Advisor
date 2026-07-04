@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { buildAdvisorChatMessages, buildFinancialContext } from "../../../../src/services/aiContext";
-import { advisorResponseJsonSchema, parseAdvisorResponse } from "../../../../src/services/advisorArtifacts";
-import { generateText } from "../../../../src/services/gemini";
+import { buildFinancialContext } from "../../../../src/services/aiContext";
+import { runAdvisorAgenticLoop } from "../../../../src/services/advisorAgenticLoop";
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
@@ -12,92 +11,60 @@ type AdvisorHistoryInput = {
 
 export async function POST(req: Request) {
     try {
-        const requestId = crypto.randomUUID();
-
         if (!GEMINI_API_KEY) {
             return NextResponse.json({ error: "AI provider not configured" }, { status: 503 });
         }
 
         const body = await req.json();
         const question = body?.question;
+        const requestId = typeof body?.requestId === "string" ? body.requestId : crypto.randomUUID();
         const history = Array.isArray(body?.history) ? body.history : [];
 
-        if (!question) {
+        if (!question || typeof question !== "string") {
             return NextResponse.json({ error: "missing question" }, { status: 400 });
         }
 
         if (process.env.NODE_ENV !== "production") {
-            console.log(`[gemini-advisor] start requestId=${requestId}`);
+            console.log(`[advisor] start requestId=${requestId}`);
         }
 
-        const context = await buildFinancialContext(200);
-        const normalizedHistory = history
-            .map((turn: AdvisorHistoryInput) => ({
+        const normalizedHistory = (history as AdvisorHistoryInput[])
+            .map((turn) => ({
                 question: typeof turn?.question === "string" ? turn.question : "",
-                response: typeof turn?.response === "string"
-                    ? turn.response
-                    : typeof turn?.response === "object" && turn.response !== null && "narrative" in turn.response && typeof (turn.response as { narrative?: unknown }).narrative === "string"
+                response:
+                    typeof turn?.response === "string"
+                        ? turn.response
+                        : typeof turn?.response === "object" &&
+                          turn.response !== null &&
+                          "narrative" in turn.response &&
+                          typeof (turn.response as { narrative?: unknown }).narrative === "string"
                         ? (turn.response as { narrative: string }).narrative
                         : "",
             }))
-            .filter((turn: { question: string; response: string }) => turn.question || turn.response);
+            .filter((turn) => turn.question || turn.response);
 
-        const advisorMessages = buildAdvisorChatMessages(question, context, normalizedHistory, { structured: true });
+        // Build initial financial context snapshot
+        const context = await buildFinancialContext(200);
 
-        let rawResponse: string | undefined;
+        // Run the agentic loop — writes status to Redis, returns final result
+        const result = await runAdvisorAgenticLoop({
+            requestId,
+            question,
+            context,
+            history: normalizedHistory,
+        });
 
-        try {
-            const response = await generateText(advisorMessages, {
-                temperature: 0.05,
-                complexity: "complex",
-            });
-
-            rawResponse = response.text;
-
-            console.log(
-                `[gemini-advisor] raw response for requestId=${requestId}:`,
-                rawResponse
-            );
-
-            const parsed = parseAdvisorResponse(rawResponse);
-
-            return NextResponse.json(parsed, {
-                headers: {
-                    "X-Request-Id": requestId,
-                },
-            });
+        if (process.env.NODE_ENV !== "production") {
+            console.log(`[advisor] done requestId=${requestId}`);
         }
-        catch (structuredError: unknown) {
-            console.error(
-                `[gemini-advisor] structured response failed requestId=${requestId}`,
-                {
-                    message:
-                        structuredError instanceof Error
-                            ? structuredError.message
-                            : String(structuredError),
 
-                    stack:
-                        structuredError instanceof Error
-                            ? structuredError.stack
-                            : undefined,
-
-                    rawResponsePreview:
-                        rawResponse?.slice(0, 5000),
-                }
-            );
-
-            return NextResponse.json(
-                {
-                    error:
-                        structuredError instanceof Error
-                            ? structuredError.message
-                            : String(structuredError),
-                },
-                { status: 502 }
-            );
-        }
-    }
-    catch (error: unknown) {
-        return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
+        return NextResponse.json(result, {
+            headers: { "X-Request-Id": requestId },
+        });
+    } catch (error: unknown) {
+        return NextResponse.json(
+            { error: error instanceof Error ? error.message : String(error) },
+            { status: 500 }
+        );
     }
 }

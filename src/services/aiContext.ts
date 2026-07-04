@@ -286,6 +286,19 @@ export async function buildFinancialContext(limit = 24) {
             "Call out tradeoffs clearly and quantify impact whenever possible.",
             "Do not invent balances, returns, or unsupported assumptions.",
         ],
+        currentDateTime: (() => {
+            const now = new Date();
+            return {
+                iso: now.toISOString(),
+                date: now.toLocaleDateString("en-IN", { year: "numeric", month: "long", day: "numeric" }),
+                time: now.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true }),
+                dayOfWeek: now.toLocaleDateString("en-IN", { weekday: "long" }),
+                month: now.toLocaleDateString("en-IN", { month: "long" }),
+                year: now.getFullYear(),
+                monthIndex: now.getMonth() + 1,   // 1-12
+                timezoneOffsetMinutes: -now.getTimezoneOffset(),
+            };
+        })(),
     };
 }
 
@@ -299,7 +312,7 @@ export function buildAdvisorSystemPrompt(options?: { structured?: boolean }) {
 
         "Answer the user's actual question first before discussing details.",
 
-        "Use the provided financial context as the source of truth.",
+        "Use the provided financial context as the source of truth. You also have access to database query tools — use them when you need data that is more specific, more recent, or more granular than what the initial context provides.",
 
         "Base recommendations on balance, emergency fund, savings rate, burn rate, runway, goals, spending patterns, subscriptions, and other available financial information.",
 
@@ -329,7 +342,21 @@ export function buildAdvisorSystemPrompt(options?: { structured?: boolean }) {
 
         "Do not create sections, headings, bullet lists, or report formatting unless the user explicitly requests a detailed breakdown.",
 
-        "The user should feel like they are speaking with a thoughtful personal financial advisor, not reading a generated report."
+        "The user should feel like they are speaking with a thoughtful personal financial advisor, not reading a generated report.",
+
+        // Tool use guidance
+        "DATABASE TOOLS: You have access to the following read-only tools to query the user's financial database. " +
+        "Call them when the initial context does not have enough data to answer the question precisely. " +
+        "Always prefer answering from the initial context if it is sufficient — only call tools when they would meaningfully improve your answer.\n" +
+        "  - queryTransactions: Fetch transactions filtered by date, merchant, category, type, amount range. Use for specific spending lookups.\n" +
+        "  - aggregateTransactions: Compute sum/count/avg grouped by category, merchant, month, type, or payment method. Use for trend and breakdown questions.\n" +
+        "  - queryGoals: Read financial goals with optional status/priority filters.\n" +
+        "  - querySubscriptions: Read active or all subscriptions.\n" +
+        "  - queryCategories: List all known categories.\n" +
+        "  - getFinancialProfile: Read the user's profile (balance, income, expenses).\n" +
+        "  - queryMemories: Search stored AI memory by tag or key.\n" +
+        "  - queryInsights: Fetch stored financial insights.\n" +
+        "Call at most 2-3 tools per answer. Do not call tools for data already present in the initial context.",
     ];
 
     if (options?.structured) {
