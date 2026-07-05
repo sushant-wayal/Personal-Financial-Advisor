@@ -16,9 +16,14 @@ import { MaterialIcons } from "@expo/vector-icons";
 import Markdown from "react-native-markdown-display";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import ArtifactRenderer from "../components/advisor/ArtifactRenderer";
 import { API_BASE_URL } from "../lib/apiBaseUrl";
 import type { AdvisorResponse } from "../types/advisor";
+
+// ─── Suggestion cache constants ───────────────────────────────────────────────
+const SUGGESTIONS_CACHE_KEY = "advisor_suggestions_v1";
+const SUGGESTIONS_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -317,26 +322,53 @@ export default function AdvisorScreen() {
         }
     }, [q, threads]);
 
-    // ── Dynamic AI suggestions ────────────────────────────────────────────────
+    // ── Dynamic AI suggestions (cached for 12 h) ──────────────────────────────
     const [suggestions, setSuggestions] = useState<string[]>([]);
     const [suggestionsLoading, setSuggestionsLoading] = useState(true);
 
     useEffect(() => {
         let cancelled = false;
-        setSuggestionsLoading(true);
-        fetch(apiUrl("/api/ai/advisor/suggestions"))
-            .then((res) => res.json())
-            .then((data) => {
+
+        async function loadSuggestions() {
+            // 1. Try reading from cache first
+            try {
+                const cached = await AsyncStorage.getItem(SUGGESTIONS_CACHE_KEY);
+                if (cached) {
+                    const parsed = JSON.parse(cached) as { ts: number; suggestions: string[] };
+                    const ageMs = Date.now() - parsed.ts;
+                    if (ageMs < SUGGESTIONS_TTL_MS && Array.isArray(parsed.suggestions) && parsed.suggestions.length > 0) {
+                        // Cache is fresh — use it, no API call needed
+                        if (!cancelled) {
+                            setSuggestions(parsed.suggestions);
+                            setSuggestionsLoading(false);
+                        }
+                        return;
+                    }
+                }
+            } catch {
+                // Cache read failed — proceed to fetch
+            }
+
+            // 2. Cache miss or stale — fetch from backend
+            try {
+                const res = await fetch(apiUrl("/api/ai/advisor/suggestions"));
+                const data = await res.json();
                 if (!cancelled && Array.isArray(data?.suggestions) && data.suggestions.length > 0) {
                     setSuggestions(data.suggestions);
+                    // Persist to cache with current timestamp
+                    AsyncStorage.setItem(
+                        SUGGESTIONS_CACHE_KEY,
+                        JSON.stringify({ ts: Date.now(), suggestions: data.suggestions })
+                    ).catch(() => { /* non-fatal */ });
                 }
-            })
-            .catch(() => {
-                // silently fall through — skeleton will hide and no prompts shown
-            })
-            .finally(() => {
+            } catch {
+                // Fetch failed — leave suggestions empty, skeleton hides
+            } finally {
                 if (!cancelled) setSuggestionsLoading(false);
-            });
+            }
+        }
+
+        void loadSuggestions();
         return () => { cancelled = true; };
     }, []);
 
