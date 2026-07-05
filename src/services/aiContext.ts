@@ -520,6 +520,30 @@ goalTimeline
 comparisonTable
 ----------------------------------------------------------------
 
+IMPORTANT — understand this structure before using it:
+- "columns" lists ONLY the DATA column headers. Do NOT include a header for the row name here.
+- Each row has a "label" (the row identifier, rendered in a fixed first "Item" column) and "values" (the data cells).
+- "values" MUST have EXACTLY the same number of entries as "columns". No more, no less.
+- If a value is unknown or not applicable, use the string "—" (an em-dash).
+
+Correct example (Swiggy vs Zomato over 10 days):
+{
+  "type": "comparisonTable",
+  "title": "Swiggy vs Zomato — Last 10 Days",
+  "columns": ["Total Spent", "Transactions", "Avg Order"],
+  "rows": [
+    { "label": "Swiggy", "values": ["₹1,234", "8", "₹154"] },
+    { "label": "Zomato", "values": ["₹876",  "5", "₹175"] }
+  ]
+}
+
+Wrong example (DO NOT do this — columns includes the row-name header):
+{
+  "columns": ["Merchant", "Total Spent"],
+  "rows": [{ "label": "Swiggy", "values": ["₹1,234"] }]
+}
+
+Schema:
 {
   "type": "comparisonTable",
   "title": string,

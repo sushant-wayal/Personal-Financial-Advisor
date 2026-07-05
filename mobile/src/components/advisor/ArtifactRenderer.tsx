@@ -83,11 +83,13 @@ function ArtifactShell({ iconNode, title, subtitle, children }: { iconNode?: Rea
     );
 }
 
-function MetricBlock({ label, value, tone, note }: { label: string; value: string; tone?: string; note?: string }) {
+function MetricBlock({ label, value, tone, note }: { label: string; value: string | number; tone?: string; note?: string }) {
+    // Gemini sometimes returns numbers despite the schema saying string — stringify defensively
+    const displayValue = value !== undefined && value !== null ? String(value) : "—";
     return (
         <View style={[styles.metricBlock, toneStyles(tone)]}>
-            <Text style={styles.metricLabel}>{label}</Text>
-            <Text style={styles.metricValue}>{value}</Text>
+            <Text style={styles.metricLabel}>{label || "—"}</Text>
+            <Text style={styles.metricValue}>{displayValue}</Text>
             {note ? <Text style={styles.metricNote}>{note}</Text> : null}
         </View>
     );
@@ -125,11 +127,12 @@ export function DualMetricCard({ left, right }: AdvisorDualMetric) {
 }
 
 export function MetricsGrid({ title, metrics }: AdvisorMetricsGrid) {
+    const safeMetrics = Array.isArray(metrics) ? metrics : [];
     return (
         <ArtifactShell iconNode={icon("list", "#c4c7c8")} title={title || "Metrics"}>
             <View style={styles.metricGrid}>
-                {metrics.map((metric) => (
-                    <MetricBlock key={`${metric.label}-${metric.value}`} {...metric} />
+                {safeMetrics.map((metric, i) => (
+                    <MetricBlock key={`${metric.label}-${i}`} {...metric} />
                 ))}
             </View>
         </ArtifactShell>
@@ -137,18 +140,19 @@ export function MetricsGrid({ title, metrics }: AdvisorMetricsGrid) {
 }
 
 export function RiskList({ title, items }: AdvisorRiskList) {
+    const safeItems = Array.isArray(items) ? items : [];
     return (
         <ArtifactShell iconNode={icon("security", "#f6c25f")} title={title}>
             <View style={styles.stackGap}>
-                {items.map((item) => (
-                    <View key={item.title} style={[styles.itemCard, toneStyles(item.severity || "warning")]}>
+                {safeItems.map((item, i) => (
+                    <View key={`${item.title}-${i}`} style={[styles.itemCard, toneStyles(item.severity || "warning")]}>
                         <View style={styles.rowGapSmall}>
                             <View style={styles.badgeDot}>
                                 <Text style={styles.badgeDotText}>!</Text>
                             </View>
                             <View style={styles.flex1}>
-                                <Text style={styles.itemTitle}>{item.title}</Text>
-                                <Text style={styles.itemText}>{item.description}</Text>
+                                <Text style={styles.itemTitle}>{item.title || "—"}</Text>
+                                <Text style={styles.itemText}>{item.description || "—"}</Text>
                             </View>
                         </View>
                     </View>
@@ -223,17 +227,18 @@ export function GoalCard({ title, status, progressPct, progressLabel, currentLab
 }
 
 export function GoalTimeline({ title, items }: AdvisorGoalTimeline) {
+    const safeItems = Array.isArray(items) ? items : [];
     return (
         <ArtifactShell iconNode={icon("schedule", "#c4c7c8")} title={title}>
             <View style={styles.stackGap}>
-                {items.map((item, index) => (
+                {safeItems.map((item, index) => (
                     <View key={`${item.label}-${index}`} style={styles.timelineRow}>
                         <View style={styles.timelineRailWrap}>
                             <View style={[styles.timelineDot, { backgroundColor: item.status === "critical" ? "#ff5d67" : item.status === "warning" ? "#f6c25f" : item.status === "success" ? "#7dffa2" : "#5ec8ff" }]} />
-                            {index < items.length - 1 ? <View style={styles.timelineRail} /> : null}
+                            {index < safeItems.length - 1 ? <View style={styles.timelineRail} /> : null}
                         </View>
                         <View style={styles.flex1}>
-                            <Text style={styles.itemTitle}>{item.label}</Text>
+                            <Text style={styles.itemTitle}>{item.label || "—"}</Text>
                             {item.date ? <Text style={styles.timelineDate}>{item.date}</Text> : null}
                             {item.note ? <Text style={styles.itemText}>{item.note}</Text> : null}
                         </View>
@@ -245,6 +250,10 @@ export function GoalTimeline({ title, items }: AdvisorGoalTimeline) {
 }
 
 export function ComparisonTable({ title, columns, rows }: AdvisorComparisonTable) {
+    // Normalise: guard against Gemini returning null/undefined for arrays
+    const safeCols = Array.isArray(columns) ? columns : [];
+    const safeRows = Array.isArray(rows) ? rows : [];
+
     return (
         <ArtifactShell iconNode={icon("info-outline", "#5ec8ff")} title={title}>
             <ScrollView
@@ -261,19 +270,29 @@ export function ComparisonTable({ title, columns, rows }: AdvisorComparisonTable
             >
                 <View style={styles.table}>
                     <View style={styles.tableHeaderRow}>
+                        {/* "Item" is a fixed label column for row.label — data columns come from `columns` */}
                         <Text style={[styles.tableHeaderCell, styles.tableLabelCell]}>Item</Text>
-                        {columns.map((column) => (
-                            <Text key={column} style={styles.tableHeaderCell}>{column}</Text>
+                        {safeCols.map((column, i) => (
+                            <Text key={`col-${i}`} style={styles.tableHeaderCell}>{column}</Text>
                         ))}
                     </View>
-                    {rows.map((row) => (
-                        <View key={row.label} style={styles.tableRow}>
-                            <Text style={[styles.tableCell, styles.tableLabelCell]}>{row.label}</Text>
-                            {row.values.map((value, index) => (
-                                <Text key={`${row.label}-${index}`} style={styles.tableCell}>{value}</Text>
-                            ))}
-                        </View>
-                    ))}
+                    {safeRows.map((row, rowIdx) => {
+                        // Pad values with "—" if Gemini returned fewer than columns.length
+                        const safeValues = Array.isArray(row.values) ? row.values : [];
+                        const paddedValues = Array.from({ length: safeCols.length }, (_, i) =>
+                            safeValues[i] !== undefined && safeValues[i] !== null && safeValues[i] !== ""
+                                ? String(safeValues[i])
+                                : "—"
+                        );
+                        return (
+                            <View key={`row-${rowIdx}`} style={styles.tableRow}>
+                                <Text style={[styles.tableCell, styles.tableLabelCell]}>{row.label || "—"}</Text>
+                                {paddedValues.map((value, colIdx) => (
+                                    <Text key={`${rowIdx}-${colIdx}`} style={styles.tableCell}>{value}</Text>
+                                ))}
+                            </View>
+                        );
+                    })}
                 </View>
             </ScrollView>
         </ArtifactShell>
