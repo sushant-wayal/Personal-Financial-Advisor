@@ -10,6 +10,8 @@ import InterFont from "../../assets/fonts/Inter[opsz,wght].ttf";
 import JetBrainsMono from "../../assets/fonts/JetBrainsMono[wght].ttf";
 import FloatingBottomNav from "../components/FloatingBottomNav";
 import AdvisorFab from "../components/AdvisorFab";
+import AdvisorOverlay from "../components/advisor/AdvisorOverlay";
+import { AdvisorProvider } from "../providers/AdvisorProvider";
 import { AppBootstrapSkeleton } from "../components/LoadingSkeleton";
 import { CurrencyProvider, DEFAULT_CURRENCY_CODE, normalizeCurrencyCode } from "../providers/CurrencyProvider";
 import { UserProfileProvider } from "../providers/UserProfileProvider";
@@ -312,15 +314,18 @@ export default function RootLayout() {
       <StatusBar style="light" />
       <CurrencyProvider initialCurrencyCode={currencyCode}>
         <UserProfileProvider initialOwnerName={ownerName}>
-          <View style={{ flex: 1, backgroundColor: "#131313" }}>
-            <View style={{ flex: 1, backgroundColor: "#131313" }} {...APP_SWIPE_HANDLERS}>
-              <Animated.View style={{ flex: 1, backgroundColor: "#131313", transform: [{ translateX: swipeTranslateX }] }}>
-                <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#131313" } }} />
-              </Animated.View>
+          <AdvisorProvider>
+            <View style={{ flex: 1, backgroundColor: "#131313" }}>
+              <View style={{ flex: 1, backgroundColor: "#131313" }} {...APP_SWIPE_HANDLERS}>
+                <Animated.View style={{ flex: 1, backgroundColor: "#131313", transform: [{ translateX: swipeTranslateX }] }}>
+                  <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#131313" } }} />
+                </Animated.View>
+              </View>
+              <FloatingBottomNav />
+              <AdvisorFab />
+              <AdvisorOverlay />
             </View>
-            <FloatingBottomNav />
-            <AdvisorFab />
-          </View>
+          </AdvisorProvider>
         </UserProfileProvider>
       </CurrencyProvider>
     </SafeAreaProvider>

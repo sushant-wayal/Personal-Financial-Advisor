@@ -11,15 +11,16 @@ import {
     TextInput,
     View,
     useWindowDimensions,
+    BackHandler,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import Markdown from "react-native-markdown-display";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import ArtifactRenderer from "../components/advisor/ArtifactRenderer";
-import { API_BASE_URL } from "../lib/apiBaseUrl";
-import type { AdvisorResponse } from "../types/advisor";
+import { useAdvisorContext } from "../../providers/AdvisorProvider";
+import ArtifactRenderer from "./ArtifactRenderer";
+import { API_BASE_URL } from "../../lib/apiBaseUrl";
+import type { AdvisorResponse } from "../../types/advisor";
 
 // ─── Suggestion cache constants ───────────────────────────────────────────────
 const SUGGESTIONS_CACHE_KEY = "advisor_suggestions_v1";
@@ -212,10 +213,10 @@ function useAdvisorStatusPoller(requestId: string | null, active: boolean) {
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
-export default function AdvisorScreen() {
-    const router = useRouter();
+export default function AdvisorOverlay() {
+    const { isAdvisorOpen, closeAdvisor } = useAdvisorContext();
     const insets = useSafeAreaInsets();
-    const { width } = useWindowDimensions();
+    const { width, height: screenHeight } = useWindowDimensions();
     const scrollRef = useRef<ScrollView>(null);
     const inFlightRef = useRef(false);
 
@@ -372,9 +373,77 @@ export default function AdvisorScreen() {
         return () => { cancelled = true; };
     }, []);
 
+    // ── Morphing Animation ────────────────────────────────────────────────────
+    const animValue = useRef(new Animated.Value(0)).current;
+    const [isRendered, setIsRendered] = useState(isAdvisorOpen);
+
+    useEffect(() => {
+        if (isAdvisorOpen) setIsRendered(true);
+        Animated.timing(animValue, {
+            toValue: isAdvisorOpen ? 1 : 0,
+            duration: 350, // Slightly faster for snappier feel
+            useNativeDriver: false, // We are animating layout properties
+        }).start(() => {
+            if (!isAdvisorOpen) setIsRendered(false);
+        });
+    }, [isAdvisorOpen, animValue]);
+
+    // Hardware Back Button
+    useEffect(() => {
+        if (!isAdvisorOpen) return;
+        const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+            closeAdvisor();
+            return true;
+        });
+        return () => sub.remove();
+    }, [isAdvisorOpen, closeAdvisor]);
+
+    // Initial FAB position
+    const fabBottom = Math.max(insets.bottom + 92, 102);
+    const fabRight = 16;
+    const fabSize = 55;
+    const fabRadius = 31;
+
+    const overlayBottom = animValue.interpolate({ inputRange: [0, 1], outputRange: [fabBottom, 0] });
+    const overlayRight = animValue.interpolate({ inputRange: [0, 1], outputRange: [fabRight, 0] });
+    const overlayWidth = animValue.interpolate({ inputRange: [0, 1], outputRange: [fabSize, width] });
+    const overlayHeight = animValue.interpolate({ inputRange: [0, 1], outputRange: [fabSize, screenHeight] });
+    const overlayRadius = animValue.interpolate({ inputRange: [0, 1], outputRange: [fabRadius, 0] });
+    const overlayBorderColor = animValue.interpolate({ inputRange: [0, 1], outputRange: ["rgba(167,139,250,0.22)", "rgba(19,19,19,1)"] });
+    const overlayBorderWidth = animValue.interpolate({ inputRange: [0, 1], outputRange: [1, 0] });
+    
+    const contentOpacity = animValue.interpolate({ inputRange: [0, 0.4, 1], outputRange: [0, 0, 1] });
+    const contentTranslateY = animValue.interpolate({ inputRange: [0, 1], outputRange: [20, 0] });
+    const iconOpacity = animValue.interpolate({ inputRange: [0, 0.3, 1], outputRange: [1, 0, 0] });
+
+    if (!isRendered) {
+        return null;
+    }
+
     return (
-        <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
-            <StatusBar barStyle="light-content" backgroundColor="#131313" />
+        <Animated.View
+            pointerEvents={isAdvisorOpen ? "auto" : "none"}
+            style={[
+                styles.overlayWrapper,
+                {
+                    bottom: overlayBottom,
+                    right: overlayRight,
+                    width: overlayWidth,
+                    height: overlayHeight,
+                    borderRadius: overlayRadius,
+                    borderColor: overlayBorderColor,
+                    borderWidth: overlayBorderWidth,
+                },
+            ]}
+        >
+            {/* The shrinking FAB icon */}
+            <Animated.View style={[StyleSheet.absoluteFill, { alignItems: "center", justifyContent: "center", opacity: iconOpacity }]} pointerEvents="none">
+                <MaterialIcons name="auto-awesome" size={25} color="#a78bfa" />
+            </Animated.View>
+
+            <Animated.View style={{ flex: 1, opacity: contentOpacity, transform: [{ translateY: contentTranslateY }] }} pointerEvents={isAdvisorOpen ? "auto" : "none"}>
+                <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
+                    <StatusBar barStyle="light-content" backgroundColor="#131313" />
             <KeyboardAvoidingView
                 style={styles.screen}
                 behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -383,7 +452,7 @@ export default function AdvisorScreen() {
                 <View style={styles.topBar}>
                     <Pressable
                         style={({ pressed }) => [styles.topBarButton, pressed ? styles.pressed : null]}
-                        onPress={() => router.back()}
+                        onPress={() => closeAdvisor()}
                         accessibilityRole="button"
                         accessibilityLabel="Close advisor"
                     >
@@ -392,7 +461,7 @@ export default function AdvisorScreen() {
                     </Pressable>
                     <Pressable
                         style={({ pressed }) => [styles.closeButton, pressed ? styles.pressed : null]}
-                        onPress={() => router.back()}
+                        onPress={() => closeAdvisor()}
                         accessibilityRole="button"
                         accessibilityLabel="Close advisor"
                     >
@@ -535,7 +604,9 @@ export default function AdvisorScreen() {
                     {error ? <Text style={styles.errorText}>{error}</Text> : null}
                 </View>
             </KeyboardAvoidingView>
-        </SafeAreaView>
+                </SafeAreaView>
+            </Animated.View>
+        </Animated.View>
     );
 }
 
@@ -619,6 +690,13 @@ const markdownStyles = {
 };
 
 const styles = StyleSheet.create({
+    overlayWrapper: {
+        position: "absolute",
+        overflow: "hidden",
+        backgroundColor: "#131313",
+        zIndex: 100, // Above everything
+        elevation: 100,
+    },
     safeArea: { flex: 1, backgroundColor: "#131313" },
     screen: { flex: 1, backgroundColor: "#131313" },
     topBar: {
