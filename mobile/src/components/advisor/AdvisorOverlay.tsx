@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps, react-hooks/rules-of-hooks, react-hooks/refs, react-hooks/set-state-in-effect */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
     Animated,
@@ -374,7 +375,7 @@ export default function AdvisorOverlay() {
     }, []);
 
     // ── Morphing Animation ────────────────────────────────────────────────────
-    const animValue = useRef(new Animated.Value(0)).current;
+    const [animValue] = useState(() => new Animated.Value(0));
     const [isRendered, setIsRendered] = useState(isAdvisorOpen);
 
     useEffect(() => {

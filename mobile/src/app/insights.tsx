@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/refs */
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
     Animated,

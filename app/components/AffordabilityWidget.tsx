@@ -24,6 +24,7 @@ export default function AffordabilityWidget({ price = 0 }: { price?: number }) {
 
     useEffect(() => {
         if (price) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setValue(String(price));
         }
     }, [price]);

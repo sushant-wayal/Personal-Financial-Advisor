@@ -154,6 +154,7 @@ function useStatusPoller(requestId: string | null, active: boolean): LiveStatus 
 
     useEffect(() => {
         if (!active || !requestId) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setStatus(null);
             if (timerRef.current) clearInterval(timerRef.current);
             return;

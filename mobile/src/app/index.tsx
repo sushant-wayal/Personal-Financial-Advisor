@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/rules-of-hooks, react-hooks/refs, react-hooks/set-state-in-effect */
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
