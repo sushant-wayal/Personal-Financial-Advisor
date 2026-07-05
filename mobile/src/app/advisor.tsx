@@ -317,14 +317,28 @@ export default function AdvisorScreen() {
         }
     }, [q, threads]);
 
-    const quickPrompts = useMemo(
-        () => [
-            "Can I afford a purchase right now?",
-            "What should my priority be this month?",
-            "How far am I from my target date?",
-        ],
-        []
-    );
+    // ── Dynamic AI suggestions ────────────────────────────────────────────────
+    const [suggestions, setSuggestions] = useState<string[]>([]);
+    const [suggestionsLoading, setSuggestionsLoading] = useState(true);
+
+    useEffect(() => {
+        let cancelled = false;
+        setSuggestionsLoading(true);
+        fetch(apiUrl("/api/ai/advisor/suggestions"))
+            .then((res) => res.json())
+            .then((data) => {
+                if (!cancelled && Array.isArray(data?.suggestions) && data.suggestions.length > 0) {
+                    setSuggestions(data.suggestions);
+                }
+            })
+            .catch(() => {
+                // silently fall through — skeleton will hide and no prompts shown
+            })
+            .finally(() => {
+                if (!cancelled) setSuggestionsLoading(false);
+            });
+        return () => { cancelled = true; };
+    }, []);
 
     return (
         <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
@@ -364,23 +378,45 @@ export default function AdvisorScreen() {
                     {!threads.length ? (
                         <View style={styles.emptyWrap}>
                             <View style={styles.emptyCard}>
-                                <Text style={styles.emptyTitle}>Analysis Ready</Text>
+                                <View style={styles.emptyTitleRow}>
+                                    <Text style={styles.emptyTitle}>Analysis Ready</Text>
+                                    {suggestionsLoading && (
+                                        <View style={styles.aiLiveBadge}>
+                                            <PulsingDot color="#a78bfa" />
+                                            <Text style={styles.aiLiveText}>AI</Text>
+                                        </View>
+                                    )}
+                                </View>
                                 <Text style={styles.emptyBody}>
-                                    Ask about a purchase, a goal deadline, cash runway, or what should move first.
+                                    {suggestionsLoading
+                                        ? "Personalizing suggestions based on your finances…"
+                                        : suggestions.length > 0
+                                            ? "Here's what might be worth exploring today:"
+                                            : "Ask about a purchase, a goal deadline, cash runway, or what should move first."}
                                 </Text>
                                 <View style={styles.quickPromptWrap}>
-                                    {quickPrompts.map((prompt) => (
-                                        <Pressable
-                                            key={prompt}
-                                            style={({ pressed }) => [
-                                                styles.quickPrompt,
-                                                pressed ? styles.pressed : null,
-                                            ]}
-                                            onPress={() => setQ(prompt)}
-                                        >
-                                            <Text style={styles.quickPromptText}>{prompt}</Text>
-                                        </Pressable>
-                                    ))}
+                                    {suggestionsLoading ? (
+                                        // Skeleton placeholders
+                                        [0, 1, 2].map((i) => (
+                                            <View key={i} style={[styles.quickPrompt, styles.quickPromptSkeleton]}>
+                                                <View style={[styles.skeletonLine, { width: i === 0 ? "80%" : i === 1 ? "65%" : "72%" }]} />
+                                            </View>
+                                        ))
+                                    ) : (
+                                        suggestions.map((prompt) => (
+                                            <Pressable
+                                                key={prompt}
+                                                style={({ pressed }) => [
+                                                    styles.quickPrompt,
+                                                    pressed ? styles.pressed : null,
+                                                ]}
+                                                onPress={() => setQ(prompt)}
+                                            >
+                                                <MaterialIcons name="auto-awesome" size={13} color="#a78bfa" style={{ marginRight: 6 }} />
+                                                <Text style={styles.quickPromptText}>{prompt}</Text>
+                                            </Pressable>
+                                        ))
+                                    )}
                                 </View>
                             </View>
                         </View>
@@ -588,6 +624,11 @@ const styles = StyleSheet.create({
         backgroundColor: "#1c1b1b",
         padding: 18,
     },
+    emptyTitleRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 10,
+    },
     emptyTitle: {
         color: "#e5e2e1",
         fontSize: 24,
@@ -595,6 +636,24 @@ const styles = StyleSheet.create({
         fontFamily: "Hanken Grotesk",
         fontWeight: "700",
         letterSpacing: -0.2,
+    },
+    aiLiveBadge: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 5,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: "#4c3d72",
+        backgroundColor: "#1e1530",
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+    },
+    aiLiveText: {
+        color: "#a78bfa",
+        fontSize: 10,
+        fontFamily: "JetBrains Mono",
+        fontWeight: "700",
+        letterSpacing: 1,
     },
     emptyBody: { marginTop: 8, color: "#c4c7c8", fontSize: 14, lineHeight: 20, fontFamily: "Inter" },
     quickPromptWrap: { marginTop: 16, gap: 10 },
@@ -605,8 +664,18 @@ const styles = StyleSheet.create({
         backgroundColor: "#2a2a2a",
         paddingVertical: 12,
         paddingHorizontal: 14,
+        flexDirection: "row",
+        alignItems: "center",
     },
-    quickPromptText: { color: "#e5e2e1", fontSize: 13, lineHeight: 18, fontFamily: "Inter" },
+    quickPromptSkeleton: {
+        opacity: 0.5,
+    },
+    skeletonLine: {
+        height: 13,
+        borderRadius: 6,
+        backgroundColor: "#3a3a3a",
+    },
+    quickPromptText: { color: "#e5e2e1", fontSize: 13, lineHeight: 18, fontFamily: "Inter", flex: 1 },
     turn: { marginBottom: 24, gap: 16 },
     userRow: { alignItems: "flex-end" },
     userBubble: {
