@@ -8,29 +8,29 @@ datasource db {
 }
 
 model Transaction {
-  id            String   @id @default(cuid())
-  amount        Float
-  merchant      String
-  categoryId    String?  
-  category      Category? @relation(fields: [categoryId], references: [id])
-  paymentMethod String?
-  bankName      String?
-  timestamp     DateTime @default(now())
-  source        String
-  sourceMessageId String? @unique
-  account       String?
-  transactionType String @default("OTHER")
-  type          String
-  notes         String?
-  confidence    Float    @default(1.0)
-  parsedAt      DateTime @default(now())
-  rawText       String   @default("")
-  raw           String
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  isClubbed     Boolean  @default(false)
-  clubbedSourceIds String @default("[]")
-  clubbedSources String @default("[]")
+  id               String    @id @default(cuid())
+  amount           Float
+  merchant         String
+  categoryId       String?
+  category         Category? @relation(fields: [categoryId], references: [id])
+  paymentMethod    String?
+  bankName         String?
+  timestamp        DateTime  @default(now())
+  source           String
+  sourceMessageId  String?   @unique
+  account          String?
+  transactionType  String    @default("OTHER")
+  type             String
+  notes            String?
+  confidence       Float     @default(1.0)
+  parsedAt         DateTime  @default(now())
+  rawText          String    @default("")
+  raw              String
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  isClubbed        Boolean   @default(false)
+  clubbedSourceIds String    @default("[]")
+  clubbedSources   String    @default("[]")
 }
 
 model TransactionIngestionKey {
@@ -46,12 +46,12 @@ model TransactionIngestionKey {
 }
 
 model Category {
-  id          String        @id @default(cuid())
-  name        String        @unique
-  description String?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  transactions Transaction[]
+  id               String                @id @default(cuid())
+  name             String                @unique
+  description      String?
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  transactions     Transaction[]
   merchantMappings MerchantCategoryMap[]
 }
 
@@ -68,72 +68,71 @@ model MerchantCategoryMap {
 }
 
 model Goal {
-  id               String   @id @default(cuid())
-  title            String
-  targetAmount     Float
-  currentAmount    Float    @default(0)
-  monthlyTarget    Float?
-  goalType         String   @default("PURCHASE")
-  status           String   @default("ACTIVE")
-  priority         Int      @default(3)
-  currency         String   @default("INR")
-  targetDate       DateTime?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  notes            String?
-  icon             String?
-  color            String?
+  id            String    @id @default(cuid())
+  title         String
+  targetAmount  Float
+  currentAmount Float     @default(0)
+  monthlyTarget Float?
+  goalType      String    @default("PURCHASE")
+  status        String    @default("ACTIVE")
+  priority      Int       @default(3)
+  currency      String    @default("INR")
+  targetDate    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  notes         String?
+  icon          String?
+  color         String?
 }
 
-
 model FinancialProfile {
-  id               String   @id @default(cuid())
-  ownerName        String?
-  currency         String   @default("INR")
-  balance          Float    @default(0)
-  emergencyFund    Float    @default(0)
-  emergencyFundMonths Int   @default(6)
-  monthlyIncome    Float    @default(0)
-  monthlyExpenses  Float    @default(0)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id                  String   @id @default(cuid())
+  ownerName           String?
+  currency            String   @default("INR")
+  balance             Float    @default(0)
+  emergencyFund       Float    @default(0)
+  emergencyFundMonths Int      @default(6)
+  monthlyIncome       Float    @default(0)
+  monthlyExpenses     Float    @default(0)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 }
 
 model AIMemory {
-  id          String   @id @default(cuid())
-  key         String
-  value       String
-  tags        String   @default("[]")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  key       String
+  value     String
+  tags      String   @default("[]")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Subscription {
-  id           String   @id @default(cuid())
-  merchant     String
-  amount       Float
-  interval     String
-  nextCharge   DateTime?
-  active       Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id         String    @id @default(cuid())
+  merchant   String
+  amount     Float
+  interval   String
+  nextCharge DateTime?
+  active     Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 }
 
 model RecurringPattern {
-  id          String   @id @default(cuid())
-  description String
-  lastSeen    DateTime
-  frequency   String
+  id              String   @id @default(cuid())
+  description     String
+  lastSeen        DateTime
+  frequency       String
   estimatedAmount Float
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 model FinancialInsight {
   id        String   @id @default(cuid())
   type      String
   message   String
-  score     Float?   
+  score     Float?
   meta      String?
   createdAt DateTime @default(now())
 }
@@ -151,4 +150,19 @@ model GmailWatch {
   expiration DateTime
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+}
+
+model MutualFund {
+  id                  String   @id @default(cuid())
+  schemeName          String
+  schemeCode          String?
+  planType            String
+  option              String
+  currentUnits        Float
+  currentNav          Float?
+  currentWorth        Float?
+  setupDate           DateTime
+  processedMessageIds String[] @default([])
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 }
