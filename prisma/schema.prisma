@@ -241,3 +241,20 @@ model RDAccount {
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 }
+
+model VehicleAsset {
+  id                 String    @id @default(cuid())
+  type               String    // "BIKE" or "CAR"
+  brand              String
+  modelName          String
+  variant            String
+  manufacturingYear  Int
+  purchaseDate       DateTime
+  purchasePrice      Float
+  fuelType           String?
+  odometerAtSetup    Int?
+  currentWorth       Float
+  lastValuationDate  DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+}

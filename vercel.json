@@ -27,6 +27,10 @@
     {
       "path": "/api/cron/rd/daily",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/vehicles/valuation",
+      "schedule": "0 0 1 * *"
     }
   ]
 }
