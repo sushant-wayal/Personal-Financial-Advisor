@@ -169,10 +169,41 @@ async function recordIngestionKeys(args: {
     });
 }
 
-async function applyTransactionSideEffects(amount: number, transactionType: string) {
+async function applyTransactionSideEffects(amount: number, transactionType: string, timestamp?: Date) {
     console.info("[transaction-ingestion] applying side effects", { amount, transactionType });
     const impact = getTransactionImpact(amount, transactionType, transactionType);
     await updateProfileBalanceBy(impact);
+
+    const normalizedType = (transactionType || "").toUpperCase().trim();
+    if (normalizedType === "PPF DEPOSIT" || normalizedType === "PPF WITHDRAWAL") {
+        const ppfAccount = await prisma.pPFAccount.findFirst();
+        if (ppfAccount) {
+            const delta = normalizedType === "PPF DEPOSIT" ? Math.abs(amount) : -Math.abs(amount);
+            
+            const newBalance = ppfAccount.currentBalance + delta;
+            let newMmb = ppfAccount.monthlyMinimumBalance;
+            
+            const txDate = timestamp ? timestamp.getDate() : new Date().getDate();
+            
+            if (txDate >= 1 && txDate <= 4) {
+                newMmb = newBalance;
+            } else {
+                newMmb = Math.min(newMmb, newBalance);
+            }
+
+            await prisma.pPFAccount.update({
+                where: { id: ppfAccount.id },
+                data: {
+                    currentBalance: newBalance,
+                    currentWorth: newBalance,
+                    monthlyMinimumBalance: newMmb
+                }
+            });
+            console.info(`[transaction-ingestion] Updated PPF Account balance by ${delta}, MMB is now ${newMmb}`);
+        } else {
+             console.warn(`[transaction-ingestion] PPF transaction received but no PPF account exists`);
+        }
+    }
 
     try {
         await getGoalOverview();
@@ -358,7 +389,7 @@ export async function ingestTransaction(input: TransactionIngestionInput) {
             transactionId: tx.id,
         });
 
-        await applyTransactionSideEffects(tx.amount, transactionType);
+        await applyTransactionSideEffects(tx.amount, transactionType, timestamp);
 
         return {
             ok: true,
@@ -474,7 +505,7 @@ export async function ingestTransaction(input: TransactionIngestionInput) {
         transactionId: tx.id,
     });
 
-    await applyTransactionSideEffects(tx.amount, parsed.type || parsed.transactionType || "OTHER");
+    await applyTransactionSideEffects(tx.amount, parsed.type || parsed.transactionType || "OTHER", parsedTimestamp);
 
     return {
         ok: true,
