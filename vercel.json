@@ -19,6 +19,10 @@
     {
       "path": "/api/cron/mutual-funds/nav",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/fd/daily",
+      "schedule": "0 0 * * *"
     }
   ]
 }

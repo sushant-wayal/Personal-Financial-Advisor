@@ -208,3 +208,19 @@ model EPFAccount {
   createdAt                   DateTime  @default(now())
   updatedAt                   DateTime  @updatedAt
 }
+
+model FDAccount {
+  id                   String    @id @default(cuid())
+  bankName             String
+  principalAmount      Float
+  startDate            DateTime
+  maturityDate         DateTime
+  annualInterestRate   Float
+  payoutType           String    @default("CUMULATIVE") // CUMULATIVE or NON_CUMULATIVE
+  compoundingFrequency String    @default("QUARTERLY")  // QUARTERLY, MONTHLY, YEARLY, HALF_YEARLY
+  isMatured            Boolean   @default(false)
+  autoRenewal          Boolean   @default(false)
+  currentWorth         Float     @default(0)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+}
