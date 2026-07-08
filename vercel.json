@@ -3,6 +3,22 @@
     {
       "path": "/api/gmail/watch/renew",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/ppf/daily",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/epf/daily",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/stocks/price",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/mutual-funds/nav",
+      "schedule": "0 0 * * *"
     }
   ]
 }

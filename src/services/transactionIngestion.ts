@@ -205,6 +205,25 @@ async function applyTransactionSideEffects(amount: number, transactionType: stri
         }
     }
 
+    if (normalizedType === "EPF WITHDRAWAL") {
+        const epfAccount = await prisma.ePFAccount.findFirst();
+        if (epfAccount) {
+            const delta = -Math.abs(amount);
+            const newBalance = epfAccount.currentBalance + delta;
+            
+            await prisma.ePFAccount.update({
+                where: { id: epfAccount.id },
+                data: {
+                    currentBalance: newBalance,
+                    currentWorth: newBalance
+                }
+            });
+            console.info(`[transaction-ingestion] Updated EPF Account balance by ${delta}`);
+        } else {
+             console.warn(`[transaction-ingestion] EPF transaction received but no EPF account exists`);
+        }
+    }
+
     try {
         await getGoalOverview();
         await adviseGoals({ persist: true });

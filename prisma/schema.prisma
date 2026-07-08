@@ -192,3 +192,19 @@ model PPFAccount {
   createdAt                 DateTime  @default(now())
   updatedAt                 DateTime  @updatedAt
 }
+
+model EPFAccount {
+  id                          String    @id @default(cuid())
+  currentBalance              Float
+  monthlyEmployeeContribution Float
+  monthlyEmployerContribution Float
+  setupDate                   DateTime
+  epfCreditDay                Int       @default(15)
+  annualInterestCreditDate    String    @default("03-31")
+  accruedInterest             Float     @default(0)
+  currentInterestRate         Float     @default(8.25)
+  lastInterestRateFetchDate   DateTime?
+  currentWorth                Float?
+  createdAt                   DateTime  @default(now())
+  updatedAt                   DateTime  @updatedAt
+}

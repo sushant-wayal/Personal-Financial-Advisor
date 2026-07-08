@@ -1,7 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 
-const CREDIT_TYPES = new Set(["CREDIT", "CREDITED", "SALARY", "REFUND", "INCOME", "PPF WITHDRAWAL"]);
+const CREDIT_TYPES = new Set(["CREDIT", "CREDITED", "SALARY", "REFUND", "INCOME", "PPF WITHDRAWAL", "EPF WITHDRAWAL"]);
 const DEBIT_TYPES = new Set([
     "DEBIT",
     "DEBITED",
