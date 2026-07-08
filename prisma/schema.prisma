@@ -224,3 +224,20 @@ model FDAccount {
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 }
+
+model RDAccount {
+  id                   String    @id @default(cuid())
+  bankName             String
+  monthlyDepositAmount Float
+  startDate            DateTime
+  maturityDate         DateTime
+  annualInterestRate   Float
+  compoundingFrequency String    @default("QUARTERLY")  // QUARTERLY, MONTHLY, YEARLY, HALF_YEARLY
+  rdDepositDay         Int
+  isMatured            Boolean   @default(false)
+  autoRenewal          Boolean   @default(false)
+  currentTotalDeposits Float     @default(0)
+  currentWorth         Float     @default(0)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+}
