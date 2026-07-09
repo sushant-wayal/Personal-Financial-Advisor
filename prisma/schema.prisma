@@ -328,3 +328,19 @@ model JewelleryAsset {
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 }
+
+model ReceivableAsset {
+  id                 String    @id @default(cuid())
+  name               String
+  principalAmount    Float
+  setupDate          DateTime
+  category           String    // "SECURITY_DEPOSIT", "PERSONAL_LOAN", "REFUNDABLE_DEPOSIT", "OTHER"
+  expectedReturnDate DateTime?
+  interestRate       Float?    @default(0)
+  interestType       String    @default("NONE") // "NONE", "SIMPLE", "COMPOUND"
+  accruedInterest    Float     @default(0)
+  isOverdue          Boolean   @default(false)
+  currentWorth       Float
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+}

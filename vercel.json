@@ -47,6 +47,10 @@
     {
       "path": "/api/cron/jewellery/daily",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/receivables/daily",
+      "schedule": "0 0 * * *"
     }
   ]
 }
