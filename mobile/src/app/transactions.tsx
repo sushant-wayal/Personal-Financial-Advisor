@@ -92,11 +92,11 @@ const EXTRA_CATEGORIES = [
   "Salary",
   "Refund",
 ];
-const EXTRA_TYPES = ["Income", "Expense"];
+const EXTRA_TYPES = ["Income", "Expense", "CREDIT CARD PURCHASE", "CREDIT CARD DEPOSIT", "PPF DEPOSIT", "PPF WITHDRAWAL", "EPF WITHDRAWAL"];
 const FALLBACK_TYPES = ["Debit", "Credit", ...EXTRA_TYPES];
-const ADD_TRANSACTION_TYPES = ["Debit", "Credit", "Salary", "Refund", "Transfer", "Subscription", "Income", "Expense"];
-const CREDIT_TRANSACTION_TYPES = new Set(["Credit", "Salary", "Refund", "Income"]);
-const DEBIT_TRANSACTION_TYPES = new Set(["Debit", "Transfer", "Subscription", "Expense"]);
+const ADD_TRANSACTION_TYPES = ["Debit", "Credit", "Salary", "Refund", "Transfer", "Subscription", "Income", "Expense", "CREDIT CARD PURCHASE", "CREDIT CARD DEPOSIT", "PPF DEPOSIT", "PPF WITHDRAWAL", "EPF WITHDRAWAL"];
+const CREDIT_TRANSACTION_TYPES = new Set(["Credit", "Salary", "Refund", "Income", "CREDIT CARD DEPOSIT", "PPF DEPOSIT"]);
+const DEBIT_TRANSACTION_TYPES = new Set(["Debit", "Transfer", "Subscription", "Expense", "CREDIT CARD PURCHASE", "PPF WITHDRAWAL", "EPF WITHDRAWAL"]);
 const PAYMENT_METHODS = [
   { label: "UPI", description: "Unified Payments Interface", icon: "qr-code-scanner" },
   { label: "Net Banking", description: "Direct bank transfer", icon: "account-balance" },

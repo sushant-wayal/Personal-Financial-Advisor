@@ -24,6 +24,11 @@ export const TRANSACTION_TYPES = [
     "REFUND",
     "TRANSFER",
     "SUBSCRIPTION",
+    "CREDIT CARD PURCHASE",
+    "CREDIT CARD DEPOSIT",
+    "PPF DEPOSIT",
+    "PPF WITHDRAWAL",
+    "EPF WITHDRAWAL",
     "OTHER",
 ];
 
