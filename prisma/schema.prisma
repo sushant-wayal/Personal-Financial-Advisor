@@ -391,3 +391,18 @@ model BnplLiability {
   createdAt                DateTime  @default(now())
   updatedAt                DateTime  @updatedAt
 }
+
+model BorrowedLiability {
+  id                       String    @id @default(cuid())
+  lenderName               String
+  outstandingAmount        Float
+  borrowDate               DateTime
+  interestRate             Float     @default(0)
+  repaymentFrequency       String    @default("MONTHLY") // "MONTHLY", "QUARTERLY", "ONE_TIME"
+  installmentAmount        Float?
+  nextRepaymentDate        DateTime?
+  latePenalty              Float?
+  isClosed                 Boolean   @default(false)
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+}

@@ -63,6 +63,10 @@
     {
       "path": "/api/cron/liabilities/bnpl/daily",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/liabilities/borrowed/daily",
+      "schedule": "0 0 * * *"
     }
   ]
 }
