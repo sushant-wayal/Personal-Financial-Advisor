@@ -376,3 +376,18 @@ model CreditCardLiability {
   createdAt                DateTime  @default(now())
   updatedAt                DateTime  @updatedAt
 }
+
+model BnplLiability {
+  id                       String    @id @default(cuid())
+  provider                 String    // "Amazon Pay Later", "LazyPay", etc.
+  currentOutstanding       Float
+  monthlyInstallment       Float
+  paymentDueDay            Int       // Day of the month (1-31)
+  remainingInstallments    Int? 
+  interestRate             Float     @default(0) // Usually 0 for BNPL if paid on time
+  lateFee                  Float     @default(0)
+  isClosed                 Boolean   @default(false)
+  lastPaymentDeductionDate DateTime?
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+}
