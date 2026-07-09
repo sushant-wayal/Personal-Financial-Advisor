@@ -274,3 +274,22 @@ model PlotAsset {
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 }
+
+model IndependentPropertyAsset {
+  id                 String    @id @default(cuid())
+  purchasePrice      Float
+  purchaseDate       DateTime
+  country            String
+  state              String
+  city               String
+  locality           String
+  landArea           Float
+  landAreaUnit       String
+  builtUpArea        Float
+  constructionYear   Int
+  lastRenovationYear Int?
+  currentWorth       Float
+  lastValuationDate  DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+}
