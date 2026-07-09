@@ -24,7 +24,7 @@ import { formatCurrencyAmount, getGlobalCurrencyCode, useCurrency } from "../pro
 import { useUserProfile } from "../providers/UserProfileProvider";
 import { API_BASE_URL } from "../lib/apiBaseUrl";
 import { beginHorizontalScroll, endHorizontalScroll, updateHorizontalScroll } from "../lib/horizontalScrollPriority";
-import { fetchCachedValue } from "../lib/clientCache";
+import { fetchCachedValue, getClientCache } from "../lib/clientCache";
 
 function mapIconName(name: string) {
   return name ? name.replace(/_/g, "-") : name;
@@ -143,6 +143,7 @@ type Insight = {
 
 type DashboardData = {
   balance: BalanceData | null;
+  networth: { totals: { netWorth: number } } | null;
   savings: SavingsData | null;
   burn: BurnData | null;
   runway: RunwayData | null;
@@ -165,7 +166,7 @@ async function fetchJson<T>(path: string): Promise<T> {
   }
 
   const payload = await response.json();
-  const data = payload.data ?? payload.insights;
+  const data = payload.data ?? payload.insights ?? payload;
   if (data === undefined || data === null) {
     throw new Error(`Empty response for ${path}`);
   }
@@ -177,8 +178,9 @@ async function loadDashboard(force = false): Promise<DashboardData> {
   return fetchCachedValue(
     "dashboard-v2",
     async () => {
-      const [balance, savings, burn, runway, monthly, categories, heatmap, seasonality, acceleration, insights] = await Promise.all([
+      const [balance, networth, savings, burn, runway, monthly, categories, heatmap, seasonality, acceleration, insights] = await Promise.all([
         fetchJson<BalanceData>("/api/analytics/balance"),
+        fetchJson<{ totals: { netWorth: number } }>("/api/networth"),
         fetchJson<SavingsData>("/api/analytics/savings-rate"),
         fetchJson<BurnData>("/api/analytics/burn-rate"),
         fetchJson<RunwayData>("/api/analytics/runway"),
@@ -202,6 +204,7 @@ async function loadDashboard(force = false): Promise<DashboardData> {
 
       return {
         balance: nextBalance,
+        networth,
         savings,
         burn,
         runway,
@@ -894,8 +897,8 @@ export default function Index() {
   const { width } = useWindowDimensions();
   const router = useRouter();
   const cardWidth = Math.max(width - 48, 280);
-  const [dashboard, setDashboard] = useState<DashboardData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [dashboard, setDashboard] = useState<DashboardData | null>(() => getClientCache<DashboardData>("dashboard-v2") ?? null);
+  const [loading, setLoading] = useState(() => !getClientCache("dashboard-v2"));
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cashflowSelection, setCashflowSelection] = useState<number | null>(null);
@@ -1070,6 +1073,20 @@ export default function Index() {
               <Text style={[styles.percentText, balanceChangeColor]}>{`${Math.abs(balance.percentChange).toFixed(1)}%`}</Text>
             </View>
           </View>
+          {dashboard.networth && (
+            <Pressable 
+              onPress={() => router.push("/networth" as any)}
+              style={{ marginTop: 8, flexDirection: "row", alignItems: "center", gap: 6, opacity: 0.8 }}
+            >
+              <Text style={{ fontSize: 13, color: "#fff", textTransform: "uppercase", letterSpacing: 0.5, fontWeight: "600" }}>
+                NET WORTH
+              </Text>
+              <Text style={{ fontSize: 14, color: "#7dffa2", fontWeight: "700" }}>
+                {formatCurrency(dashboard.networth.totals.netWorth, 0)}
+              </Text>
+              <MaterialIcons name="chevron-right" size={16} color="#fff" />
+            </Pressable>
+          )}
         </View>
 
         <View style={styles.kpiGrid}>

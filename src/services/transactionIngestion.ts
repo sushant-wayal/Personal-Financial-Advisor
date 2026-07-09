@@ -169,10 +169,92 @@ async function recordIngestionKeys(args: {
     });
 }
 
-async function applyTransactionSideEffects(amount: number, transactionType: string) {
+async function applyTransactionSideEffects(amount: number, transactionType: string, timestamp?: Date) {
     console.info("[transaction-ingestion] applying side effects", { amount, transactionType });
     const impact = getTransactionImpact(amount, transactionType, transactionType);
     await updateProfileBalanceBy(impact);
+
+    const normalizedType = (transactionType || "").toUpperCase().trim();
+    if (normalizedType === "PPF DEPOSIT" || normalizedType === "PPF WITHDRAWAL") {
+        const ppfAccount = await prisma.pPFAccount.findFirst();
+        if (ppfAccount) {
+            const delta = normalizedType === "PPF DEPOSIT" ? Math.abs(amount) : -Math.abs(amount);
+            
+            const newBalance = ppfAccount.currentBalance + delta;
+            let newMmb = ppfAccount.monthlyMinimumBalance;
+            
+            const txDate = timestamp ? timestamp.getDate() : new Date().getDate();
+            
+            if (txDate >= 1 && txDate <= 4) {
+                newMmb = newBalance;
+            } else {
+                newMmb = Math.min(newMmb, newBalance);
+            }
+
+            await prisma.pPFAccount.update({
+                where: { id: ppfAccount.id },
+                data: {
+                    currentBalance: newBalance,
+                    currentWorth: newBalance,
+                    monthlyMinimumBalance: newMmb
+                }
+            });
+            console.info(`[transaction-ingestion] Updated PPF Account balance by ${delta}, MMB is now ${newMmb}`);
+        } else {
+             console.warn(`[transaction-ingestion] PPF transaction received but no PPF account exists`);
+        }
+    }
+
+    if (normalizedType === "EPF WITHDRAWAL") {
+        const epfAccount = await prisma.ePFAccount.findFirst();
+        if (epfAccount) {
+            const delta = -Math.abs(amount);
+            const newBalance = epfAccount.currentBalance + delta;
+            
+            await prisma.ePFAccount.update({
+                where: { id: epfAccount.id },
+                data: {
+                    currentBalance: newBalance,
+                    currentWorth: newBalance
+                }
+            });
+            console.info(`[transaction-ingestion] Updated EPF Account balance by ${delta}`);
+        } else {
+             console.warn(`[transaction-ingestion] EPF transaction received but no EPF account exists`);
+        }
+    }
+
+    if (normalizedType === "CREDIT CARD PURCHASE" || normalizedType === "CREDIT CARD DEPOSIT") {
+        // Find the first credit card as a global target for V1
+        const creditCard = await prisma.creditCardLiability.findFirst();
+        if (creditCard) {
+            if (normalizedType === "CREDIT CARD PURCHASE") {
+                const delta = Math.abs(amount);
+                await prisma.creditCardLiability.update({
+                    where: { id: creditCard.id },
+                    data: {
+                        currentOutstanding: creditCard.currentOutstanding + delta
+                    }
+                });
+                console.info(`[transaction-ingestion] Increased Credit Card outstanding by ${delta}`);
+            } else if (normalizedType === "CREDIT CARD DEPOSIT") {
+                const delta = Math.abs(amount);
+                let newOutstanding = creditCard.currentOutstanding - delta;
+                if (newOutstanding < 0) newOutstanding = 0; // Prevent negative outstanding for now
+                
+                await prisma.creditCardLiability.update({
+                    where: { id: creditCard.id },
+                    data: {
+                        currentOutstanding: newOutstanding,
+                        amountPaidSinceStatement: creditCard.amountPaidSinceStatement + delta
+                    }
+                });
+                console.info(`[transaction-ingestion] Decreased Credit Card outstanding by ${delta} and recorded payment.`);
+            }
+        } else {
+             console.warn(`[transaction-ingestion] Credit Card transaction received but no Credit Card exists`);
+        }
+    }
 
     try {
         await getGoalOverview();
@@ -358,7 +440,7 @@ export async function ingestTransaction(input: TransactionIngestionInput) {
             transactionId: tx.id,
         });
 
-        await applyTransactionSideEffects(tx.amount, transactionType);
+        await applyTransactionSideEffects(tx.amount, transactionType, timestamp);
 
         return {
             ok: true,
@@ -474,7 +556,7 @@ export async function ingestTransaction(input: TransactionIngestionInput) {
         transactionId: tx.id,
     });
 
-    await applyTransactionSideEffects(tx.amount, parsed.type || parsed.transactionType || "OTHER");
+    await applyTransactionSideEffects(tx.amount, parsed.type || parsed.transactionType || "OTHER", parsedTimestamp);
 
     return {
         ok: true,

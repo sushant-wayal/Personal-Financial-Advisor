@@ -12,6 +12,8 @@ type GeminiOptions = {
     complexity?: "simple" | "complex";
     responseMimeType?: string;
     responseSchema?: Record<string, unknown>;
+    enableSearch?: boolean;
+    model?: string;
 };
 
 export type ToolCallParsed = {
@@ -64,6 +66,10 @@ export function buildGeminiRequest(promptOrMessages: string | GeminiMessage[], o
         },
     };
 
+    if (opts?.enableSearch) {
+        body.tools = [{ googleSearch: {} }];
+    }
+
     if (systemInstruction) body.systemInstruction = systemInstruction;
     return body;
 }
@@ -87,7 +93,7 @@ export async function generateText(
     if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY not set");
 
     const body = buildGeminiRequest(promptOrMessages, opts);
-    const model = opts?.complexity === "complex" ? GEMINI_PRO_MODEL : GEMINI_FLASH_MODEL;
+    const model = opts?.model || (opts?.complexity === "complex" ? GEMINI_PRO_MODEL : GEMINI_FLASH_MODEL);
 
     let lastError: unknown;
     for (let attempt = 0; attempt < 3; attempt++) {

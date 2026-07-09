@@ -3,6 +3,70 @@
     {
       "path": "/api/gmail/watch/renew",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/ppf/daily",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/epf/daily",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/stocks/price",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/mutual-funds/nav",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/fd/daily",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/rd/daily",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/vehicles/valuation",
+      "schedule": "0 0 1 * *"
+    },
+    {
+      "path": "/api/cron/plots/valuation",
+      "schedule": "0 0 1 * *"
+    },
+    {
+      "path": "/api/cron/independent-property/valuation",
+      "schedule": "0 0 1 * *"
+    },
+    {
+      "path": "/api/cron/apartments/valuation",
+      "schedule": "0 0 1 * *"
+    },
+    {
+      "path": "/api/cron/jewellery/daily",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/receivables/daily",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/liabilities/loans/daily",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/liabilities/credit-cards/daily",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/liabilities/bnpl/daily",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/liabilities/borrowed/daily",
+      "schedule": "0 0 * * *"
     }
   ]
 }

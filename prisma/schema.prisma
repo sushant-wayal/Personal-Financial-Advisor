@@ -8,29 +8,29 @@ datasource db {
 }
 
 model Transaction {
-  id            String   @id @default(cuid())
-  amount        Float
-  merchant      String
-  categoryId    String?  
-  category      Category? @relation(fields: [categoryId], references: [id])
-  paymentMethod String?
-  bankName      String?
-  timestamp     DateTime @default(now())
-  source        String
-  sourceMessageId String? @unique
-  account       String?
-  transactionType String @default("OTHER")
-  type          String
-  notes         String?
-  confidence    Float    @default(1.0)
-  parsedAt      DateTime @default(now())
-  rawText       String   @default("")
-  raw           String
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  isClubbed     Boolean  @default(false)
-  clubbedSourceIds String @default("[]")
-  clubbedSources String @default("[]")
+  id               String    @id @default(cuid())
+  amount           Float
+  merchant         String
+  categoryId       String?
+  category         Category? @relation(fields: [categoryId], references: [id])
+  paymentMethod    String?
+  bankName         String?
+  timestamp        DateTime  @default(now())
+  source           String
+  sourceMessageId  String?   @unique
+  account          String?
+  transactionType  String    @default("OTHER")
+  type             String
+  notes            String?
+  confidence       Float     @default(1.0)
+  parsedAt         DateTime  @default(now())
+  rawText          String    @default("")
+  raw              String
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  isClubbed        Boolean   @default(false)
+  clubbedSourceIds String    @default("[]")
+  clubbedSources   String    @default("[]")
 }
 
 model TransactionIngestionKey {
@@ -46,12 +46,12 @@ model TransactionIngestionKey {
 }
 
 model Category {
-  id          String        @id @default(cuid())
-  name        String        @unique
-  description String?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  transactions Transaction[]
+  id               String                @id @default(cuid())
+  name             String                @unique
+  description      String?
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  transactions     Transaction[]
   merchantMappings MerchantCategoryMap[]
 }
 
@@ -68,72 +68,71 @@ model MerchantCategoryMap {
 }
 
 model Goal {
-  id               String   @id @default(cuid())
-  title            String
-  targetAmount     Float
-  currentAmount    Float    @default(0)
-  monthlyTarget    Float?
-  goalType         String   @default("PURCHASE")
-  status           String   @default("ACTIVE")
-  priority         Int      @default(3)
-  currency         String   @default("INR")
-  targetDate       DateTime?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  notes            String?
-  icon             String?
-  color            String?
+  id            String    @id @default(cuid())
+  title         String
+  targetAmount  Float
+  currentAmount Float     @default(0)
+  monthlyTarget Float?
+  goalType      String    @default("PURCHASE")
+  status        String    @default("ACTIVE")
+  priority      Int       @default(3)
+  currency      String    @default("INR")
+  targetDate    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  notes         String?
+  icon          String?
+  color         String?
 }
 
-
 model FinancialProfile {
-  id               String   @id @default(cuid())
-  ownerName        String?
-  currency         String   @default("INR")
-  balance          Float    @default(0)
-  emergencyFund    Float    @default(0)
-  emergencyFundMonths Int   @default(6)
-  monthlyIncome    Float    @default(0)
-  monthlyExpenses  Float    @default(0)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id                  String   @id @default(cuid())
+  ownerName           String?
+  currency            String   @default("INR")
+  balance             Float    @default(0)
+  emergencyFund       Float    @default(0)
+  emergencyFundMonths Int      @default(6)
+  monthlyIncome       Float    @default(0)
+  monthlyExpenses     Float    @default(0)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 }
 
 model AIMemory {
-  id          String   @id @default(cuid())
-  key         String
-  value       String
-  tags        String   @default("[]")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  key       String
+  value     String
+  tags      String   @default("[]")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Subscription {
-  id           String   @id @default(cuid())
-  merchant     String
-  amount       Float
-  interval     String
-  nextCharge   DateTime?
-  active       Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id         String    @id @default(cuid())
+  merchant   String
+  amount     Float
+  interval   String
+  nextCharge DateTime?
+  active     Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 }
 
 model RecurringPattern {
-  id          String   @id @default(cuid())
-  description String
-  lastSeen    DateTime
-  frequency   String
+  id              String   @id @default(cuid())
+  description     String
+  lastSeen        DateTime
+  frequency       String
   estimatedAmount Float
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 model FinancialInsight {
   id        String   @id @default(cuid())
   type      String
   message   String
-  score     Float?   
+  score     Float?
   meta      String?
   createdAt DateTime @default(now())
 }
@@ -151,4 +150,259 @@ model GmailWatch {
   expiration DateTime
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+}
+
+model MutualFund {
+  id                  String   @id @default(cuid())
+  schemeName          String
+  schemeCode          String?
+  planType            String
+  option              String
+  currentUnits        Float
+  currentNav          Float?
+  currentWorth        Float?
+  setupDate           DateTime
+  processedMessageIds String[] @default([])
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+model Stock {
+  id                  String   @id @default(cuid())
+  symbol              String
+  exchange            String
+  currentQuantity     Float
+  currentPrice        Float?
+  currentWorth        Float?
+  setupDate           DateTime
+  processedMessageIds String[] @default([])
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+model PPFAccount {
+  id                        String    @id @default(cuid())
+  currentBalance            Float
+  setupDate                 DateTime
+  monthlyMinimumBalance     Float
+  accruedInterest           Float     @default(0)
+  currentInterestRate       Float     @default(7.1)
+  lastInterestRateFetchDate DateTime?
+  currentWorth              Float?
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
+}
+
+model EPFAccount {
+  id                          String    @id @default(cuid())
+  currentBalance              Float
+  monthlyEmployeeContribution Float
+  monthlyEmployerContribution Float
+  setupDate                   DateTime
+  epfCreditDay                Int       @default(15)
+  annualInterestCreditDate    String    @default("03-31")
+  accruedInterest             Float     @default(0)
+  currentInterestRate         Float     @default(8.25)
+  lastInterestRateFetchDate   DateTime?
+  currentWorth                Float?
+  createdAt                   DateTime  @default(now())
+  updatedAt                   DateTime  @updatedAt
+}
+
+model FDAccount {
+  id                   String    @id @default(cuid())
+  bankName             String
+  principalAmount      Float
+  startDate            DateTime
+  maturityDate         DateTime
+  annualInterestRate   Float
+  payoutType           String    @default("CUMULATIVE") // CUMULATIVE or NON_CUMULATIVE
+  compoundingFrequency String    @default("QUARTERLY")  // QUARTERLY, MONTHLY, YEARLY, HALF_YEARLY
+  isMatured            Boolean   @default(false)
+  autoRenewal          Boolean   @default(false)
+  currentWorth         Float     @default(0)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+}
+
+model RDAccount {
+  id                   String    @id @default(cuid())
+  bankName             String
+  monthlyDepositAmount Float
+  startDate            DateTime
+  maturityDate         DateTime
+  annualInterestRate   Float
+  compoundingFrequency String    @default("QUARTERLY")  // QUARTERLY, MONTHLY, YEARLY, HALF_YEARLY
+  rdDepositDay         Int
+  isMatured            Boolean   @default(false)
+  autoRenewal          Boolean   @default(false)
+  currentTotalDeposits Float     @default(0)
+  currentWorth         Float     @default(0)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+}
+
+model VehicleAsset {
+  id                 String    @id @default(cuid())
+  type               String    // "BIKE" or "CAR"
+  brand              String
+  modelName          String
+  variant            String
+  manufacturingYear  Int
+  purchaseDate       DateTime
+  purchasePrice      Float
+  fuelType           String?
+  odometerAtSetup    Int?
+  currentWorth       Float
+  lastValuationDate  DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+}
+
+model PlotAsset {
+  id                 String    @id @default(cuid())
+  purchasePrice      Float
+  purchaseDate       DateTime
+  country            String
+  state              String
+  city               String
+  locality           String
+  area               Float
+  areaUnit           String
+  currentWorth       Float
+  lastValuationDate  DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+}
+
+model IndependentPropertyAsset {
+  id                 String    @id @default(cuid())
+  purchasePrice      Float
+  purchaseDate       DateTime
+  country            String
+  state              String
+  city               String
+  locality           String
+  landArea           Float
+  landAreaUnit       String
+  builtUpArea        Float
+  constructionYear   Int
+  lastRenovationYear Int?
+  currentWorth       Float
+  lastValuationDate  DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+}
+
+model ApartmentAsset {
+  id                 String    @id @default(cuid())
+  purchasePrice      Float
+  purchaseDate       DateTime
+  country            String
+  state              String
+  city               String
+  locality           String
+  builtUpArea        Float
+  constructionYear   Int
+  bhk                String?
+  floorNumber        String?
+  builder            String?
+  projectName        String?
+  lastRenovationYear Int?
+  currentWorth       Float
+  lastValuationDate  DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+}
+
+model JewelleryAsset {
+  id                 String    @id @default(cuid())
+  metalType          String    // "GOLD", "SILVER", "PLATINUM"
+  purity             Float     // e.g., 22 (for 22K), 24 (for 24K), 999 (for silver)
+  netWeight          Float
+  weightUnit         String    // "g" or "kg"
+  purchaseDate       DateTime?
+  purchasePrice      Float?
+  currentWorth       Float     @default(0)
+  lastValuationDate  DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+}
+
+model ReceivableAsset {
+  id                 String    @id @default(cuid())
+  name               String
+  principalAmount    Float
+  setupDate          DateTime
+  category           String    // "SECURITY_DEPOSIT", "PERSONAL_LOAN", "REFUNDABLE_DEPOSIT", "OTHER"
+  expectedReturnDate DateTime?
+  interestRate       Float?    @default(0)
+  interestType       String    @default("NONE") // "NONE", "SIMPLE", "COMPOUND"
+  accruedInterest    Float     @default(0)
+  isOverdue          Boolean   @default(false)
+  currentWorth       Float
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+}
+
+model LoanLiability {
+  id                     String    @id @default(cuid())
+  loanType               String    // "HOME", "CAR", "PERSONAL", "EDUCATION"
+  outstandingBalance     Float
+  interestRate           Float
+  emiAmount              Float
+  emiDebitDate           Int       @default(5) // Day of month 1-31
+  interestType           String    // "FIXED", "FLOATING"
+  remainingEmiCount      Int?
+  lastEmiDeductionDate   DateTime?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+}
+
+model CreditCardLiability {
+  id                       String    @id @default(cuid())
+  currentOutstanding       Float
+  statementGenerationDay   Int
+  paymentDueDay            Int
+  annualInterestRate       Float
+  latePaymentFee           Float     @default(0)
+  annualFee                Float     @default(0)
+  annualFeeMonth           Int?
+  minimumPaymentPercentage Float     @default(5.0)
+  gstRateOnFees            Float     @default(18.0)
+  lastStatementAmount      Float     @default(0)
+  lastStatementDate        DateTime?
+  amountPaidSinceStatement Float     @default(0)
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+}
+
+model BnplLiability {
+  id                       String    @id @default(cuid())
+  provider                 String    // "Amazon Pay Later", "LazyPay", etc.
+  currentOutstanding       Float
+  monthlyInstallment       Float
+  paymentDueDay            Int       // Day of the month (1-31)
+  remainingInstallments    Int? 
+  interestRate             Float     @default(0) // Usually 0 for BNPL if paid on time
+  lateFee                  Float     @default(0)
+  isClosed                 Boolean   @default(false)
+  lastPaymentDeductionDate DateTime?
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+}
+
+model BorrowedLiability {
+  id                       String    @id @default(cuid())
+  lenderName               String
+  outstandingAmount        Float
+  borrowDate               DateTime
+  interestRate             Float     @default(0)
+  repaymentFrequency       String    @default("MONTHLY") // "MONTHLY", "QUARTERLY", "ONE_TIME"
+  installmentAmount        Float?
+  nextRepaymentDate        DateTime?
+  latePenalty              Float?
+  isClosed                 Boolean   @default(false)
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
 }

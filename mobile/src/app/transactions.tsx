@@ -17,6 +17,7 @@ import {
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { DatePickerModal } from "../components/DatePickerModal";
 import { Skeleton, TransactionsSkeleton } from "../components/LoadingSkeleton";
 import { getCurrencySymbol, useCurrency } from "../providers/CurrencyProvider";
 import { API_BASE_URL } from "../lib/apiBaseUrl";
@@ -92,11 +93,11 @@ const EXTRA_CATEGORIES = [
   "Salary",
   "Refund",
 ];
-const EXTRA_TYPES = ["Income", "Expense"];
+const EXTRA_TYPES = ["Income", "Expense", "CREDIT CARD PURCHASE", "CREDIT CARD DEPOSIT", "PPF DEPOSIT", "PPF WITHDRAWAL", "EPF WITHDRAWAL"];
 const FALLBACK_TYPES = ["Debit", "Credit", ...EXTRA_TYPES];
-const ADD_TRANSACTION_TYPES = ["Debit", "Credit", "Salary", "Refund", "Transfer", "Subscription", "Income", "Expense"];
-const CREDIT_TRANSACTION_TYPES = new Set(["Credit", "Salary", "Refund", "Income"]);
-const DEBIT_TRANSACTION_TYPES = new Set(["Debit", "Transfer", "Subscription", "Expense"]);
+const ADD_TRANSACTION_TYPES = ["Debit", "Credit", "Salary", "Refund", "Transfer", "Subscription", "Income", "Expense", "CREDIT CARD PURCHASE", "CREDIT CARD DEPOSIT", "PPF DEPOSIT", "PPF WITHDRAWAL", "EPF WITHDRAWAL"];
+const CREDIT_TRANSACTION_TYPES = new Set(["Credit", "Salary", "Refund", "Income", "CREDIT CARD DEPOSIT", "PPF DEPOSIT"]);
+const DEBIT_TRANSACTION_TYPES = new Set(["Debit", "Transfer", "Subscription", "Expense", "CREDIT CARD PURCHASE", "PPF WITHDRAWAL", "EPF WITHDRAWAL"]);
 const PAYMENT_METHODS = [
   { label: "UPI", description: "Unified Payments Interface", icon: "qr-code-scanner" },
   { label: "Net Banking", description: "Direct bank transfer", icon: "account-balance" },
@@ -1673,73 +1674,20 @@ export default function TransactionsScreen() {
           </SafeAreaView>
         ) : null}
 
-        {addPicker === "date" ? (
-          <SafeAreaView style={styles.addDateOverlay} edges={["top", "bottom"]}>
-            <View style={styles.addDateCard}>
-              <View style={styles.addDateHeader}>
-                <Text style={styles.addDateTitle}>Select Date & Time</Text>
-                <Pressable onPress={() => setAddPicker(null)} style={styles.customCloseButton}>
-                  <MaterialIcons name="close" size={24} color="#c4c7c8" />
-                </Pressable>
-              </View>
-              <ScrollView contentContainerStyle={styles.addDateContent} showsVerticalScrollIndicator={false}>
-                <View style={styles.dateSummaryCard}>
-                  <View>
-                    <Text style={styles.dateSummaryLabel}>DATE</Text>
-                    <Text style={styles.dateSummaryValue}>{fullDateLabel(addDateKey)}</Text>
-                  </View>
-                  <View style={{ alignItems: "flex-end" }}>
-                    <Text style={styles.dateSummaryLabel}>TIME</Text>
-                    <Text style={styles.dateSummaryValue}>{formatDateTimeLabel(addDateKey, addHour, addMinute).split(" · ")[1]}</Text>
-                  </View>
-                </View>
-                <View style={styles.addCalendarHeader}>
-                  <Pressable onPress={() => setAddDateMonth((current) => new Date(current.getFullYear(), current.getMonth() - 1, 1))}>
-                    <MaterialIcons name="chevron-left" size={26} color="#c4c7c8" />
-                  </Pressable>
-                  <Text style={styles.addCalendarMonth}>{monthTitle(addDateMonth)}</Text>
-                  <Pressable onPress={() => setAddDateMonth((current) => new Date(current.getFullYear(), current.getMonth() + 1, 1))}>
-                    <MaterialIcons name="chevron-right" size={26} color="#c4c7c8" />
-                  </Pressable>
-                </View>
-                <View style={styles.addWeekdayGrid}>
-                  {["SU", "MO", "TU", "WE", "TH", "FR", "SA"].map((day) => <Text key={day} style={styles.addWeekdayText}>{day}</Text>)}
-                </View>
-                <View style={styles.addDateGrid}>
-                  {addCalendarDays.map((day) => {
-                    const selected = day.key === addDateKey;
-                    const disabled = compareDateKeys(day.key, todayKey) > 0;
-                    return (
-                      <Pressable key={day.key} disabled={disabled} onPress={() => setAddDateKey(day.key)} style={[styles.addDateCell, selected ? styles.addDateCellSelected : null, disabled ? styles.addDateCellDisabled : null]}>
-                        <Text style={[styles.addDateCellText, !day.inMonth || disabled ? styles.dateTextMuted : null, selected ? styles.addDateCellTextSelected : null]}>{day.day}</Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-                <View style={styles.timePickerShell}>
-                  <View style={styles.timePickerHeader}>
-                    <Text style={styles.timePickerLabel}>Hour</Text>
-                    <Text style={styles.timePickerLabel}>Minute</Text>
-                  </View>
-                  <View style={styles.timePickerBox}>
-                    <View style={styles.timeHighlight} />
-                    <TimeColumn label="Hour" values={addHourOptions} value={addHour} onChange={setAddHour} />
-                    <Text style={styles.timeColon}>:</Text>
-                    <TimeColumn label="Minute" values={addMinuteOptions} value={addMinute} onChange={setAddMinute} />
-                  </View>
-                </View>
-              </ScrollView>
-              <View style={styles.addDateFooter}>
-                <Pressable style={styles.rangeCancelButton} onPress={() => setAddPicker(null)}>
-                  <Text style={styles.rangeCancelText}>Cancel</Text>
-                </Pressable>
-                <Pressable style={styles.rangeApplyButton} onPress={() => setAddPicker(null)}>
-                  <Text style={styles.rangeApplyText}>Set Date</Text>
-                </Pressable>
-              </View>
-            </View>
-          </SafeAreaView>
-        ) : null}
+        <DatePickerModal
+          visible={addPicker === "date"}
+          initialDate={addDateKey}
+          withTime={true}
+          initialHour={addHour}
+          initialMinute={addMinute}
+          disableFuture={true}
+          onClose={() => setAddPicker(null)}
+          onSelect={(date, hour, minute) => {
+            setAddDateKey(date);
+            if (hour) setAddHour(hour);
+            if (minute) setAddMinute(minute);
+          }}
+        />
       </Modal>
 
       <Modal visible={customModalVisible} animationType="slide" presentationStyle="fullScreen" onRequestClose={() => setCustomModalVisible(false)}>
@@ -1961,100 +1909,6 @@ function AddTypeOption({ label, selected, onPress }: { label: string; selected: 
       </View>
       {selected ? <MaterialIcons name="check" size={24} color="#ffffff" /> : null}
     </Pressable>
-  );
-}
-
-function TimeColumn({ label, values, value, onChange }: { label: string; values: string[]; value: string; onChange: (value: string) => void }) {
-  const scrollRef = useRef<ScrollView>(null);
-  const selectedIndex = Math.max(0, values.indexOf(value));
-  const isInteracting = useRef(false);
-  const activeIndexRef = useRef(selectedIndex);
-  const itemHeight = 44;
-  const [scrollY] = useState(() => new Animated.Value(0));
-
-  useEffect(() => {
-    if (isInteracting.current) return;
-    activeIndexRef.current = selectedIndex;
-    scrollY.setValue(selectedIndex * itemHeight);
-    const frame = requestAnimationFrame(() => {
-      scrollRef.current?.scrollTo({ y: selectedIndex * itemHeight, animated: false });
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [scrollY, selectedIndex]);
-
-  const selectNearest = (offsetY: number, commit = true) => {
-    const nextIndex = Math.max(0, Math.min(values.length - 1, Math.round(offsetY / itemHeight)));
-    if (nextIndex !== activeIndexRef.current) {
-      activeIndexRef.current = nextIndex;
-      if (commit) {
-        onChange(values[nextIndex]);
-      }
-    }
-  };
-
-  return (
-    <Animated.ScrollView
-      ref={scrollRef}
-      accessibilityLabel={label}
-      style={styles.timeColumn}
-      contentContainerStyle={styles.timeColumnContent}
-      showsVerticalScrollIndicator={false}
-      nestedScrollEnabled
-      snapToInterval={itemHeight}
-      decelerationRate="fast"
-      onScrollBeginDrag={() => {
-        isInteracting.current = true;
-      }}
-      onScroll={(event) => {
-        const offsetY = event.nativeEvent.contentOffset.y;
-        scrollY.setValue(offsetY);
-        selectNearest(offsetY);
-      }}
-      onMomentumScrollEnd={(event) => {
-        selectNearest(event.nativeEvent.contentOffset.y);
-        isInteracting.current = false;
-      }}
-      onScrollEndDrag={(event) => {
-        selectNearest(event.nativeEvent.contentOffset.y);
-        if (!event.nativeEvent.velocity || Math.abs(event.nativeEvent.velocity.y) < 0.1) {
-          isInteracting.current = false;
-        }
-      }}
-      scrollEventThrottle={16}
-    >
-      {values.map((item, index) => {
-        const center = index * itemHeight;
-        const inputRange = [center - itemHeight * 2, center - itemHeight, center, center + itemHeight, center + itemHeight * 2];
-        const scale = scrollY.interpolate({
-          inputRange,
-          outputRange: [0.82, 0.96, 1.32, 0.96, 0.82],
-          extrapolate: "clamp",
-        });
-        const opacity = scrollY.interpolate({
-          inputRange,
-          outputRange: [0.28, 0.62, 1, 0.62, 0.28],
-          extrapolate: "clamp",
-        });
-        const color = scrollY.interpolate({
-          inputRange,
-          outputRange: ["rgba(196,199,200,0.34)", "rgba(229,226,225,0.72)", "#ffffff", "rgba(229,226,225,0.72)", "rgba(196,199,200,0.34)"],
-          extrapolate: "clamp",
-        });
-
-        return (
-          <Pressable key={item} onPress={() => onChange(item)} style={[styles.timeValueButton, { height: itemHeight }]}>
-            <Animated.Text
-              style={[
-                styles.timeValue,
-                { color, opacity, transform: [{ scale }] },
-              ]}
-            >
-              {item}
-            </Animated.Text>
-          </Pressable>
-        );
-      })}
-    </Animated.ScrollView>
   );
 }
 

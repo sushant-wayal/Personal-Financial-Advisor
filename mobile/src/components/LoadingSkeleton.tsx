@@ -479,3 +479,52 @@ const styles = StyleSheet.create({
         fontWeight: "700",
     },
 });
+
+export function NetWorthSkeleton() {
+    return (
+        <View style={styles.screen}>
+            {/* Header placeholder */}
+            <View style={[styles.topRow, { marginBottom: 16 }]}>
+                <Skeleton width={32} height={32} radius={16} />
+                <Skeleton width={110} height={22} radius={8} />
+                <View style={{ width: 32 }} />
+            </View>
+
+            {/* Summary Card placeholder */}
+            <View style={styles.sectionCard}>
+                <Skeleton width="30%" height={12} radius={6} />
+                <Skeleton width="50%" height={32} radius={8} style={{ marginTop: 10 }} />
+                
+                <View style={{ flexDirection: "row", marginTop: 24, gap: 16 }}>
+                    <View style={{ flex: 1 }}>
+                        <Skeleton width="40%" height={12} radius={6} />
+                        <Skeleton width="80%" height={18} radius={6} style={{ marginTop: 8 }} />
+                    </View>
+                    <View style={{ width: 1, backgroundColor: "rgba(255,255,255,0.1)" }} />
+                    <View style={{ flex: 1 }}>
+                        <Skeleton width="50%" height={12} radius={6} />
+                        <Skeleton width="80%" height={18} radius={6} style={{ marginTop: 8 }} />
+                    </View>
+                </View>
+            </View>
+
+            {/* Assets Header placeholder */}
+            <View style={[styles.topRow, { marginTop: 16, marginBottom: 12 }]}>
+                <Skeleton width="25%" height={18} radius={6} />
+                <Skeleton width={32} height={32} radius={16} />
+            </View>
+
+            {/* Asset Cards placeholder */}
+            {[1, 2].map((i) => (
+                <View key={`asset-${i}`} style={[styles.sectionCard, { flexDirection: "row", alignItems: "center", gap: 16, paddingVertical: 18, marginBottom: 16 }]}>
+                    <Skeleton width={44} height={44} radius={12} />
+                    <View style={{ flex: 1, gap: 8 }}>
+                        <Skeleton width="60%" height={14} radius={6} />
+                        <Skeleton width="35%" height={12} radius={6} />
+                    </View>
+                    <Skeleton width="25%" height={16} radius={6} />
+                </View>
+            ))}
+        </View>
+    );
+}
