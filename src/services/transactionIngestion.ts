@@ -224,6 +224,38 @@ async function applyTransactionSideEffects(amount: number, transactionType: stri
         }
     }
 
+    if (normalizedType === "CREDIT CARD PURCHASE" || normalizedType === "CREDIT CARD DEPOSIT") {
+        // Find the first credit card as a global target for V1
+        const creditCard = await prisma.creditCardLiability.findFirst();
+        if (creditCard) {
+            if (normalizedType === "CREDIT CARD PURCHASE") {
+                const delta = Math.abs(amount);
+                await prisma.creditCardLiability.update({
+                    where: { id: creditCard.id },
+                    data: {
+                        currentOutstanding: creditCard.currentOutstanding + delta
+                    }
+                });
+                console.info(`[transaction-ingestion] Increased Credit Card outstanding by ${delta}`);
+            } else if (normalizedType === "CREDIT CARD DEPOSIT") {
+                const delta = Math.abs(amount);
+                let newOutstanding = creditCard.currentOutstanding - delta;
+                if (newOutstanding < 0) newOutstanding = 0; // Prevent negative outstanding for now
+                
+                await prisma.creditCardLiability.update({
+                    where: { id: creditCard.id },
+                    data: {
+                        currentOutstanding: newOutstanding,
+                        amountPaidSinceStatement: creditCard.amountPaidSinceStatement + delta
+                    }
+                });
+                console.info(`[transaction-ingestion] Decreased Credit Card outstanding by ${delta} and recorded payment.`);
+            }
+        } else {
+             console.warn(`[transaction-ingestion] Credit Card transaction received but no Credit Card exists`);
+        }
+    }
+
     try {
         await getGoalOverview();
         await adviseGoals({ persist: true });

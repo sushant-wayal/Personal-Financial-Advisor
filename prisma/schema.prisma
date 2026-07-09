@@ -358,3 +358,21 @@ model LoanLiability {
   createdAt              DateTime  @default(now())
   updatedAt              DateTime  @updatedAt
 }
+
+model CreditCardLiability {
+  id                       String    @id @default(cuid())
+  currentOutstanding       Float
+  statementGenerationDay   Int
+  paymentDueDay            Int
+  annualInterestRate       Float
+  latePaymentFee           Float     @default(0)
+  annualFee                Float     @default(0)
+  annualFeeMonth           Int?
+  minimumPaymentPercentage Float     @default(5.0)
+  gstRateOnFees            Float     @default(18.0)
+  lastStatementAmount      Float     @default(0)
+  lastStatementDate        DateTime?
+  amountPaidSinceStatement Float     @default(0)
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+}
