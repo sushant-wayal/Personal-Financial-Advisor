@@ -143,6 +143,7 @@ type Insight = {
 
 type DashboardData = {
   balance: BalanceData | null;
+  networth: { totals: { netWorth: number } } | null;
   savings: SavingsData | null;
   burn: BurnData | null;
   runway: RunwayData | null;
@@ -177,8 +178,9 @@ async function loadDashboard(force = false): Promise<DashboardData> {
   return fetchCachedValue(
     "dashboard-v2",
     async () => {
-      const [balance, savings, burn, runway, monthly, categories, heatmap, seasonality, acceleration, insights] = await Promise.all([
+      const [balance, networth, savings, burn, runway, monthly, categories, heatmap, seasonality, acceleration, insights] = await Promise.all([
         fetchJson<BalanceData>("/api/analytics/balance"),
+        fetchJson<{ totals: { netWorth: number } }>("/api/networth"),
         fetchJson<SavingsData>("/api/analytics/savings-rate"),
         fetchJson<BurnData>("/api/analytics/burn-rate"),
         fetchJson<RunwayData>("/api/analytics/runway"),
@@ -202,6 +204,7 @@ async function loadDashboard(force = false): Promise<DashboardData> {
 
       return {
         balance: nextBalance,
+        networth,
         savings,
         burn,
         runway,
@@ -1070,6 +1073,20 @@ export default function Index() {
               <Text style={[styles.percentText, balanceChangeColor]}>{`${Math.abs(balance.percentChange).toFixed(1)}%`}</Text>
             </View>
           </View>
+          {dashboard.networth && (
+            <Pressable 
+              onPress={() => router.push("/networth" as any)}
+              style={{ marginTop: 8, flexDirection: "row", alignItems: "center", gap: 6, opacity: 0.8 }}
+            >
+              <Text style={{ fontSize: 13, color: "#fff", textTransform: "uppercase", letterSpacing: 0.5, fontWeight: "600" }}>
+                NET WORTH
+              </Text>
+              <Text style={{ fontSize: 14, color: "#7dffa2", fontWeight: "700" }}>
+                {formatCurrency(dashboard.networth.totals.netWorth, 0)}
+              </Text>
+              <MaterialIcons name="chevron-right" size={16} color="#fff" />
+            </Pressable>
+          )}
         </View>
 
         <View style={styles.kpiGrid}>

@@ -1,0 +1,66 @@
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/src/lib/prisma";
+
+const ALLOWED_TYPES = [
+    "pPFAccount",
+    "ePFAccount",
+    "fDAccount",
+    "rDAccount",
+    "vehicleAsset",
+    "plotAsset",
+    "independentPropertyAsset",
+    "apartmentAsset",
+    "jewelleryAsset",
+    "receivableAsset",
+    "loanLiability",
+    "creditCardLiability",
+    "bnplLiability",
+    "borrowedLiability"
+];
+
+export async function PUT(
+    req: NextRequest,
+    { params }: { params: { type: string, id: string } }
+) {
+    try {
+        const { type, id } = params;
+
+        if (!ALLOWED_TYPES.includes(type)) {
+            return NextResponse.json({ error: "Invalid networth type" }, { status: 400 });
+        }
+
+        const data = await req.json();
+
+        // @ts-ignore
+        const updated = await prisma[type].update({
+            where: { id },
+            data
+        });
+
+        return NextResponse.json(updated);
+    } catch (e: any) {
+        return NextResponse.json({ error: String(e) }, { status: 500 });
+    }
+}
+
+export async function DELETE(
+    req: NextRequest,
+    { params }: { params: { type: string, id: string } }
+) {
+    try {
+        const { type, id } = params;
+
+        if (!ALLOWED_TYPES.includes(type)) {
+            return NextResponse.json({ error: "Invalid networth type" }, { status: 400 });
+        }
+
+        // @ts-ignore
+        await prisma[type].delete({
+            where: { id }
+        });
+
+        return NextResponse.json({ success: true });
+    } catch (e: any) {
+        return NextResponse.json({ error: String(e) }, { status: 500 });
+    }
+}
