@@ -31,7 +31,7 @@ function routeAtIndex(index: number) {
 }
 
 function mainRouteForPath(pathname: string) {
-  if (pathname === "/") return "/";
+  if (pathname === "/" || pathname.startsWith("/networth")) return "/";
   if (pathname.startsWith("/transactions") || pathname.startsWith("/subscriptions") || pathname.startsWith("/insights")) return "/transactions";
   if (pathname.startsWith("/goals") || pathname.startsWith("/simulation")) return "/goals";
   if (pathname.startsWith("/settings")) return "/settings";

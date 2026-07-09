@@ -24,7 +24,7 @@ import { formatCurrencyAmount, getGlobalCurrencyCode, useCurrency } from "../pro
 import { useUserProfile } from "../providers/UserProfileProvider";
 import { API_BASE_URL } from "../lib/apiBaseUrl";
 import { beginHorizontalScroll, endHorizontalScroll, updateHorizontalScroll } from "../lib/horizontalScrollPriority";
-import { fetchCachedValue } from "../lib/clientCache";
+import { fetchCachedValue, getClientCache } from "../lib/clientCache";
 
 function mapIconName(name: string) {
   return name ? name.replace(/_/g, "-") : name;
@@ -166,7 +166,7 @@ async function fetchJson<T>(path: string): Promise<T> {
   }
 
   const payload = await response.json();
-  const data = payload.data ?? payload.insights;
+  const data = payload.data ?? payload.insights ?? payload;
   if (data === undefined || data === null) {
     throw new Error(`Empty response for ${path}`);
   }
@@ -897,8 +897,8 @@ export default function Index() {
   const { width } = useWindowDimensions();
   const router = useRouter();
   const cardWidth = Math.max(width - 48, 280);
-  const [dashboard, setDashboard] = useState<DashboardData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [dashboard, setDashboard] = useState<DashboardData | null>(() => getClientCache<DashboardData>("dashboard-v2") ?? null);
+  const [loading, setLoading] = useState(() => !getClientCache("dashboard-v2"));
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cashflowSelection, setCashflowSelection] = useState<number | null>(null);

@@ -19,6 +19,8 @@ export async function GET() {
             creditCard,
             bnpl,
             borrowed,
+            mutualFund,
+            stock,
             bankBalance
         ] = await Promise.all([
             prisma.pPFAccount.findMany(),
@@ -35,6 +37,8 @@ export async function GET() {
             prisma.creditCardLiability.findMany(),
             prisma.bnplLiability.findMany(),
             prisma.borrowedLiability.findMany(),
+            prisma.mutualFund.findMany(),
+            prisma.stock.findMany(),
             calculateCurrentBalance(),
         ]);
 
@@ -49,7 +53,9 @@ export async function GET() {
             independentProperty,
             apartment,
             jewellery,
-            receivable
+            receivable,
+            mutualFund,
+            stock
         };
 
         const liabilities = {
@@ -73,6 +79,8 @@ export async function GET() {
         totalAssets += apartment.reduce((sum, item) => sum + (item.currentWorth ?? item.purchasePrice), 0);
         totalAssets += jewellery.reduce((sum, item) => sum + (item.currentWorth ?? (item.purchasePrice || 0)), 0);
         totalAssets += receivable.reduce((sum, item) => sum + (item.currentWorth ?? item.principalAmount), 0);
+        totalAssets += mutualFund.reduce((sum, item) => sum + (item.currentWorth ?? item.totalAmountInvested), 0);
+        totalAssets += stock.reduce((sum, item) => sum + (item.currentWorth ?? item.totalInvestedAmount), 0);
 
         totalLiabilities += loan.reduce((sum, item) => sum + item.outstandingBalance, 0);
         totalLiabilities += creditCard.reduce((sum, item) => sum + item.currentOutstanding, 0);

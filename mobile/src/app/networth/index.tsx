@@ -3,8 +3,11 @@ import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator } from
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
-import { useNetWorth } from "../../lib/networthApi";
+import { useFocusEffect } from "expo-router";
+import { fetchNetWorth, NetWorthData } from "../../lib/networthApi";
 import { NETWORTH_CONFIG } from "../../lib/networthConfig";
+import { getClientCache, setClientCache } from "../../lib/clientCache";
+import { NetWorthSkeleton } from "../../components/LoadingSkeleton";
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("en-IN", {
@@ -16,14 +19,41 @@ function formatCurrency(value: number) {
 
 export default function NetWorthScreen() {
   const router = useRouter();
-  const { data, isLoading, isError } = useNetWorth();
+  
+  const initialCache = React.useMemo(() => getClientCache<NetWorthData>("app:networth-data") ?? null, []);
+  const [data, setData] = React.useState<NetWorthData | null>(initialCache);
+  const [isLoading, setIsLoading] = React.useState(!initialCache);
+  const [isError, setIsError] = React.useState(false);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      let active = true;
+      if (!getClientCache("app:networth-data")) {
+        setIsLoading(true);
+      }
+      
+      fetchNetWorth()
+        .then(res => {
+          if (active) {
+            setData(res);
+            setIsError(false);
+            setClientCache("app:networth-data", res);
+          }
+        })
+        .catch(() => {
+          if (active && !getClientCache("app:networth-data")) setIsError(true);
+        })
+        .finally(() => {
+          if (active) setIsLoading(false);
+        });
+      return () => { active = false; };
+    }, [])
+  );
 
   if (isLoading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color="#7dffa2" />
-        </View>
+        <NetWorthSkeleton />
       </SafeAreaView>
     );
   }
@@ -75,7 +105,7 @@ export default function NetWorthScreen() {
         >
           <View style={styles.cardLeft}>
             <View style={styles.iconBox}>
-               <MaterialIcons name={category === "asset" ? "account-balance" : "credit-card"} size={20} color="#fff" />
+               <MaterialIcons name={config?.icon || (category === "asset" ? "account-balance" : "credit-card")} size={20} color="#fff" />
             </View>
             <View>
               <Text style={styles.cardTitle}>{title}</Text>
@@ -91,7 +121,7 @@ export default function NetWorthScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
+    <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backButton}>
           <MaterialIcons name="arrow-back" size={24} color="#fff" />
@@ -117,18 +147,26 @@ export default function NetWorthScreen() {
           </View>
         </View>
 
-        <Text style={styles.sectionTitle}>Assets</Text>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Assets</Text>
+          <Pressable onPress={() => router.push({ pathname: "/networth/add", params: { filter: "asset" } } as any)} style={styles.sectionAddBtn}>
+            <MaterialIcons name="add" size={22} color="#7dffa2" />
+          </Pressable>
+        </View>
         {renderSection("asset", assets)}
 
-        <Text style={[styles.sectionTitle, { marginTop: 24 }]}>Liabilities</Text>
+        <View style={[styles.sectionHeader, { marginTop: 24 }]}>
+          <Text style={styles.sectionTitle}>Liabilities</Text>
+          <Pressable onPress={() => router.push({ pathname: "/networth/add", params: { filter: "liability" } } as any)} style={styles.sectionAddBtn}>
+            <MaterialIcons name="add" size={22} color="#ffb4ab" />
+          </Pressable>
+        </View>
         {renderSection("liability", liabilities)}
 
-        <View style={{ height: 100 }} />
+        <View style={{ height: 160 }} />
       </ScrollView>
 
-      <Pressable style={styles.fab} onPress={() => router.push("/networth/add" as any)}>
-        <MaterialIcons name="add" size={28} color="#000" />
-      </Pressable>
+
     </SafeAreaView>
   );
 }
@@ -151,7 +189,9 @@ const styles = StyleSheet.create({
   summaryDivider: { width: 1, backgroundColor: "rgba(255,255,255,0.1)" },
   assetText: { color: "#7dffa2", fontSize: 16, fontWeight: "600" },
   liabilityText: { color: "#ffb4ab", fontSize: 16, fontWeight: "600" },
-  sectionTitle: { color: "#fff", fontSize: 20, fontWeight: "600", marginBottom: 16 },
+  sectionHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 16 },
+  sectionTitle: { color: "#fff", fontSize: 20, fontWeight: "600" },
+  sectionAddBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: "rgba(255,255,255,0.08)", alignItems: "center", justifyContent: "center" },
   emptyCard: { backgroundColor: "rgba(255,255,255,0.02)", padding: 20, borderRadius: 12, alignItems: "center" },
   emptyText: { color: "rgba(255,255,255,0.4)", fontSize: 14 },
   card: { backgroundColor: "rgba(255,255,255,0.05)", padding: 16, borderRadius: 12, marginBottom: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
@@ -160,5 +200,5 @@ const styles = StyleSheet.create({
   cardTitle: { color: "#fff", fontSize: 16, fontWeight: "500", marginBottom: 2 },
   cardSubtitle: { color: "rgba(255,255,255,0.5)", fontSize: 13 },
   cardValue: { fontSize: 16, fontWeight: "600" },
-  fab: { position: "absolute", bottom: 32, right: 24, width: 56, height: 56, borderRadius: 28, backgroundColor: "#7dffa2", alignItems: "center", justifyContent: "center", shadowColor: "#7dffa2", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 8 },
+  addButton: { padding: 4 },
 });

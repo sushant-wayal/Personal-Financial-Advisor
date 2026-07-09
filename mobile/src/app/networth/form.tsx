@@ -1,10 +1,51 @@
-import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Switch, ActivityIndicator, Alert } from "react-native";
+import React, { useState, useEffect, useRef } from "react";
+import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, ActivityIndicator, Alert, Animated } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
 import { NETWORTH_CONFIG, FieldConfig } from "../../lib/networthConfig";
-import { useCreateNetWorth, useUpdateNetWorth, useDeleteNetWorth, useNetWorth } from "../../lib/networthApi";
+import { fetchNetWorth, createNetWorth, updateNetWorth, deleteNetWorth, NetWorthData } from "../../lib/networthApi";
+import { DatePickerModal, fullDateLabel } from "../../components/DatePickerModal";
+
+function CustomSwitch({ value, onValueChange }: { value: boolean; onValueChange: (v: boolean) => void }) {
+  const animValue = useRef(new Animated.Value(value ? 1 : 0)).current;
+
+  useEffect(() => {
+    Animated.timing(animValue, {
+      toValue: value ? 1 : 0,
+      duration: 200,
+      useNativeDriver: false,
+    }).start();
+  }, [value]);
+
+  const translateX = animValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: [2, 22],
+  });
+
+  const trackBg = animValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["rgba(255,255,255,0.06)", "rgba(5,231,119,0.15)"],
+  });
+
+  const trackBorder = animValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["rgba(255,255,255,0.12)", "rgba(5,231,119,0.5)"],
+  });
+
+  const thumbColor = animValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["#8e9192", "#05e777"],
+  });
+
+  return (
+    <Pressable onPress={() => onValueChange(!value)} style={styles.customSwitchContainer}>
+      <Animated.View style={[styles.switchTrack, { backgroundColor: trackBg, borderColor: trackBorder }]}>
+        <Animated.View style={[styles.switchThumb, { transform: [{ translateX }], backgroundColor: thumbColor }]} />
+      </Animated.View>
+    </Pressable>
+  );
+}
 
 export default function NetWorthFormScreen() {
   const router = useRouter();
@@ -13,14 +54,16 @@ export default function NetWorthFormScreen() {
   const id = params.id as string | undefined;
 
   const config = NETWORTH_CONFIG[type];
-  const { data: networthData } = useNetWorth();
-
+  const [networthData, setNetworthData] = useState<NetWorthData | null>(null);
   const [form, setForm] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(false);
+  const [datePickerField, setDatePickerField] = useState<string | null>(null);
 
-  const createMutation = useCreateNetWorth();
-  const updateMutation = useUpdateNetWorth();
-  const deleteMutation = useDeleteNetWorth();
+  useEffect(() => {
+    if (id) {
+      fetchNetWorth().then(setData => setNetworthData(setData)).catch(console.error);
+    }
+  }, [id]);
 
   useEffect(() => {
     if (id && networthData) {
@@ -81,9 +124,9 @@ export default function NetWorthFormScreen() {
       }
 
       if (id) {
-        await updateMutation.mutateAsync({ type, id, data: payload });
+        await updateNetWorth(type, id, payload);
       } else {
-        await createMutation.mutateAsync({ type, data: payload });
+        await createNetWorth(type, payload);
       }
       
       router.back();
@@ -103,7 +146,7 @@ export default function NetWorthFormScreen() {
         onPress: async () => {
           setLoading(true);
           try {
-            await deleteMutation.mutateAsync({ type, id: id! });
+            await deleteNetWorth(type, id!);
             router.back();
           } catch (e: any) {
             Alert.alert("Error", e.message || "Failed to delete");
@@ -121,11 +164,13 @@ export default function NetWorthFormScreen() {
     if (field.type === "boolean") {
       return (
         <View key={field.name} style={styles.switchRow}>
-          <Text style={styles.label}>{field.label} {field.required && "*"}</Text>
-          <Switch 
+          <View style={{ flex: 1, paddingRight: 16 }}>
+            <Text style={[styles.label, field.description ? { marginBottom: 4 } : {}]}>{field.label} {field.required && "*"}</Text>
+            {field.description && <Text style={styles.description}>{field.description}</Text>}
+          </View>
+          <CustomSwitch 
             value={!!value}
             onValueChange={(v) => handleChange(field.name, v)}
-            trackColor={{ false: "rgba(255,255,255,0.1)", true: "#7dffa2" }}
           />
         </View>
       );
@@ -134,7 +179,8 @@ export default function NetWorthFormScreen() {
     if (field.type === "select") {
       return (
         <View key={field.name} style={styles.fieldBlock}>
-          <Text style={styles.label}>{field.label} {field.required && "*"}</Text>
+          <Text style={[styles.label, field.description ? { marginBottom: 4 } : {}]}>{field.label} {field.required && "*"}</Text>
+          {field.description && <Text style={styles.description}>{field.description}</Text>}
           <View style={styles.optionsRow}>
             {field.options?.map(opt => (
               <Pressable
@@ -152,14 +198,30 @@ export default function NetWorthFormScreen() {
       );
     }
 
+    if (field.type === "date") {
+      return (
+        <View key={field.name} style={styles.fieldBlock}>
+          <Text style={[styles.label, field.description ? { marginBottom: 4 } : {}]}>{field.label} {field.required && "*"}</Text>
+          {field.description && <Text style={styles.description}>{field.description}</Text>}
+          <Pressable style={styles.dateInputWrap} onPress={() => setDatePickerField(field.name)}>
+            <Text style={[styles.dateInputText, !value ? { color: "rgba(255,255,255,0.3)" } : null]}>
+              {value ? fullDateLabel(String(value)) : "Select date"}
+            </Text>
+            <MaterialIcons name="calendar-today" size={20} color="#8e9192" />
+          </Pressable>
+        </View>
+      );
+    }
+
     return (
       <View key={field.name} style={styles.fieldBlock}>
-        <Text style={styles.label}>{field.label} {field.required && "*"}</Text>
+        <Text style={[styles.label, field.description ? { marginBottom: 4 } : {}]}>{field.label} {field.required && "*"}</Text>
+        {field.description && <Text style={styles.description}>{field.description}</Text>}
         <TextInput
           style={styles.input}
           value={value !== undefined ? String(value) : ""}
           onChangeText={(text) => handleChange(field.name, text)}
-          placeholder={field.type === "date" ? "YYYY-MM-DD" : `Enter ${field.label.toLowerCase()}`}
+          placeholder={field.type === "number" ? "0" : "Enter value"}
           placeholderTextColor="rgba(255,255,255,0.3)"
           keyboardType={field.type === "number" ? "numeric" : "default"}
         />
@@ -168,7 +230,7 @@ export default function NetWorthFormScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
+    <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backButton}>
           <MaterialIcons name="arrow-back" size={24} color="#fff" />
@@ -188,37 +250,54 @@ export default function NetWorthFormScreen() {
 
         {id && (
           <Pressable style={styles.deleteBtn} onPress={handleDelete} disabled={loading}>
-            <Text style={styles.deleteBtnText}>Delete</Text>
+            <Text style={styles.deleteBtnText}>Delete {config?.label}</Text>
           </Pressable>
         )}
         
-        <View style={{ height: 40 }} />
+        <View style={{ height: 160 }} />
       </ScrollView>
+
+      <DatePickerModal 
+        visible={!!datePickerField}
+        initialDate={datePickerField ? form[datePickerField] : null}
+        disableFuture={datePickerField ? ["startDate", "purchaseDate", "setupDate", "borrowDate", "annualInterestCreditDate"].includes(datePickerField) : false}
+        disablePast={datePickerField ? ["maturityDate", "expectedReturnDate", "nextRepaymentDate"].includes(datePickerField) : false}
+        onClose={() => setDatePickerField(null)}
+        onSelect={(date) => {
+          if (datePickerField) handleChange(datePickerField, date);
+        }}
+      />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0a0a0a" },
+  container: { flex: 1, backgroundColor: "#131313" },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
   errorText: { color: "#ffb4ab", fontSize: 16 },
-  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 12 },
-  backButton: { padding: 4 },
-  headerTitle: { fontSize: 18, color: "#fff", fontWeight: "600" },
+  header: { height: 96, paddingTop: 14, paddingHorizontal: 24, borderBottomWidth: 1, borderBottomColor: "rgba(68,71,72,0.20)", backgroundColor: "rgba(19,19,19,0.94)", flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  backButton: { width: 40, height: 40, marginLeft: -8, borderRadius: 20, alignItems: "center", justifyContent: "center" },
+  headerTitle: { color: "#ffffff", fontFamily: "Hanken Grotesk", fontSize: 20, fontWeight: "700" },
   scroll: { flex: 1 },
-  scrollContent: { padding: 16 },
-  formCard: { backgroundColor: "rgba(255,255,255,0.03)", borderRadius: 16, padding: 16, marginBottom: 24 },
-  fieldBlock: { marginBottom: 20 },
-  label: { color: "rgba(255,255,255,0.7)", fontSize: 13, marginBottom: 8, fontWeight: "500" },
-  input: { backgroundColor: "rgba(255,255,255,0.05)", borderRadius: 8, paddingHorizontal: 16, paddingVertical: 14, color: "#fff", fontSize: 16 },
-  switchRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 20 },
+  scrollContent: { padding: 24 },
+  formCard: { borderRadius: 16, borderWidth: 1, borderColor: "rgba(68,71,72,0.35)", backgroundColor: "#0e0e0e", padding: 22, gap: 20, marginBottom: 32 },
+  fieldBlock: {},
+  label: { color: "#8e9192", fontFamily: "JetBrains Mono", fontSize: 12, letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 10 },
+  description: { color: "rgba(196,199,200,0.6)", fontSize: 13, lineHeight: 18, marginBottom: 12 },
+  input: { minHeight: 54, borderRadius: 12, borderWidth: 1, borderColor: "rgba(255,255,255,0.10)", backgroundColor: "#1A1A1A", color: "#ffffff", paddingHorizontal: 16, fontSize: 16 },
+  dateInputWrap: { minHeight: 54, borderRadius: 12, borderWidth: 1, borderColor: "rgba(255,255,255,0.10)", backgroundColor: "#1A1A1A", paddingHorizontal: 16, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  dateInputText: { color: "#ffffff", fontSize: 16 },
+  switchRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  customSwitchContainer: { padding: 4 },
+  switchTrack: { width: 44, height: 24, borderRadius: 12, borderWidth: 1, justifyContent: "center" },
+  switchThumb: { width: 18, height: 18, borderRadius: 9, position: "absolute" },
   optionsRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  optionPill: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.05)", borderWidth: 1, borderColor: "rgba(255,255,255,0.1)" },
-  optionPillActive: { backgroundColor: "rgba(125,255,162,0.1)", borderColor: "#7dffa2" },
-  optionText: { color: "rgba(255,255,255,0.6)", fontSize: 14, fontWeight: "500" },
+  optionPill: { height: 38, flexDirection: "row", alignItems: "center", paddingHorizontal: 16, borderRadius: 999, backgroundColor: "#1A1A1A", borderWidth: 1, borderColor: "#333333" },
+  optionPillActive: { backgroundColor: "rgba(5,231,119,0.14)", borderColor: "#05e777" },
+  optionText: { color: "#e5e2e1", fontSize: 14, letterSpacing: 0.7, fontWeight: "500", fontFamily: "JetBrains Mono" },
   optionTextActive: { color: "#7dffa2" },
-  saveBtn: { backgroundColor: "#7dffa2", borderRadius: 12, paddingVertical: 16, alignItems: "center" },
-  saveBtnText: { color: "#000", fontSize: 16, fontWeight: "700" },
-  deleteBtn: { marginTop: 16, backgroundColor: "rgba(255,180,171,0.1)", borderRadius: 12, paddingVertical: 16, alignItems: "center" },
-  deleteBtnText: { color: "#ffb4ab", fontSize: 16, fontWeight: "600" },
+  saveBtn: { height: 50, borderRadius: 8, backgroundColor: "#ffffff", alignItems: "center", justifyContent: "center" },
+  saveBtnText: { color: "#000000", fontFamily: "JetBrains Mono", fontSize: 14, letterSpacing: 1.6, textTransform: "uppercase", fontWeight: "700" },
+  deleteBtn: { marginTop: 16, height: 50, borderRadius: 8, borderWidth: 1, borderColor: "rgba(255,180,171,0.3)", backgroundColor: "rgba(255,180,171,0.05)", alignItems: "center", justifyContent: "center" },
+  deleteBtnText: { color: "#ffb4ab", fontFamily: "JetBrains Mono", fontSize: 14, letterSpacing: 1.6, textTransform: "uppercase", fontWeight: "700" },
 });

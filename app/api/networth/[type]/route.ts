@@ -15,15 +15,17 @@ const ALLOWED_TYPES = [
     "loanLiability",
     "creditCardLiability",
     "bnplLiability",
-    "borrowedLiability"
+    "borrowedLiability",
+    "mutualFund",
+    "stock"
 ];
 
 export async function POST(
     req: NextRequest,
-    { params }: { params: { type: string } }
+    { params }: { params: Promise<{ type: string }> }
 ) {
     try {
-        const type = params.type;
+        const { type } = await params;
 
         if (!ALLOWED_TYPES.includes(type)) {
             return NextResponse.json({ error: "Invalid networth type" }, { status: 400 });
@@ -39,6 +41,6 @@ export async function POST(
 
         return NextResponse.json(created);
     } catch (e: any) {
-        return NextResponse.json({ error: String(e) }, { status: 500 });
+        return NextResponse.json({ error: e.message || "Failed to create record" }, { status: 500 });
     }
 }

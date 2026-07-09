@@ -15,15 +15,17 @@ const ALLOWED_TYPES = [
     "loanLiability",
     "creditCardLiability",
     "bnplLiability",
-    "borrowedLiability"
+    "borrowedLiability",
+    "mutualFund",
+    "stock"
 ];
 
 export async function PUT(
     req: NextRequest,
-    { params }: { params: { type: string, id: string } }
+    { params }: { params: Promise<{ type: string, id: string }> }
 ) {
     try {
-        const { type, id } = params;
+        const { type, id } = await params;
 
         if (!ALLOWED_TYPES.includes(type)) {
             return NextResponse.json({ error: "Invalid networth type" }, { status: 400 });
@@ -39,16 +41,16 @@ export async function PUT(
 
         return NextResponse.json(updated);
     } catch (e: any) {
-        return NextResponse.json({ error: String(e) }, { status: 500 });
+        return NextResponse.json({ error: e.message || "Failed to update record" }, { status: 500 });
     }
 }
 
 export async function DELETE(
     req: NextRequest,
-    { params }: { params: { type: string, id: string } }
+    { params }: { params: Promise<{ type: string, id: string }> }
 ) {
     try {
-        const { type, id } = params;
+        const { type, id } = await params;
 
         if (!ALLOWED_TYPES.includes(type)) {
             return NextResponse.json({ error: "Invalid networth type" }, { status: 400 });
@@ -61,6 +63,6 @@ export async function DELETE(
 
         return NextResponse.json({ success: true });
     } catch (e: any) {
-        return NextResponse.json({ error: String(e) }, { status: 500 });
+        return NextResponse.json({ error: e.message || "Failed to delete record" }, { status: 500 });
     }
 }

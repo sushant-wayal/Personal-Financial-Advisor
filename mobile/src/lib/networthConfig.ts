@@ -6,24 +6,57 @@ export interface FieldConfig {
   type: FieldType;
   options?: { label: string; value: string }[];
   required?: boolean;
+  description?: string;
 }
 
 export interface NetWorthConstructConfig {
   type: string;
   label: string;
   category: "asset" | "liability";
+  icon: any;
   fields: FieldConfig[];
 }
 
 export const NETWORTH_CONFIG: Record<string, NetWorthConstructConfig> = {
+  mutualFund: {
+    type: "mutualFund",
+    label: "Mutual Fund",
+    category: "asset",
+    icon: "pie-chart",
+    fields: [
+      { name: "fundName", label: "Fund Name", type: "text", required: true },
+      { name: "folioNumber", label: "Folio Number", type: "text" },
+      { name: "investmentType", label: "Investment Type", type: "select", options: [{ label: "SIP", value: "SIP" }, { label: "Lumpsum", value: "LUMPSUM" }], required: true },
+      { name: "totalAmountInvested", label: "Total Invested", type: "number", required: true },
+      { name: "averageNav", label: "Average NAV", type: "number" },
+      { name: "unitsHeld", label: "Units Held", type: "number" },
+      { name: "currentWorth", label: "Current Value", type: "number", required: true },
+    ],
+  },
+  stock: {
+    type: "stock",
+    label: "Stocks / Equity",
+    category: "asset",
+    icon: "trending-up",
+    fields: [
+      { name: "stockName", label: "Stock Name", type: "text", required: true },
+      { name: "ticker", label: "Ticker Symbol", type: "text" },
+      { name: "quantity", label: "Quantity Held", type: "number", required: true },
+      { name: "averagePurchasePrice", label: "Avg Purchase Price", type: "number", required: true },
+      { name: "totalInvestedAmount", label: "Total Invested", type: "number", required: true },
+      { name: "currentMarketPrice", label: "Current Market Price", type: "number" },
+      { name: "currentWorth", label: "Current Value", type: "number", required: true },
+    ],
+  },
   pPFAccount: {
     type: "pPFAccount",
     label: "PPF Account",
     category: "asset",
+    icon: "account-balance",
     fields: [
       { name: "currentBalance", label: "Current Balance", type: "number", required: true },
       { name: "setupDate", label: "Setup Date", type: "date", required: true },
-      { name: "monthlyMinimumBalance", label: "Monthly Minimum Balance", type: "number", required: true },
+      { name: "monthlyMinimumBalance", label: "Monthly Minimum Balance", type: "number", required: true, description: "Lowest balance between 5th and end of month, used for interest calculation" },
       { name: "currentInterestRate", label: "Interest Rate (%)", type: "number" },
     ],
   },
@@ -31,27 +64,29 @@ export const NETWORTH_CONFIG: Record<string, NetWorthConstructConfig> = {
     type: "ePFAccount",
     label: "EPF Account",
     category: "asset",
+    icon: "work",
     fields: [
       { name: "currentBalance", label: "Current Balance", type: "number", required: true },
       { name: "monthlyEmployeeContribution", label: "Monthly Employee Contribution", type: "number", required: true },
       { name: "monthlyEmployerContribution", label: "Monthly Employer Contribution", type: "number", required: true },
       { name: "setupDate", label: "Setup Date", type: "date", required: true },
       { name: "epfCreditDay", label: "EPF Credit Day (1-31)", type: "number", required: true },
-      { name: "annualInterestCreditDate", label: "Annual Interest Credit Date (MM-DD)", type: "text", required: true },
+      { name: "annualInterestCreditDate", label: "Annual Interest Credit Date (MM-DD)", type: "text", required: true, description: "The date each year when interest is credited (e.g. 03-31)" },
     ],
   },
   fDAccount: {
     type: "fDAccount",
     label: "Fixed Deposit",
     category: "asset",
+    icon: "savings",
     fields: [
       { name: "bankName", label: "Bank Name", type: "text", required: true },
       { name: "principalAmount", label: "Principal Amount", type: "number", required: true },
       { name: "startDate", label: "Start Date", type: "date", required: true },
       { name: "maturityDate", label: "Maturity Date", type: "date", required: true },
       { name: "annualInterestRate", label: "Annual Interest Rate (%)", type: "number", required: true },
-      { name: "payoutType", label: "Payout Type", type: "select", options: [{ label: "Cumulative", value: "CUMULATIVE" }, { label: "Non-Cumulative", value: "NON_CUMULATIVE" }], required: true },
-      { name: "compoundingFrequency", label: "Compounding Frequency", type: "select", options: [{ label: "Quarterly", value: "QUARTERLY" }, { label: "Monthly", value: "MONTHLY" }, { label: "Yearly", value: "YEARLY" }, { label: "Half Yearly", value: "HALF_YEARLY" }], required: true },
+      { name: "payoutType", label: "Payout Type", type: "select", options: [{ label: "Cumulative", value: "CUMULATIVE" }, { label: "Non-Cumulative", value: "NON_CUMULATIVE" }], required: true, description: "Cumulative reinvests interest, Non-Cumulative pays out regularly" },
+      { name: "compoundingFrequency", label: "Compounding Frequency", type: "select", options: [{ label: "Quarterly", value: "QUARTERLY" }, { label: "Monthly", value: "MONTHLY" }, { label: "Yearly", value: "YEARLY" }, { label: "Half Yearly", value: "HALF_YEARLY" }], required: true, description: "How often interest is calculated and added" },
       { name: "autoRenewal", label: "Auto Renewal", type: "boolean" },
     ],
   },
@@ -59,14 +94,15 @@ export const NETWORTH_CONFIG: Record<string, NetWorthConstructConfig> = {
     type: "rDAccount",
     label: "Recurring Deposit",
     category: "asset",
+    icon: "autorenew",
     fields: [
       { name: "bankName", label: "Bank Name", type: "text", required: true },
       { name: "monthlyDepositAmount", label: "Monthly Deposit Amount", type: "number", required: true },
       { name: "startDate", label: "Start Date", type: "date", required: true },
       { name: "maturityDate", label: "Maturity Date", type: "date", required: true },
       { name: "annualInterestRate", label: "Annual Interest Rate (%)", type: "number", required: true },
-      { name: "compoundingFrequency", label: "Compounding Frequency", type: "select", options: [{ label: "Quarterly", value: "QUARTERLY" }, { label: "Monthly", value: "MONTHLY" }, { label: "Yearly", value: "YEARLY" }, { label: "Half Yearly", value: "HALF_YEARLY" }], required: true },
-      { name: "rdDepositDay", label: "Deposit Day (1-31)", type: "number", required: true },
+      { name: "compoundingFrequency", label: "Compounding Frequency", type: "select", options: [{ label: "Quarterly", value: "QUARTERLY" }, { label: "Monthly", value: "MONTHLY" }, { label: "Yearly", value: "YEARLY" }, { label: "Half Yearly", value: "HALF_YEARLY" }], required: true, description: "How often interest is calculated and added" },
+      { name: "rdDepositDay", label: "Deposit Day (1-31)", type: "number", required: true, description: "The day of the month when deposit is automatically deducted" },
       { name: "autoRenewal", label: "Auto Renewal", type: "boolean" },
     ],
   },
@@ -74,6 +110,7 @@ export const NETWORTH_CONFIG: Record<string, NetWorthConstructConfig> = {
     type: "vehicleAsset",
     label: "Vehicle",
     category: "asset",
+    icon: "directions-car",
     fields: [
       { name: "type", label: "Vehicle Type", type: "select", options: [{ label: "Car", value: "CAR" }, { label: "Bike", value: "BIKE" }], required: true },
       { name: "brand", label: "Brand", type: "text", required: true },
@@ -83,7 +120,7 @@ export const NETWORTH_CONFIG: Record<string, NetWorthConstructConfig> = {
       { name: "purchaseDate", label: "Purchase Date", type: "date", required: true },
       { name: "purchasePrice", label: "Purchase Price", type: "number", required: true },
       { name: "fuelType", label: "Fuel Type", type: "text" },
-      { name: "odometerAtSetup", label: "Odometer Reading", type: "number" },
+      { name: "odometerAtSetup", label: "Odometer Reading", type: "number", description: "Current reading on the odometer (in km or miles)" },
       { name: "currentWorth", label: "Current Worth", type: "number", required: true },
     ],
   },
@@ -91,6 +128,7 @@ export const NETWORTH_CONFIG: Record<string, NetWorthConstructConfig> = {
     type: "plotAsset",
     label: "Plot / Land",
     category: "asset",
+    icon: "landscape",
     fields: [
       { name: "purchasePrice", label: "Purchase Price", type: "number", required: true },
       { name: "purchaseDate", label: "Purchase Date", type: "date", required: true },
@@ -107,6 +145,7 @@ export const NETWORTH_CONFIG: Record<string, NetWorthConstructConfig> = {
     type: "independentPropertyAsset",
     label: "Independent Property",
     category: "asset",
+    icon: "home",
     fields: [
       { name: "purchasePrice", label: "Purchase Price", type: "number", required: true },
       { name: "purchaseDate", label: "Purchase Date", type: "date", required: true },
@@ -126,6 +165,7 @@ export const NETWORTH_CONFIG: Record<string, NetWorthConstructConfig> = {
     type: "apartmentAsset",
     label: "Apartment",
     category: "asset",
+    icon: "apartment",
     fields: [
       { name: "purchasePrice", label: "Purchase Price", type: "number", required: true },
       { name: "purchaseDate", label: "Purchase Date", type: "date", required: true },
@@ -147,9 +187,10 @@ export const NETWORTH_CONFIG: Record<string, NetWorthConstructConfig> = {
     type: "jewelleryAsset",
     label: "Jewellery",
     category: "asset",
+    icon: "diamond",
     fields: [
       { name: "metalType", label: "Metal Type", type: "select", options: [{ label: "Gold", value: "GOLD" }, { label: "Silver", value: "SILVER" }, { label: "Platinum", value: "PLATINUM" }], required: true },
-      { name: "purity", label: "Purity (e.g. 22 or 24)", type: "number", required: true },
+      { name: "purity", label: "Purity", type: "number", required: true, description: "E.g., 22 or 24 for Gold, 999 for Silver" },
       { name: "netWeight", label: "Net Weight", type: "number", required: true },
       { name: "weightUnit", label: "Weight Unit (g or kg)", type: "select", options: [{ label: "Grams (g)", value: "g" }, { label: "Kilograms (kg)", value: "kg" }], required: true },
       { name: "purchaseDate", label: "Purchase Date", type: "date" },
@@ -161,6 +202,7 @@ export const NETWORTH_CONFIG: Record<string, NetWorthConstructConfig> = {
     type: "receivableAsset",
     label: "Receivable (Money Owed to You)",
     category: "asset",
+    icon: "handshake",
     fields: [
       { name: "name", label: "Debtor Name", type: "text", required: true },
       { name: "principalAmount", label: "Principal Amount", type: "number", required: true },
@@ -168,7 +210,7 @@ export const NETWORTH_CONFIG: Record<string, NetWorthConstructConfig> = {
       { name: "category", label: "Category", type: "select", options: [{ label: "Security Deposit", value: "SECURITY_DEPOSIT" }, { label: "Personal Loan", value: "PERSONAL_LOAN" }, { label: "Refundable Deposit", value: "REFUNDABLE_DEPOSIT" }, { label: "Other", value: "OTHER" }], required: true },
       { name: "expectedReturnDate", label: "Expected Return Date", type: "date" },
       { name: "interestRate", label: "Interest Rate (%)", type: "number" },
-      { name: "interestType", label: "Interest Type", type: "select", options: [{ label: "None", value: "NONE" }, { label: "Simple", value: "SIMPLE" }, { label: "Compound", value: "COMPOUND" }] },
+      { name: "interestType", label: "Interest Type", type: "select", options: [{ label: "None", value: "NONE" }, { label: "Simple", value: "SIMPLE" }, { label: "Compound", value: "COMPOUND" }], description: "Simple applies to principal only, Compound applies to principal + accumulated interest" },
       { name: "currentWorth", label: "Current Worth", type: "number", required: true },
     ],
   },
@@ -176,6 +218,7 @@ export const NETWORTH_CONFIG: Record<string, NetWorthConstructConfig> = {
     type: "loanLiability",
     label: "Loan",
     category: "liability",
+    icon: "request-quote",
     fields: [
       { name: "loanType", label: "Loan Type", type: "select", options: [{ label: "Home", value: "HOME" }, { label: "Car", value: "CAR" }, { label: "Personal", value: "PERSONAL" }, { label: "Education", value: "EDUCATION" }], required: true },
       { name: "outstandingBalance", label: "Outstanding Balance", type: "number", required: true },
@@ -190,6 +233,7 @@ export const NETWORTH_CONFIG: Record<string, NetWorthConstructConfig> = {
     type: "creditCardLiability",
     label: "Credit Card",
     category: "liability",
+    icon: "credit-card",
     fields: [
       { name: "currentOutstanding", label: "Current Outstanding", type: "number", required: true },
       { name: "statementGenerationDay", label: "Statement Day (1-31)", type: "number", required: true },
@@ -205,6 +249,7 @@ export const NETWORTH_CONFIG: Record<string, NetWorthConstructConfig> = {
     type: "bnplLiability",
     label: "Buy Now Pay Later (BNPL)",
     category: "liability",
+    icon: "shopping-cart",
     fields: [
       { name: "provider", label: "Provider (e.g. Amazon Pay Later)", type: "text", required: true },
       { name: "currentOutstanding", label: "Current Outstanding", type: "number", required: true },
@@ -219,6 +264,7 @@ export const NETWORTH_CONFIG: Record<string, NetWorthConstructConfig> = {
     type: "borrowedLiability",
     label: "Borrowed Money",
     category: "liability",
+    icon: "person",
     fields: [
       { name: "lenderName", label: "Lender Name", type: "text", required: true },
       { name: "outstandingAmount", label: "Outstanding Amount", type: "number", required: true },
@@ -227,7 +273,7 @@ export const NETWORTH_CONFIG: Record<string, NetWorthConstructConfig> = {
       { name: "repaymentFrequency", label: "Repayment Frequency", type: "select", options: [{ label: "Monthly", value: "MONTHLY" }, { label: "Quarterly", value: "QUARTERLY" }, { label: "One-Time", value: "ONE_TIME" }] },
       { name: "installmentAmount", label: "Installment Amount", type: "number" },
       { name: "nextRepaymentDate", label: "Next Repayment Date", type: "date" },
-      { name: "latePenalty", label: "Late Penalty", type: "number" },
+      { name: "latePenalty", label: "Late Penalty", type: "number", description: "Any additional fee charged if the repayment is delayed" },
     ],
   },
 };

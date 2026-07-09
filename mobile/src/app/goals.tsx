@@ -16,6 +16,7 @@ import {
   BackHandler,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
+import { DatePickerModal } from "../components/DatePickerModal";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { GoalsSkeleton, Skeleton } from "../components/LoadingSkeleton";
@@ -1158,58 +1159,16 @@ function GoalSheet({
         </SafeAreaView>
       </Modal>
 
-      <Modal visible={datePickerVisible} transparent animationType="fade" onRequestClose={() => setDatePickerVisible(false)}>
-        <SafeAreaView style={styles.goalDateOverlay} edges={["top", "bottom"]}>
-          <View style={styles.goalDateCard}>
-            <View style={styles.goalDateHeader}>
-              <Text style={styles.goalDateTitle}>Select Target Date</Text>
-              <Pressable onPress={() => setDatePickerVisible(false)} style={styles.sheetIconButton}>
-                <MaterialIcons name="close" size={24} color="#c4c7c8" />
-              </Pressable>
-            </View>
-            <View style={styles.goalDateContent}>
-              <View style={styles.dateSummaryCard}>
-                <View>
-                  <Text style={styles.dateSummaryLabel}>TARGET DATE</Text>
-                  <Text style={styles.dateSummaryValue}>{fullDateLabel(dateDraft)}</Text>
-                </View>
-                <MaterialIcons name="event" size={24} color="#7dffa2" />
-              </View>
-              <View style={styles.addCalendarHeader}>
-                <Pressable onPress={() => setDateMonth((current) => new Date(current.getFullYear(), current.getMonth() - 1, 1))}>
-                  <MaterialIcons name="chevron-left" size={26} color="#c4c7c8" />
-                </Pressable>
-                <Text style={styles.addCalendarMonth}>{monthTitle(dateMonth)}</Text>
-                <Pressable onPress={() => setDateMonth((current) => new Date(current.getFullYear(), current.getMonth() + 1, 1))}>
-                  <MaterialIcons name="chevron-right" size={26} color="#c4c7c8" />
-                </Pressable>
-              </View>
-              <View style={styles.addWeekdayGrid}>
-                {["SU", "MO", "TU", "WE", "TH", "FR", "SA"].map((day) => <Text key={day} style={styles.addWeekdayText}>{day}</Text>)}
-              </View>
-              <View style={styles.addDateGrid}>
-                {calendarDays.map((day) => {
-                  const selected = day.key === dateDraft;
-                  const disabled = compareDateKeys(day.key, todayKey) < 0;
-                  return (
-                    <Pressable key={day.key} disabled={disabled} onPress={() => setDateDraft(day.key)} style={[styles.addDateCell, selected ? styles.addDateCellSelected : null, disabled ? styles.addDateCellDisabled : null]}>
-                      <Text style={[styles.addDateCellText, !day.inMonth || disabled ? styles.dateTextMuted : null, selected ? styles.addDateCellTextSelected : null]}>{day.day}</Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </View>
-            <View style={styles.goalDateFooter}>
-              <Pressable style={styles.sheetCancelButton} onPress={() => setDatePickerVisible(false)}>
-                <Text style={styles.sheetCancelText}>CANCEL</Text>
-              </Pressable>
-              <Pressable style={styles.sheetPrimaryButton} onPress={applyTargetDate}>
-                <Text style={styles.sheetPrimaryText}>SET DATE</Text>
-              </Pressable>
-            </View>
-          </View>
-        </SafeAreaView>
-      </Modal>
+      <DatePickerModal 
+        visible={datePickerVisible}
+        initialDate={dateDraft}
+        disablePast={true}
+        onClose={() => setDatePickerVisible(false)}
+        onSelect={(date) => {
+          setDateDraft(date);
+          update({ targetDate: date });
+        }}
+      />
     </>
   );
 }
