@@ -293,3 +293,24 @@ model IndependentPropertyAsset {
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 }
+
+model ApartmentAsset {
+  id                 String    @id @default(cuid())
+  purchasePrice      Float
+  purchaseDate       DateTime
+  country            String
+  state              String
+  city               String
+  locality           String
+  builtUpArea        Float
+  constructionYear   Int
+  bhk                String?
+  floorNumber        String?
+  builder            String?
+  projectName        String?
+  lastRenovationYear Int?
+  currentWorth       Float
+  lastValuationDate  DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+}
