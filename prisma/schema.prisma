@@ -344,3 +344,17 @@ model ReceivableAsset {
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 }
+
+model LoanLiability {
+  id                     String    @id @default(cuid())
+  loanType               String    // "HOME", "CAR", "PERSONAL", "EDUCATION"
+  outstandingBalance     Float
+  interestRate           Float
+  emiAmount              Float
+  emiDebitDate           Int       @default(5) // Day of month 1-31
+  interestType           String    // "FIXED", "FLOATING"
+  remainingEmiCount      Int?
+  lastEmiDeductionDate   DateTime?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+}
