@@ -31,6 +31,10 @@
     {
       "path": "/api/cron/vehicles/valuation",
       "schedule": "0 0 1 * *"
+    },
+    {
+      "path": "/api/cron/plots/valuation",
+      "schedule": "0 0 1 * *"
     }
   ]
 }

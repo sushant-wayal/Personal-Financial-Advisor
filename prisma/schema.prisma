@@ -258,3 +258,19 @@ model VehicleAsset {
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 }
+
+model PlotAsset {
+  id                 String    @id @default(cuid())
+  purchasePrice      Float
+  purchaseDate       DateTime
+  country            String
+  state              String
+  city               String
+  locality           String
+  area               Float
+  areaUnit           String
+  currentWorth       Float
+  lastValuationDate  DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+}
