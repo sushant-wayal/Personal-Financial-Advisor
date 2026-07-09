@@ -43,6 +43,10 @@
     {
       "path": "/api/cron/apartments/valuation",
       "schedule": "0 0 1 * *"
+    },
+    {
+      "path": "/api/cron/jewellery/daily",
+      "schedule": "0 0 * * *"
     }
   ]
 }

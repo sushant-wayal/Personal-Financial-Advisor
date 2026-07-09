@@ -314,3 +314,17 @@ model ApartmentAsset {
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 }
+
+model JewelleryAsset {
+  id                 String    @id @default(cuid())
+  metalType          String    // "GOLD", "SILVER", "PLATINUM"
+  purity             Float     // e.g., 22 (for 22K), 24 (for 24K), 999 (for silver)
+  netWeight          Float
+  weightUnit         String    // "g" or "kg"
+  purchaseDate       DateTime?
+  purchasePrice      Float?
+  currentWorth       Float     @default(0)
+  lastValuationDate  DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+}
