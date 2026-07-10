@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useState } from "react";
 import { MaterialIcons } from "@expo/vector-icons";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View, TextInput, Pressable, Switch } from "react-native";
+import Markdown from "react-native-markdown-display";
 import { beginHorizontalScroll, endHorizontalScroll, updateHorizontalScroll } from "../../lib/horizontalScrollPriority";
 import type {
     AdvisorArtifact,
@@ -16,6 +17,8 @@ import type {
     AdvisorRecommendation,
     AdvisorRiskList,
     AdvisorWarning,
+    AdvisorForm,
+    AdvisorText,
 } from "../../types/advisor";
 
 function toneStyles(tone?: string) {
@@ -352,7 +355,114 @@ export function DecisionSummaryCard({ title, decision, recommendation, tradeoffs
     );
 }
 
-export default function ArtifactRenderer({ artifacts }: { artifacts: AdvisorArtifact[] }) {
+export function FormCard({ title, description, questions, submitLabel, onSubmitForm }: AdvisorForm & { onSubmitForm?: (msg: string) => void }) {
+    const [answers, setAnswers] = useState<Record<string, string | boolean>>({});
+    const [submitted, setSubmitted] = useState(false);
+
+    const handleSubmit = () => {
+        if (!onSubmitForm || submitted) return;
+        setSubmitted(true);
+        
+        const lines = [`I have filled out the form "${title}":`];
+        questions.forEach(q => {
+            const ans = answers[q.id];
+            let ansStr = "(No answer)";
+            if (q.type === 'boolean') {
+                ansStr = ans ? "Yes" : "No";
+            } else if (ans !== undefined && ans !== "") {
+                ansStr = String(ans);
+            }
+            lines.push(`- **${q.label}**: ${ansStr}`);
+        });
+        
+        onSubmitForm(lines.join("\n"));
+    };
+
+    return (
+        <ArtifactShell iconNode={icon("list-alt", "#a78bfa")} title={title} subtitle={description}>
+            <View style={styles.stackGap}>
+                {questions.map(q => (
+                    <View key={q.id} style={styles.formQuestionBlock}>
+                        <Text style={styles.formQuestionLabel}>{q.label}</Text>
+                        
+                        {(q.type === 'text' || q.type === 'number') && (
+                             <TextInput
+                                style={styles.formInput}
+                                placeholder={q.placeholder || 'Your answer...'}
+                                placeholderTextColor="#8e9192"
+                                value={String(answers[q.id] || '')}
+                                onChangeText={(text) => setAnswers(prev => ({...prev, [q.id]: text}))}
+                                editable={!submitted}
+                                keyboardType={q.type === 'number' ? 'numeric' : 'default'}
+                             />
+                        )}
+                        
+                        {q.type === 'boolean' && (
+                             <View style={styles.formSwitchRow}>
+                                <Text style={styles.formSwitchText}>{answers[q.id] ? "Yes" : "No"}</Text>
+                                <Switch
+                                    value={!!answers[q.id]}
+                                    onValueChange={(val) => setAnswers(prev => ({...prev, [q.id]: val}))}
+                                    disabled={submitted}
+                                    trackColor={{ false: "#3a3a3a", true: "#a78bfa" }}
+                                    thumbColor={"#e5e2e1"}
+                                />
+                             </View>
+                        )}
+                        
+                        {q.type === 'select' && q.options && (
+                             <View style={styles.formSelectGroup}>
+                                 {q.options.map(opt => {
+                                     const isSelected = answers[q.id] === opt;
+                                     return (
+                                         <Pressable
+                                            key={opt}
+                                            style={[styles.formSelectOption, isSelected && styles.formSelectOptionActive, submitted && !isSelected && { opacity: 0.5 }]}
+                                            onPress={() => !submitted && setAnswers(prev => ({...prev, [q.id]: opt}))}
+                                            disabled={submitted}
+                                         >
+                                             <Text style={[styles.formSelectOptionText, isSelected && styles.formSelectOptionTextActive]}>{opt}</Text>
+                                         </Pressable>
+                                     );
+                                 })}
+                             </View>
+                        )}
+                    </View>
+                ))}
+                
+                {!submitted ? (
+                    <Pressable style={({ pressed }) => [styles.formSubmitButton, pressed && { opacity: 0.8 }]} onPress={handleSubmit}>
+                        <Text style={styles.formSubmitButtonText}>{submitLabel || 'Submit Answers'}</Text>
+                    </Pressable>
+                ) : (
+                    <View style={styles.formSubmittedState}>
+                        <MaterialIcons name="check-circle" size={18} color="#34d399" />
+                        <Text style={styles.formSubmittedText}>Answers submitted</Text>
+                    </View>
+                )}
+            </View>
+        </ArtifactShell>
+    );
+}
+
+const markdownStyles = {
+    body: { color: "#c4c7c8", fontSize: 14, lineHeight: 20, fontFamily: "Inter" },
+    strong: { color: "#e5e2e1" },
+    paragraph: { marginTop: 0, marginBottom: 10 },
+    bullet_list: { marginTop: 6, marginBottom: 8 },
+    ordered_list: { marginTop: 6, marginBottom: 8 },
+    list_item: { color: "#c4c7c8", marginBottom: 4 },
+};
+
+export function TextCard({ content }: AdvisorText) {
+    return (
+        <View style={styles.textArtifact}>
+            <Markdown style={markdownStyles}>{content}</Markdown>
+        </View>
+    );
+}
+
+export default function ArtifactRenderer({ artifacts, onSubmitForm }: { artifacts: AdvisorArtifact[], onSubmitForm?: (msg: string) => void }) {
     return (
         <View style={styles.rendererStack}>
             {artifacts.map((artifact, index) => {
@@ -383,6 +493,10 @@ export default function ArtifactRenderer({ artifacts }: { artifacts: AdvisorArti
                         return <PriorityCard key={key} {...artifact} />;
                     case "decisionSummary":
                         return <DecisionSummaryCard key={key} {...artifact} />;
+                    case "form":
+                        return <FormCard key={key} {...artifact} onSubmitForm={onSubmitForm} />;
+                    case "text":
+                        return <TextCard key={key} {...artifact} />;
                     default:
                         return null;
                 }
@@ -394,6 +508,10 @@ export default function ArtifactRenderer({ artifacts }: { artifacts: AdvisorArti
 const styles = StyleSheet.create({
     rendererStack: {
         gap: 12,
+    },
+    textArtifact: {
+        paddingHorizontal: 4,
+        marginVertical: 4,
     },
     shell: {
         borderRadius: 18,
@@ -706,5 +824,96 @@ const styles = StyleSheet.create({
         fontFamily: "Inter",
         paddingHorizontal: 12,
         paddingVertical: 10,
+    },
+    formQuestionBlock: {
+        marginBottom: 8,
+    },
+    formQuestionLabel: {
+        color: "#e5e2e1",
+        fontSize: 14,
+        lineHeight: 20,
+        fontFamily: "Inter",
+        marginBottom: 8,
+        fontWeight: "600",
+    },
+    formInput: {
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: "#444748",
+        backgroundColor: "#131313",
+        color: "#e5e2e1",
+        fontSize: 14,
+        lineHeight: 20,
+        fontFamily: "Inter",
+        paddingHorizontal: 14,
+        paddingVertical: 12,
+    },
+    formSwitchRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 12,
+    },
+    formSwitchText: {
+        color: "#c4c7c8",
+        fontSize: 14,
+        fontFamily: "Inter",
+        minWidth: 32,
+    },
+    formSelectGroup: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: 8,
+    },
+    formSelectOption: {
+        borderRadius: 999,
+        borderWidth: 1,
+        borderColor: "#444748",
+        backgroundColor: "#1c1b1b",
+        paddingHorizontal: 14,
+        paddingVertical: 8,
+    },
+    formSelectOptionActive: {
+        borderColor: "#a78bfa",
+        backgroundColor: "#a78bfa22",
+    },
+    formSelectOptionText: {
+        color: "#c4c7c8",
+        fontSize: 13,
+        fontFamily: "Inter",
+    },
+    formSelectOptionTextActive: {
+        color: "#a78bfa",
+        fontWeight: "700",
+    },
+    formSubmitButton: {
+        borderRadius: 14,
+        backgroundColor: "#e5e2e1",
+        paddingVertical: 12,
+        alignItems: "center",
+        marginTop: 4,
+    },
+    formSubmitButtonText: {
+        color: "#131313",
+        fontSize: 14,
+        fontFamily: "Hanken Grotesk",
+        fontWeight: "700",
+    },
+    formSubmittedState: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 8,
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: "#34d39940",
+        backgroundColor: "#34d39914",
+        paddingVertical: 10,
+        marginTop: 4,
+    },
+    formSubmittedText: {
+        color: "#34d399",
+        fontSize: 13,
+        fontFamily: "Inter",
+        fontWeight: "600",
     },
 });

@@ -118,6 +118,27 @@ export type AdvisorDecisionSummary = {
     nextStep?: string;
 };
 
+export type AdvisorFormQuestion = {
+    id: string;
+    type: "text" | "number" | "select" | "boolean";
+    label: string;
+    options?: string[]; // Used for select
+    placeholder?: string;
+};
+
+export type AdvisorForm = {
+    type: "form";
+    title: string;
+    description?: string;
+    questions: AdvisorFormQuestion[];
+    submitLabel?: string;
+};
+
+export type AdvisorText = {
+    type: "text";
+    content: string;
+};
+
 export type AdvisorArtifact =
     | AdvisorHealthCard
     | AdvisorDualMetric
@@ -130,7 +151,9 @@ export type AdvisorArtifact =
     | AdvisorGoalTimeline
     | AdvisorComparisonTable
     | AdvisorPriorityCard
-    | AdvisorDecisionSummary;
+    | AdvisorDecisionSummary
+    | AdvisorForm
+    | AdvisorText;
 
 export type AdvisorResponse = {
     narrative: string;

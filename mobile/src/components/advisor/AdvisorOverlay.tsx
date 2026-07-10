@@ -2,6 +2,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
     Animated,
+    Easing,
     KeyboardAvoidingView,
     Platform,
     Pressable,
@@ -76,40 +77,45 @@ function toolLabel(name: string): string {
     return map[name] ?? name;
 }
 
-// ─── Pulsing Dot ─────────────────────────────────────────────────────────────
+// ─── Orbiting Loader ─────────────────────────────────────────────────────────────
 
-function PulsingDot({ color }: { color: string }) {
-    const scale = useRef(new Animated.Value(1)).current;
-    const opacity = useRef(new Animated.Value(0.6)).current;
+function OrbitingLoader({ color }: { color: string }) {
+    const anim1 = useRef(new Animated.Value(0)).current;
+    const anim2 = useRef(new Animated.Value(0)).current;
+    const anim3 = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
-        const anim = Animated.loop(
-            Animated.sequence([
-                Animated.parallel([
-                    Animated.timing(scale, { toValue: 1.4, duration: 600, useNativeDriver: true }),
-                    Animated.timing(opacity, { toValue: 1, duration: 600, useNativeDriver: true }),
-                ]),
-                Animated.parallel([
-                    Animated.timing(scale, { toValue: 1, duration: 600, useNativeDriver: true }),
-                    Animated.timing(opacity, { toValue: 0.6, duration: 600, useNativeDriver: true }),
-                ]),
-            ])
-        );
-        anim.start();
-        return () => anim.stop();
-    }, [scale, opacity]);
+        const a1 = Animated.loop(Animated.timing(anim1, { toValue: 1, duration: 1500, easing: Easing.linear, useNativeDriver: true }));
+        const a2 = Animated.loop(Animated.timing(anim2, { toValue: 1, duration: 2000, easing: Easing.linear, useNativeDriver: true }));
+        const a3 = Animated.loop(Animated.timing(anim3, { toValue: 1, duration: 2500, easing: Easing.linear, useNativeDriver: true }));
+        
+        a1.start();
+        a2.start();
+        a3.start();
+
+        return () => {
+            a1.stop();
+            a2.stop();
+            a3.stop();
+        };
+    }, [anim1, anim2, anim3]);
+
+    const spin1 = anim1.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
+    const spin2 = anim2.interpolate({ inputRange: [0, 1], outputRange: ["120deg", "480deg"] });
+    const spin3 = anim3.interpolate({ inputRange: [0, 1], outputRange: ["240deg", "600deg"] });
 
     return (
-        <Animated.View
-            style={{
-                width: 7,
-                height: 7,
-                borderRadius: 3.5,
-                backgroundColor: color,
-                transform: [{ scale }],
-                opacity,
-            }}
-        />
+        <View style={{ width: 16, height: 16, alignItems: "center", justifyContent: "center" }}>
+            <Animated.View style={[StyleSheet.absoluteFill, { alignItems: "center", transform: [{ rotate: spin1 }] }]}>
+                <View style={{ width: 3.5, height: 3.5, borderRadius: 2, backgroundColor: color, shadowColor: color, shadowOpacity: 0.8, shadowRadius: 3, shadowOffset: { width: 0, height: 0 }, elevation: 2, transform: [{ translateY: 0 }] }} />
+            </Animated.View>
+            <Animated.View style={[StyleSheet.absoluteFill, { alignItems: "center", transform: [{ rotate: spin2 }] }]}>
+                <View style={{ width: 2.5, height: 2.5, borderRadius: 1.5, backgroundColor: color, opacity: 0.7, transform: [{ translateY: 2 }] }} />
+            </Animated.View>
+            <Animated.View style={[StyleSheet.absoluteFill, { alignItems: "center", transform: [{ rotate: spin3 }] }]}>
+                <View style={{ width: 1.5, height: 1.5, borderRadius: 1, backgroundColor: color, opacity: 0.5, transform: [{ translateY: 4 }] }} />
+            </Animated.View>
+        </View>
     );
 }
 
@@ -133,7 +139,7 @@ function LiveStatusPanel({ status }: { status: NonNullable<LiveStatus> }) {
                 {isDone ? (
                     <MaterialIcons name="check-circle" size={15} color="#34d399" />
                 ) : (
-                    <PulsingDot color={dotColor} />
+                    <OrbitingLoader color={dotColor} />
                 )}
                 <Text style={[liveStyles.phaseText, isDone && liveStyles.doneText]}>
                     {status.message}
@@ -159,7 +165,7 @@ function LiveStatusPanel({ status }: { status: NonNullable<LiveStatus> }) {
                             {tc.done && tc.rowCount !== undefined && (
                                 <Text style={liveStyles.rowCount}>{tc.rowCount} rows</Text>
                             )}
-                            {!tc.done && <PulsingDot color="#a78bfa" />}
+                            {!tc.done && <OrbitingLoader color="#a78bfa" />}
                         </View>
                     ))}
                 </View>
@@ -237,11 +243,11 @@ export default function AdvisorOverlay() {
         scrollRef.current?.scrollToEnd({ animated: true });
     }, [threads, loading, liveStatus]);
 
-    const send = useCallback(async () => {
-        if (!q.trim() || inFlightRef.current) return;
+    const send = useCallback(async (overrideText?: string) => {
+        const user = overrideText?.trim() || q.trim();
+        if (!user || inFlightRef.current) return;
 
         inFlightRef.current = true;
-        const user = q.trim();
         // Generate requestId client-side so polling starts before the POST resolves
         const requestId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -484,7 +490,7 @@ export default function AdvisorOverlay() {
                                     <Text style={styles.emptyTitle}>Analysis Ready</Text>
                                     {suggestionsLoading && (
                                         <View style={styles.aiLiveBadge}>
-                                            <PulsingDot color="#a78bfa" />
+                                            <OrbitingLoader color="#a78bfa" />
                                             <Text style={styles.aiLiveText}>AI</Text>
                                         </View>
                                     )}
@@ -529,7 +535,7 @@ export default function AdvisorOverlay() {
                         <View key={`${entry.question}-${index}`} style={styles.turn}>
                             <View style={styles.userRow}>
                                 <View style={styles.userBubble}>
-                                    <Text style={styles.userText}>{entry.question}</Text>
+                                    <Markdown style={userMarkdownStyles}>{entry.question}</Markdown>
                                 </View>
                             </View>
 
@@ -539,7 +545,10 @@ export default function AdvisorOverlay() {
                                         <Text style={styles.aiTitle}>Analysis Complete</Text>
                                         <Markdown style={markdownStyles}>{entry.response.narrative}</Markdown>
                                         {entry.response.artifacts.length ? (
-                                            <ArtifactRenderer artifacts={entry.response.artifacts} />
+                                            <ArtifactRenderer 
+                                                artifacts={entry.response.artifacts} 
+                                                onSubmitForm={(msg) => void send(msg)}
+                                            />
                                         ) : null}
                                         {entry.runAt ? (
                                             <Text style={styles.lastRun}>
@@ -557,7 +566,7 @@ export default function AdvisorOverlay() {
                         <LiveStatusPanel status={liveStatus} />
                     ) : loading ? (
                         <View style={styles.loadingRow}>
-                            <PulsingDot color="#60a5fa" />
+                            <OrbitingLoader color="#60a5fa" />
                             <Text style={styles.loadingText}>Advisor is working…</Text>
                         </View>
                     ) : null}
@@ -596,7 +605,7 @@ export default function AdvisorOverlay() {
                             accessibilityLabel="Send message"
                         >
                             {loading ? (
-                                <PulsingDot color="#131313" />
+                                <OrbitingLoader color="#131313" />
                             ) : (
                                 <MaterialIcons name="arrow-upward" size={22} color="#131313" />
                             )}
@@ -688,6 +697,12 @@ const markdownStyles = {
     bullet_list: { marginTop: 6, marginBottom: 8 },
     ordered_list: { marginTop: 6, marginBottom: 8 },
     list_item: { color: "#c4c7c8", marginBottom: 4 },
+};
+
+const userMarkdownStyles = {
+    ...markdownStyles,
+    body: { color: "#e5e2e1", fontSize: 14, lineHeight: 20, fontFamily: "Inter" },
+    paragraph: { marginTop: 0, marginBottom: 0 },
 };
 
 const styles = StyleSheet.create({
