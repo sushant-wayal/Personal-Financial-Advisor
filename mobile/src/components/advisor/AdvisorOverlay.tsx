@@ -237,11 +237,11 @@ export default function AdvisorOverlay() {
         scrollRef.current?.scrollToEnd({ animated: true });
     }, [threads, loading, liveStatus]);
 
-    const send = useCallback(async () => {
-        if (!q.trim() || inFlightRef.current) return;
+    const send = useCallback(async (overrideText?: string) => {
+        const user = overrideText?.trim() || q.trim();
+        if (!user || inFlightRef.current) return;
 
         inFlightRef.current = true;
-        const user = q.trim();
         // Generate requestId client-side so polling starts before the POST resolves
         const requestId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -539,7 +539,10 @@ export default function AdvisorOverlay() {
                                         <Text style={styles.aiTitle}>Analysis Complete</Text>
                                         <Markdown style={markdownStyles}>{entry.response.narrative}</Markdown>
                                         {entry.response.artifacts.length ? (
-                                            <ArtifactRenderer artifacts={entry.response.artifacts} />
+                                            <ArtifactRenderer 
+                                                artifacts={entry.response.artifacts} 
+                                                onSubmitForm={(msg) => void send(msg)}
+                                            />
                                         ) : null}
                                         {entry.runAt ? (
                                             <Text style={styles.lastRun}>

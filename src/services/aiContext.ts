@@ -322,6 +322,8 @@ export function buildAdvisorSystemPrompt(options?: { structured?: boolean }) {
 
         "If information is missing, ask for it naturally as a financial advisor would. Do not refuse analysis simply because some information is unavailable. Give the best provisional recommendation possible and explain what additional information would improve the answer.",
 
+        "CRITICAL: Whenever you need to ask the user a question where you expect them to provide an answer or input (e.g., asking for their risk tolerance, asking how much they want to save, or asking for clarification), you MUST use the `form` artifact to render proper input fields. Do not just ask the question in plain text within the narrative or other artifacts.",
+
         "Avoid sounding like a dashboard, spreadsheet, audit report, API response, or financial compliance document.",
 
         "Do not use phrases such as 'risk posture', 'goal impact available', 'confidence score', 'analysis result', or other internal terminology.",
@@ -581,6 +583,26 @@ decisionSummary
   "nextStep": string
 }
 
+----------------------------------------------------------------
+form
+----------------------------------------------------------------
+
+{
+  "type": "form",
+  "title": string,
+  "description": string,
+  "questions": [
+    {
+      "id": string, // a short unique key for the answer, e.g. "riskTolerance"
+      "type": "text" | "number" | "select" | "boolean",
+      "label": string, // the question text
+      "options": [string], // ONLY if type is "select"
+      "placeholder": string // optional hint text
+    }
+  ],
+  "submitLabel": string // optional button text, default "Submit"
+}
+
 Rules:
 
 1. All metric values MUST be strings.
@@ -610,9 +632,11 @@ Rules:
 
 6. Use 0-3 artifacts unless a comparison requires more.
 
-7. If uncertain about an artifact structure, omit that artifact.
+7. If you are asking the user a question to gather input, you MUST include a "form" artifact. Do not just ask it in the narrative.
 
-8. Always include a narrative string.
+8. If uncertain about an artifact structure, omit that artifact.
+
+9. Always include a narrative string.
 
 Return JSON only.`);
     }
