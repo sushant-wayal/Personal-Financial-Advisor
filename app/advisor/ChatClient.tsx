@@ -36,30 +36,27 @@ function toolLabel(name: string): string {
     return map[name] ?? name;
 }
 
-// ── Pulsing dot (CSS keyframe, no extra deps) ─────────────────────────────────
-const PULSE_STYLE = `
-@keyframes adv-pulse {
-  0%, 100% { transform: scale(1);   opacity: 0.55; }
-  50%       { transform: scale(1.5); opacity: 1;    }
-}
+// ── Orbiting Loader (CSS keyframes, no extra deps) ────────────────────────────
+const ORBIT_STYLE = `
+@keyframes adv-orbit1 { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes adv-orbit2 { from { transform: rotate(120deg); } to { transform: rotate(480deg); } }
+@keyframes adv-orbit3 { from { transform: rotate(240deg); } to { transform: rotate(600deg); } }
 `;
 
-function PulsingDot({ color }: { color: string }) {
+function OrbitingLoader({ color }: { color: string }) {
     return (
-        <>
-            <style>{PULSE_STYLE}</style>
-            <span
-                style={{
-                    display: "inline-block",
-                    width: 7,
-                    height: 7,
-                    borderRadius: "50%",
-                    backgroundColor: color,
-                    animation: "adv-pulse 1.2s ease-in-out infinite",
-                    flexShrink: 0,
-                }}
-            />
-        </>
+        <div style={{ position: "relative", width: 14, height: 14, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <style>{ORBIT_STYLE}</style>
+            <div style={{ position: "absolute", width: "100%", height: "100%", animation: "adv-orbit1 1.5s linear infinite" }}>
+                <div style={{ width: 3.5, height: 3.5, borderRadius: "50%", backgroundColor: color, position: "absolute", top: 0, left: "50%", transform: "translateX(-50%)", boxShadow: `0 0 3px ${color}` }} />
+            </div>
+            <div style={{ position: "absolute", width: "100%", height: "100%", animation: "adv-orbit2 2s linear infinite" }}>
+                <div style={{ width: 2.5, height: 2.5, borderRadius: "50%", backgroundColor: color, opacity: 0.7, position: "absolute", top: 2, left: "50%", transform: "translateX(-50%)" }} />
+            </div>
+            <div style={{ position: "absolute", width: "100%", height: "100%", animation: "adv-orbit3 2.5s linear infinite" }}>
+                <div style={{ width: 1.5, height: 1.5, borderRadius: "50%", backgroundColor: color, opacity: 0.5, position: "absolute", top: 4, left: "50%", transform: "translateX(-50%)" }} />
+            </div>
+        </div>
     );
 }
 
@@ -93,7 +90,7 @@ function LiveStatusPanel({ status }: { status: NonNullable<LiveStatus> }) {
                         <path d="M4 7l2 2 4-4" stroke="#34d399" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                 ) : (
-                    <PulsingDot color={dot} />
+                    <OrbitingLoader color={dot} />
                 )}
 
                 <span className={`flex-1 font-medium leading-snug ${isDone ? "text-emerald-400" : "text-zinc-200"}`}>
@@ -117,7 +114,7 @@ function LiveStatusPanel({ status }: { status: NonNullable<LiveStatus> }) {
                                     <path d="M2 5.5l2.5 2.5 4.5-4.5" stroke="#34d399" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                                 </svg>
                             ) : (
-                                <PulsingDot color="#a78bfa" />
+                                <OrbitingLoader color="#a78bfa" />
                             )}
 
                             {/* DB icon */}
@@ -284,7 +281,9 @@ export default function ChatClient() {
                         <div key={`${entry.question}-${index}`} className="mb-6">
                             <Card size="sm" className="bg-muted/40">
                                 <CardContent className="px-4 py-3">
-                                    <div className="text-sm text-foreground">{entry.question}</div>
+                                    <div className="prose prose-invert max-w-none text-sm text-foreground">
+                                        <ReactMarkdown>{entry.question}</ReactMarkdown>
+                                    </div>
                                 </CardContent>
                             </Card>
                             {entry.response && (

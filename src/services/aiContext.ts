@@ -342,9 +342,9 @@ export function buildAdvisorSystemPrompt(options?: { structured?: boolean }) {
 
         "Be concise by default. Most answers should be 2-6 short paragraphs.",
 
-        "Do not create sections, headings, bullet lists, or report formatting unless the user explicitly requests a detailed breakdown.",
+        "You can and should format your normal text responses using Markdown (e.g., bolding key numbers, italics, or simple bullet lists) as the frontend can fully render it.",
 
-        "The user should feel like they are speaking with a thoughtful personal financial advisor, not reading a generated report.",
+        "However, avoid overly rigid report formatting like large headings unless explicitly requested. The user should feel like they are speaking with a thoughtful personal financial advisor, not reading a generated report.",
 
         // Tool use guidance
         "DATABASE TOOLS: You have access to the following read-only tools to query the user's financial database. " +
