@@ -447,7 +447,7 @@ export default function AdvisorOverlay() {
                     <StatusBar barStyle="light-content" backgroundColor="#131313" />
             <KeyboardAvoidingView
                 style={styles.screen}
-                behavior={Platform.OS === "ios" ? "padding" : "height"}
+                behavior="padding"
             >
                 {/* Top bar */}
                 <View style={styles.topBar}>
@@ -564,7 +564,7 @@ export default function AdvisorOverlay() {
                 </ScrollView>
 
                 {/* Input dock */}
-                <View style={[styles.inputDock, { paddingBottom: insets.bottom - 30 }]}>
+                <View style={styles.inputDock}>
                     <View style={styles.inputShell}>
                         <TextInput
                             value={q}
@@ -725,7 +725,7 @@ const styles = StyleSheet.create({
         width: "100%",
         paddingHorizontal: 24,
         paddingTop: 28,
-        paddingBottom: 220,
+        paddingBottom: 24,
     },
     emptyWrap: { marginBottom: 24 },
     emptyCard: {
@@ -828,14 +828,11 @@ const styles = StyleSheet.create({
     loadingRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 8 },
     loadingText: { color: "#c4c7c8", fontSize: 13, lineHeight: 18, fontFamily: "Inter" },
     inputDock: {
-        position: "absolute",
-        left: 0,
-        right: 0,
-        bottom: 0,
         backgroundColor: "#1c1b1b",
         borderTopWidth: 1,
         borderTopColor: "#444748",
         paddingTop: 16,
+        paddingBottom: 16,
         paddingHorizontal: 24,
     },
     inputShell: {
