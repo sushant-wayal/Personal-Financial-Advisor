@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import ReactMarkdown from "react-markdown";
 import { AlertTriangle, ArrowRight, ChevronRight, CheckCircle2, Clock3, Gauge, Info, ListChecks, Minus, ShieldAlert, Sparkles, Target } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -18,6 +19,7 @@ import type {
     AdvisorRecommendation,
     AdvisorRiskList,
     AdvisorWarning,
+    AdvisorText,
 } from "@/types/advisor";
 
 function toneStyles(tone?: string) {
@@ -371,6 +373,14 @@ export function DecisionSummaryCard({ title, decision, recommendation, tradeoffs
     );
 }
 
+export function TextCard({ content }: AdvisorText) {
+    return (
+        <div className="prose prose-sm prose-invert max-w-none text-foreground/90 my-2">
+            <ReactMarkdown>{content}</ReactMarkdown>
+        </div>
+    );
+}
+
 export default function ArtifactRenderer({ artifacts }: { artifacts: AdvisorArtifact[] }) {
     return (
         <div className="space-y-3">
@@ -402,6 +412,8 @@ export default function ArtifactRenderer({ artifacts }: { artifacts: AdvisorArti
                         return <PriorityCard key={key} {...artifact} />;
                     case "decisionSummary":
                         return <DecisionSummaryCard key={key} {...artifact} />;
+                    case "text":
+                        return <TextCard key={key} {...artifact} />;
                     default:
                         return null;
                 }

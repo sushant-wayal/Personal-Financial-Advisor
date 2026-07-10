@@ -134,6 +134,11 @@ export type AdvisorForm = {
     submitLabel?: string;
 };
 
+export type AdvisorText = {
+    type: "text";
+    content: string;
+};
+
 export type AdvisorArtifact =
     | AdvisorHealthCard
     | AdvisorDualMetric
@@ -147,7 +152,8 @@ export type AdvisorArtifact =
     | AdvisorComparisonTable
     | AdvisorPriorityCard
     | AdvisorDecisionSummary
-    | AdvisorForm;
+    | AdvisorForm
+    | AdvisorText;
 
 export type AdvisorResponse = {
     narrative: string;

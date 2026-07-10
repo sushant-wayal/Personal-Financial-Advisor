@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { MaterialIcons } from "@expo/vector-icons";
 import { ScrollView, StyleSheet, Text, View, TextInput, Pressable, Switch } from "react-native";
+import Markdown from "react-native-markdown-display";
 import { beginHorizontalScroll, endHorizontalScroll, updateHorizontalScroll } from "../../lib/horizontalScrollPriority";
 import type {
     AdvisorArtifact,
@@ -17,6 +18,7 @@ import type {
     AdvisorRiskList,
     AdvisorWarning,
     AdvisorForm,
+    AdvisorText,
 } from "../../types/advisor";
 
 function toneStyles(tone?: string) {
@@ -443,6 +445,23 @@ export function FormCard({ title, description, questions, submitLabel, onSubmitF
     );
 }
 
+const markdownStyles = {
+    body: { color: "#c4c7c8", fontSize: 14, lineHeight: 20, fontFamily: "Inter" },
+    strong: { color: "#e5e2e1" },
+    paragraph: { marginTop: 0, marginBottom: 10 },
+    bullet_list: { marginTop: 6, marginBottom: 8 },
+    ordered_list: { marginTop: 6, marginBottom: 8 },
+    list_item: { color: "#c4c7c8", marginBottom: 4 },
+};
+
+export function TextCard({ content }: AdvisorText) {
+    return (
+        <View style={styles.textArtifact}>
+            <Markdown style={markdownStyles}>{content}</Markdown>
+        </View>
+    );
+}
+
 export default function ArtifactRenderer({ artifacts, onSubmitForm }: { artifacts: AdvisorArtifact[], onSubmitForm?: (msg: string) => void }) {
     return (
         <View style={styles.rendererStack}>
@@ -476,6 +495,8 @@ export default function ArtifactRenderer({ artifacts, onSubmitForm }: { artifact
                         return <DecisionSummaryCard key={key} {...artifact} />;
                     case "form":
                         return <FormCard key={key} {...artifact} onSubmitForm={onSubmitForm} />;
+                    case "text":
+                        return <TextCard key={key} {...artifact} />;
                     default:
                         return null;
                 }
@@ -487,6 +508,10 @@ export default function ArtifactRenderer({ artifacts, onSubmitForm }: { artifact
 const styles = StyleSheet.create({
     rendererStack: {
         gap: 12,
+    },
+    textArtifact: {
+        paddingHorizontal: 4,
+        marginVertical: 4,
     },
     shell: {
         borderRadius: 18,

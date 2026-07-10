@@ -118,6 +118,11 @@ export type AdvisorDecisionSummary = {
     nextStep?: string;
 };
 
+export type AdvisorText = {
+    type: "text";
+    content: string;
+};
+
 export type AdvisorArtifact =
     | AdvisorHealthCard
     | AdvisorDualMetric
@@ -130,7 +135,8 @@ export type AdvisorArtifact =
     | AdvisorGoalTimeline
     | AdvisorComparisonTable
     | AdvisorPriorityCard
-    | AdvisorDecisionSummary;
+    | AdvisorDecisionSummary
+    | AdvisorText;
 
 export type AdvisorResponse = {
     narrative: string;

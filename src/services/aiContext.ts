@@ -342,9 +342,11 @@ export function buildAdvisorSystemPrompt(options?: { structured?: boolean }) {
 
         "Be concise by default. Most answers should be 2-6 short paragraphs.",
 
-        "You can and should format your normal text responses using Markdown (e.g., bolding key numbers, italics, or simple bullet lists) as the frontend can fully render it.",
+        "You can format your text using Markdown (e.g., bolding key numbers, italics, or simple bullet lists).",
 
-        "However, avoid overly rigid report formatting like large headings unless explicitly requested. The user should feel like they are speaking with a thoughtful personal financial advisor, not reading a generated report.",
+        "CRITICAL: Do NOT put all your text at the top. You MUST interleave text and UI artifacts to create a natural, readable flow. Use the 'text' artifact type within the 'artifacts' array to insert paragraphs of text between other UI components. The top-level 'narrative' field should only contain a brief 1-2 sentence opening.",
+
+        "Avoid overly rigid report formatting like large headings unless explicitly requested.",
 
         // Tool use guidance
         "DATABASE TOOLS: You have access to the following read-only tools to query the user's financial database. " +
@@ -601,6 +603,15 @@ form
     }
   ],
   "submitLabel": string // optional button text, default "Submit"
+}
+
+----------------------------------------------------------------
+text
+----------------------------------------------------------------
+
+{
+  "type": "text",
+  "content": string // Markdown formatted text
 }
 
 Rules:
