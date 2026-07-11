@@ -197,16 +197,19 @@ export default function ChatClient() {
         if (liveRef.current) liveRef.current.scrollTop = liveRef.current.scrollHeight;
     }, [threads, liveStatus]);
 
-    const send = useCallback(async () => {
-        if (!q.trim() || inFlightRef.current) return;
+    const send = useCallback(async (text?: string) => {
+        const messageText = typeof text === "string" ? text : q;
+        if (!messageText.trim() || inFlightRef.current) return;
         inFlightRef.current = true;
 
-        const user = q.trim();
+        const user = messageText.trim();
         const requestId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
         setActiveRequestId(requestId);
         setThreads((prev) => [...prev, { question: user, response: null }]);
-        setQ("");
+        if (typeof text !== "string") {
+            setQ("");
+        }
         setLoading(true);
 
         try {
@@ -292,7 +295,7 @@ export default function ChatClient() {
                                         <ReactMarkdown>{entry.response.narrative}</ReactMarkdown>
                                     </div>
                                     {entry.response.artifacts.length > 0 && (
-                                        <ArtifactRenderer artifacts={entry.response.artifacts} />
+                                        <ArtifactRenderer artifacts={entry.response.artifacts} onAction={send} />
                                     )}
                                 </div>
                             )}

@@ -20,6 +20,8 @@ import type {
     AdvisorRiskList,
     AdvisorWarning,
     AdvisorText,
+    AdvisorActionConfirmation,
+    AdvisorSuggestedAction,
 } from "@/types/advisor";
 
 function toneStyles(tone?: string) {
@@ -381,7 +383,52 @@ export function TextCard({ content }: AdvisorText) {
     );
 }
 
-export default function ArtifactRenderer({ artifacts }: { artifacts: AdvisorArtifact[] }) {
+export function ActionConfirmationCard({ artifact, onAction }: { artifact: AdvisorActionConfirmation; onAction?: (text: string) => void }) {
+    return (
+        <ArtifactShell title={artifact.title} icon={<ShieldAlert className="size-4 text-amber-400" />}>
+            <div className="space-y-4">
+                <div className="rounded-xl border border-border/70 bg-muted/40 p-4 text-sm leading-relaxed text-foreground">
+                    {artifact.message}
+                </div>
+                <div className="flex gap-3">
+                    <button
+                        onClick={() => onAction?.(artifact.actionCommand)}
+                        className="rounded-md bg-emerald-500/20 px-4 py-2 text-sm font-semibold text-emerald-400 hover:bg-emerald-500/30 transition-colors"
+                    >
+                        {artifact.actionLabel || "Confirm"}
+                    </button>
+                    <button
+                        onClick={() => onAction?.("No, cancel the action.")}
+                        className="rounded-md bg-muted px-4 py-2 text-sm font-semibold text-muted-foreground hover:bg-muted/80 transition-colors"
+                    >
+                        {artifact.cancelLabel || "Cancel"}
+                    </button>
+                </div>
+            </div>
+        </ArtifactShell>
+    );
+}
+
+export function SuggestedActionCard({ artifact, onAction }: { artifact: AdvisorSuggestedAction; onAction?: (text: string) => void }) {
+    return (
+        <ArtifactShell title="Suggested Action" icon={<Sparkles className="size-4 text-sky-400" />}>
+            <div className="space-y-4">
+                <div className="text-sm leading-relaxed text-muted-foreground">
+                    {artifact.message}
+                </div>
+                <button
+                    onClick={() => onAction?.(artifact.actionCommand)}
+                    className="flex items-center gap-2 rounded-md bg-sky-500/10 border border-sky-500/20 px-4 py-2 text-sm font-semibold text-sky-400 hover:bg-sky-500/20 transition-colors w-full justify-center"
+                >
+                    {artifact.label}
+                    <ArrowRight className="size-4" />
+                </button>
+            </div>
+        </ArtifactShell>
+    );
+}
+
+export default function ArtifactRenderer({ artifacts, onAction }: { artifacts: AdvisorArtifact[]; onAction?: (text: string) => void }) {
     return (
         <div className="space-y-3">
             {artifacts.map((artifact, index) => {
@@ -414,6 +461,10 @@ export default function ArtifactRenderer({ artifacts }: { artifacts: AdvisorArti
                         return <DecisionSummaryCard key={key} {...artifact} />;
                     case "text":
                         return <TextCard key={key} {...artifact} />;
+                    case "actionConfirmation":
+                        return <ActionConfirmationCard key={key} artifact={artifact} onAction={onAction} />;
+                    case "suggestedAction":
+                        return <SuggestedActionCard key={key} artifact={artifact} onAction={onAction} />;
                     default:
                         return null;
                 }

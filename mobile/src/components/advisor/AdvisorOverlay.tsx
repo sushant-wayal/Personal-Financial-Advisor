@@ -548,6 +548,7 @@ export default function AdvisorOverlay() {
                                             <ArtifactRenderer 
                                                 artifacts={entry.response.artifacts} 
                                                 onSubmitForm={(msg) => void send(msg)}
+                                                onAction={(msg) => void send(msg)}
                                             />
                                         ) : null}
                                         {entry.runAt ? (

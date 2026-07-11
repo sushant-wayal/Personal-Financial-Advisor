@@ -34,7 +34,7 @@ export async function POST(
         const data = await req.json();
 
         // Dynamically call the correct prisma model
-        // @ts-ignore
+        // @ts-expect-error - dynamic model name in prisma
         const created = await prisma[type].create({
             data
         });

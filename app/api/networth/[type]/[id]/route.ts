@@ -33,7 +33,7 @@ export async function PUT(
 
         const data = await req.json();
 
-        // @ts-ignore
+        // @ts-expect-error - dynamic model name in prisma
         const updated = await prisma[type].update({
             where: { id },
             data
@@ -56,7 +56,7 @@ export async function DELETE(
             return NextResponse.json({ error: "Invalid networth type" }, { status: 400 });
         }
 
-        // @ts-ignore
+        // @ts-expect-error - dynamic model name in prisma
         await prisma[type].delete({
             where: { id }
         });
