@@ -16,9 +16,11 @@ import type {
     AdvisorPriorityCard,
     AdvisorRecommendation,
     AdvisorRiskList,
-    AdvisorWarning,
     AdvisorForm,
     AdvisorText,
+    AdvisorActionConfirmation,
+    AdvisorSuggestedAction,
+    AdvisorWarning,
 } from "../../types/advisor";
 
 function toneStyles(tone?: string) {
@@ -462,7 +464,50 @@ export function TextCard({ content }: AdvisorText) {
     );
 }
 
-export default function ArtifactRenderer({ artifacts, onSubmitForm }: { artifacts: AdvisorArtifact[], onSubmitForm?: (msg: string) => void }) {
+export function ActionConfirmationCard({ artifact, onAction }: { artifact: AdvisorActionConfirmation; onAction?: (text: string) => void }) {
+    return (
+        <ArtifactShell iconNode={icon("security", "#f6c25f")} title={artifact.title}>
+            <View style={styles.stackGap}>
+                <View style={styles.contentPanel}>
+                    <Text style={styles.bodyText}>{artifact.message}</Text>
+                </View>
+                <View style={{ flexDirection: "row", gap: 12 }}>
+                    <Pressable 
+                        style={({ pressed }) => [styles.buttonPrimary, pressed && { opacity: 0.8 }]} 
+                        onPress={() => onAction?.(artifact.actionCommand)}
+                    >
+                        <Text style={styles.buttonPrimaryText}>{artifact.actionLabel || "Confirm"}</Text>
+                    </Pressable>
+                    <Pressable 
+                        style={({ pressed }) => [styles.buttonSecondary, pressed && { opacity: 0.8 }]} 
+                        onPress={() => onAction?.("No, cancel the action.")}
+                    >
+                        <Text style={styles.buttonSecondaryText}>{artifact.cancelLabel || "Cancel"}</Text>
+                    </Pressable>
+                </View>
+            </View>
+        </ArtifactShell>
+    );
+}
+
+export function SuggestedActionCard({ artifact, onAction }: { artifact: AdvisorSuggestedAction; onAction?: (text: string) => void }) {
+    return (
+        <ArtifactShell iconNode={icon("auto-awesome", "#5ec8ff")} title="Suggested Action">
+            <View style={styles.stackGap}>
+                <Text style={styles.bodyText}>{artifact.message}</Text>
+                <Pressable 
+                    style={({ pressed }) => [styles.buttonSuggested, pressed && { opacity: 0.8 }]} 
+                    onPress={() => onAction?.(artifact.actionCommand)}
+                >
+                    <Text style={styles.buttonSuggestedText}>{artifact.label}</Text>
+                    <MaterialIcons name="arrow-forward" size={16} color="#5ec8ff" />
+                </Pressable>
+            </View>
+        </ArtifactShell>
+    );
+}
+
+export default function ArtifactRenderer({ artifacts, onSubmitForm, onAction }: { artifacts: AdvisorArtifact[], onSubmitForm?: (msg: string) => void, onAction?: (msg: string) => void }) {
     return (
         <View style={styles.rendererStack}>
             {artifacts.map((artifact, index) => {
@@ -497,6 +542,10 @@ export default function ArtifactRenderer({ artifacts, onSubmitForm }: { artifact
                         return <FormCard key={key} {...artifact} onSubmitForm={onSubmitForm} />;
                     case "text":
                         return <TextCard key={key} {...artifact} />;
+                    case "actionConfirmation":
+                        return <ActionConfirmationCard key={key} artifact={artifact} onAction={onAction || onSubmitForm} />;
+                    case "suggestedAction":
+                        return <SuggestedActionCard key={key} artifact={artifact} onAction={onAction || onSubmitForm} />;
                     default:
                         return null;
                 }
@@ -915,5 +964,52 @@ const styles = StyleSheet.create({
         fontSize: 13,
         fontFamily: "Inter",
         fontWeight: "600",
+    },
+    buttonPrimary: {
+        borderRadius: 12,
+        backgroundColor: "#7dffa220",
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        alignItems: "center",
+        flex: 1,
+    },
+    buttonPrimaryText: {
+        color: "#7dffa2",
+        fontSize: 14,
+        fontFamily: "Hanken Grotesk",
+        fontWeight: "700",
+    },
+    buttonSecondary: {
+        borderRadius: 12,
+        backgroundColor: "#2a2a2a",
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        alignItems: "center",
+        flex: 1,
+    },
+    buttonSecondaryText: {
+        color: "#8e9192",
+        fontSize: 14,
+        fontFamily: "Hanken Grotesk",
+        fontWeight: "700",
+    },
+    buttonSuggested: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 8,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: "#5ec8ff40",
+        backgroundColor: "#5ec8ff14",
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        marginTop: 8,
+    },
+    buttonSuggestedText: {
+        color: "#5ec8ff",
+        fontSize: 14,
+        fontFamily: "Hanken Grotesk",
+        fontWeight: "700",
     },
 });

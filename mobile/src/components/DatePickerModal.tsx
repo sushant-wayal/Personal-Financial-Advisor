@@ -116,6 +116,7 @@ export function DatePickerModal({
       }
 
       if (changed) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setHourDraft(String(newH).padStart(2, "0"));
         setMinuteDraft(String(newM).padStart(2, "0"));
       }
@@ -125,6 +126,7 @@ export function DatePickerModal({
   useEffect(() => {
     if (visible) {
       const d = initialDate || todayKey;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setDateDraft(d);
       const parsed = parseDateKey(d) || new Date();
       setDateMonth(new Date(parsed.getFullYear(), parsed.getMonth(), 1));

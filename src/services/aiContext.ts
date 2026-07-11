@@ -348,19 +348,25 @@ export function buildAdvisorSystemPrompt(options?: { structured?: boolean }) {
 
         "Avoid overly rigid report formatting like large headings unless explicitly requested.",
 
+        "CRITICAL: When the user asks you to perform a write action (e.g. add a transaction, update a goal), you MUST NOT call the database modification tool immediately. Instead, output an 'actionConfirmation' artifact detailing the exact tool and arguments you intend to run. Set the actionCommand to begin explicitly with 'Yes'. ONLY when the user replies explicitly approving the action (e.g. their message starts with 'Yes', 'I confirm', or 'Proceed'), you may then call the tool.",
+
+        "You can proactively suggest actions to the user using the 'suggestedAction' artifact. This will render a button that the user can click to easily trigger the action.",
+
         // Tool use guidance
-        "DATABASE TOOLS: You have access to the following read-only tools to query the user's financial database. " +
+        "DATABASE TOOLS: You have access to both read and write tools to manage the user's financial database. " +
+        "Read Tools (queryTransactions, aggregateTransactions, queryGoals, querySubscriptions, queryCategories, getFinancialProfile, queryMemories, queryInsights): " +
         "Call them when the initial context does not have enough data to answer the question precisely. " +
-        "Always prefer answering from the initial context if it is sufficient — only call tools when they would meaningfully improve your answer.\n" +
-        "  - queryTransactions: Fetch transactions filtered by date, merchant, category, type, amount range. Use for specific spending lookups.\n" +
-        "  - aggregateTransactions: Compute sum/count/avg grouped by category, merchant, month, type, or payment method. Use for trend and breakdown questions.\n" +
-        "  - queryGoals: Read financial goals with optional status/priority filters.\n" +
-        "  - querySubscriptions: Read active or all subscriptions.\n" +
-        "  - queryCategories: List all known categories.\n" +
-        "  - getFinancialProfile: Read the user's profile (balance, income, expenses).\n" +
-        "  - queryMemories: Search stored AI memory by tag or key.\n" +
-        "  - queryInsights: Fetch stored financial insights.\n" +
-        "Call at most 2-3 tools per answer. Do not call tools for data already present in the initial context.",
+        "Always prefer answering from the initial context if it is sufficient — only call read tools when they would meaningfully improve your answer.\n" +
+        "Write Tools (Specific):\n" +
+        "  - addTransaction, updateTransaction, deleteTransaction\n" +
+        "  - addGoal, updateGoal, deleteGoal\n" +
+        "  - addSubscription, updateSubscription, deleteSubscription\n" +
+        "  - addCategorizationRule, deleteCategorizationRule\n" +
+        "  - updateFinancialProfile\n" +
+        "Write Tools (Generic - USE ONLY AS A LAST RESORT for Assets and Liabilities that lack specific tools):\n" +
+        "  - getDatabaseSchema: Call this FIRST to inspect the required fields for an asset/liability model (e.g. 'MutualFund', 'FDAccount', 'VehicleAsset') before attempting to write.\n" +
+        "  - writeDatabaseRecord: Use this to CREATE, UPDATE, or DELETE a record in an asset/liability model. ONLY use this if there is NO specific write tool available. Do NOT use it for Subscriptions, Goals, or Transactions.\n" +
+        "ERROR HANDLING: If a database tool call returns an error (e.g. missing required fields, invalid format), do NOT just say 'An error occurred'. Analyze the error and determine if the user can help solve it. For example, if a field is missing, use a 'form' artifact to ask the user for the missing input. Once the user provides the missing data, you can retry the action.",
     ];
 
     if (options?.structured) {
@@ -603,6 +609,30 @@ form
     }
   ],
   "submitLabel": string // optional button text, default "Submit"
+}
+
+----------------------------------------------------------------
+actionConfirmation
+----------------------------------------------------------------
+
+{
+  "type": "actionConfirmation",
+  "title": string,
+  "message": string, // explain what will happen
+  "actionLabel": string, // optional, default "Confirm"
+  "cancelLabel": string, // optional, default "Cancel"
+  "actionCommand": string // the exact text to send to chat when confirmed. MUST begin explicitly with 'Yes'. e.g. "Yes, proceed with adding the transaction for Walmart."
+}
+
+----------------------------------------------------------------
+suggestedAction
+----------------------------------------------------------------
+
+{
+  "type": "suggestedAction",
+  "label": string, // e.g. "Add $50 to groceries"
+  "message": string, // e.g. "Would you like me to add this transaction for you?"
+  "actionCommand": string // the exact text to send to chat when clicked, e.g. "Add a $50 transaction for groceries."
 }
 
 ----------------------------------------------------------------

@@ -13,6 +13,7 @@
  */
 
 import { prisma } from "../lib/prisma";
+import { Prisma } from "@prisma/client";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -24,7 +25,21 @@ export type ToolName =
     | "queryCategories"
     | "getFinancialProfile"
     | "queryMemories"
-    | "queryInsights";
+    | "queryInsights"
+    | "addTransaction"
+    | "updateTransaction"
+    | "deleteTransaction"
+    | "addGoal"
+    | "updateGoal"
+    | "deleteGoal"
+    | "updateFinancialProfile"
+    | "addSubscription"
+    | "updateSubscription"
+    | "deleteSubscription"
+    | "addCategorizationRule"
+    | "deleteCategorizationRule"
+    | "getDatabaseSchema"
+    | "writeDatabaseRecord";
 
 export type ToolCallRequest = {
     name: ToolName;
@@ -191,6 +206,107 @@ export const ADVISOR_TOOL_DECLARATIONS = [
             required: [],
         },
     },
+    {
+        name: "addTransaction",
+        description: "Add a new transaction. MUST ONLY BE CALLED AFTER EXPLICIT USER CONFIRMATION.",
+        parameters: {
+            type: "object",
+            properties: {
+                amount: { type: "number", description: "Transaction amount." },
+                merchant: { type: "string", description: "Merchant name." },
+                type: { type: "string", enum: ["INCOME", "EXPENSE", "CREDIT", "DEBIT"], description: "Transaction type." },
+                category: { type: "string", description: "Category name." },
+                notes: { type: "string", description: "Optional notes." },
+                date: { type: "string", description: "Optional date in YYYY-MM-DD format." }
+            },
+            required: ["amount", "merchant", "type"],
+        }
+    },
+    {
+        name: "updateTransaction",
+        description: "Update an existing transaction. MUST ONLY BE CALLED AFTER EXPLICIT USER CONFIRMATION.",
+        parameters: {
+            type: "object",
+            properties: {
+                id: { type: "string", description: "ID of the transaction to update." },
+                amount: { type: "number", description: "New amount." },
+                merchant: { type: "string", description: "New merchant name." },
+                type: { type: "string", enum: ["INCOME", "EXPENSE", "CREDIT", "DEBIT"], description: "New transaction type." },
+                category: { type: "string", description: "New category name." },
+                notes: { type: "string", description: "New notes." },
+                date: { type: "string", description: "New date in YYYY-MM-DD format." }
+            },
+            required: ["id"],
+        }
+    },
+    {
+        name: "deleteTransaction",
+        description: "Delete a transaction by ID. MUST ONLY BE CALLED AFTER EXPLICIT USER CONFIRMATION.",
+        parameters: {
+            type: "object",
+            properties: {
+                id: { type: "string", description: "ID of the transaction to delete." }
+            },
+            required: ["id"],
+        }
+    },
+    {
+        name: "addGoal",
+        description: "Add a new financial goal. MUST ONLY BE CALLED AFTER EXPLICIT USER CONFIRMATION.",
+        parameters: {
+            type: "object",
+            properties: {
+                title: { type: "string", description: "Title of the goal." },
+                targetAmount: { type: "number", description: "Target amount." },
+                goalType: { type: "string", description: "Goal type (e.g., PURCHASE, SAVINGS)." },
+                targetDate: { type: "string", description: "Target date in YYYY-MM-DD format." },
+                priority: { type: "number", description: "Priority level (1-5)." }
+            },
+            required: ["title", "targetAmount"],
+        }
+    },
+    {
+        name: "updateGoal",
+        description: "Update an existing financial goal. MUST ONLY BE CALLED AFTER EXPLICIT USER CONFIRMATION.",
+        parameters: {
+            type: "object",
+            properties: {
+                id: { type: "string", description: "ID of the goal to update." },
+                title: { type: "string", description: "New title." },
+                targetAmount: { type: "number", description: "New target amount." },
+                currentAmount: { type: "number", description: "New current amount." },
+                status: { type: "string", enum: ["ACTIVE", "COMPLETED", "PAUSED"], description: "New status." },
+                priority: { type: "number", description: "New priority level (1-5)." }
+            },
+            required: ["id"],
+        }
+    },
+    {
+        name: "deleteGoal",
+        description: "Delete a financial goal by ID. MUST ONLY BE CALLED AFTER EXPLICIT USER CONFIRMATION.",
+        parameters: {
+            type: "object",
+            properties: {
+                id: { type: "string", description: "ID of the goal to delete." }
+            },
+            required: ["id"],
+        }
+    },
+    {
+        name: "updateFinancialProfile",
+        description: "Update the user's financial profile. MUST ONLY BE CALLED AFTER EXPLICIT USER CONFIRMATION.",
+        parameters: {
+            type: "object",
+            properties: {
+                balance: { type: "number" },
+                emergencyFund: { type: "number" },
+                monthlyIncome: { type: "number" },
+                monthlyExpenses: { type: "number" },
+                currency: { type: "string" }
+            },
+            required: [],
+        }
+    }
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -503,6 +619,353 @@ async function toolQueryInsights(args: Record<string, unknown>): Promise<unknown
     return { insights, total: insights.length };
 }
 
+async function adjustProfileBalance(amountDelta: number) {
+    if (amountDelta === 0) return;
+    const profile = await prisma.financialProfile.findFirst();
+    if (profile && profile.balance !== null) {
+        await prisma.financialProfile.update({
+            where: { id: profile.id },
+            data: { balance: profile.balance + amountDelta },
+        });
+    }
+}
+
+// ─── Write Tool Implementations ───────────────────────────────────────────────
+
+async function toolAddTransaction(args: Record<string, unknown>): Promise<unknown> {
+    let amount = Number(args.amount);
+    if (isNaN(amount)) throw new Error("Invalid amount");
+    const merchant = safeString(args.merchant) || "Unknown";
+    const type = safeString(args.type)?.toUpperCase() || "EXPENSE";
+
+    // Ensure amount sign aligns with type
+    if (type === "EXPENSE" || type === "DEBIT") {
+        if (amount > 0) amount = -amount;
+    } else if (type === "INCOME" || type === "CREDIT") {
+        if (amount < 0) amount = -amount;
+    }
+
+    const categoryName = safeString(args.category);
+    const notes = safeString(args.notes);
+    const date = parseSafeDate(args.date) || new Date();
+
+    let categoryId = undefined;
+    if (categoryName) {
+        let category = await prisma.category.findUnique({ where: { name: categoryName } });
+        if (!category) {
+            category = await prisma.category.create({ data: { name: categoryName } });
+        }
+        categoryId = category.id;
+    }
+
+    const tx = await prisma.transaction.create({
+        data: {
+            amount,
+            merchant,
+            type,
+            transactionType: type,
+            categoryId,
+            notes,
+            timestamp: date,
+            source: "AI_ADVISOR",
+            raw: JSON.stringify(args),
+            rawText: `Added manually via advisor: ${merchant} ${amount}`,
+        }
+    });
+
+    await adjustProfileBalance(amount);
+
+    return { success: true, transaction: tx };
+}
+
+async function toolUpdateTransaction(args: Record<string, unknown>): Promise<unknown> {
+    const id = safeString(args.id);
+    if (!id) throw new Error("Transaction ID is required");
+
+    const oldTx = await prisma.transaction.findUnique({ where: { id } });
+    if (!oldTx) throw new Error("Transaction not found");
+
+    const data: any = {};
+    let newType = oldTx.type;
+    let newAmount = oldTx.amount;
+
+    if (args.type !== undefined) {
+        newType = safeString(args.type)?.toUpperCase() || newType;
+        data.type = newType;
+        data.transactionType = newType;
+    }
+
+    if (args.amount !== undefined) {
+        let amt = Number(args.amount);
+        if (newType === "EXPENSE" || newType === "DEBIT") {
+            if (amt > 0) amt = -amt;
+        } else if (newType === "INCOME" || newType === "CREDIT") {
+            if (amt < 0) amt = -amt;
+        }
+        newAmount = amt;
+        data.amount = newAmount;
+    } else if (args.type !== undefined) {
+        // if type changed but amount didn't, we might need to flip the sign
+        if (newType === "EXPENSE" || newType === "DEBIT") {
+            if (newAmount > 0) newAmount = -newAmount;
+        } else if (newType === "INCOME" || newType === "CREDIT") {
+            if (newAmount < 0) newAmount = -newAmount;
+        }
+        data.amount = newAmount;
+    }
+
+    if (args.merchant !== undefined) data.merchant = safeString(args.merchant);
+    if (args.notes !== undefined) data.notes = safeString(args.notes);
+    if (args.date !== undefined) {
+        const d = parseSafeDate(args.date);
+        if (d) data.timestamp = d;
+    }
+
+    const categoryName = safeString(args.category);
+    if (categoryName) {
+        let category = await prisma.category.findUnique({ where: { name: categoryName } });
+        if (!category) {
+            category = await prisma.category.create({ data: { name: categoryName } });
+        }
+        data.categoryId = category.id;
+    }
+
+    const tx = await prisma.transaction.update({
+        where: { id },
+        data,
+    });
+
+    const amountDelta = newAmount - oldTx.amount;
+    await adjustProfileBalance(amountDelta);
+
+    return { success: true, transaction: tx };
+}
+
+async function toolDeleteTransaction(args: Record<string, unknown>): Promise<unknown> {
+    const id = safeString(args.id);
+    if (!id) throw new Error("Transaction ID is required");
+
+    const oldTx = await prisma.transaction.findUnique({ where: { id } });
+    if (oldTx) {
+        await prisma.transaction.delete({ where: { id } });
+        await adjustProfileBalance(-oldTx.amount);
+    }
+    return { success: true, deletedId: id };
+}
+
+async function toolAddGoal(args: Record<string, unknown>): Promise<unknown> {
+    const title = safeString(args.title);
+    if (!title) throw new Error("Goal title is required");
+    const targetAmount = Number(args.targetAmount);
+    if (isNaN(targetAmount)) throw new Error("Invalid target amount");
+    const goalType = safeString(args.goalType) || "PURCHASE";
+    const targetDate = parseSafeDate(args.targetDate);
+    const priority = clamp(args.priority, 1, 5, 3);
+
+    const goal = await prisma.goal.create({
+        data: {
+            title,
+            targetAmount,
+            goalType,
+            targetDate,
+            priority,
+        }
+    });
+    return { success: true, goal };
+}
+
+async function toolUpdateGoal(args: Record<string, unknown>): Promise<unknown> {
+    const id = safeString(args.id);
+    if (!id) throw new Error("Goal ID is required");
+
+    const data: any = {};
+    if (args.title !== undefined) data.title = safeString(args.title);
+    if (args.targetAmount !== undefined) data.targetAmount = Number(args.targetAmount);
+    if (args.currentAmount !== undefined) data.currentAmount = Number(args.currentAmount);
+    if (args.status !== undefined) data.status = safeString(args.status)?.toUpperCase();
+    if (args.priority !== undefined) data.priority = clamp(args.priority, 1, 5, 3);
+
+    const goal = await prisma.goal.update({
+        where: { id },
+        data,
+    });
+    return { success: true, goal };
+}
+
+async function toolDeleteGoal(args: Record<string, unknown>): Promise<unknown> {
+    const id = safeString(args.id);
+    if (!id) throw new Error("Goal ID is required");
+    await prisma.goal.delete({ where: { id } });
+    return { success: true, deletedId: id };
+}
+
+async function toolUpdateFinancialProfile(args: Record<string, unknown>): Promise<unknown> {
+    const profile = await prisma.financialProfile.findFirst();
+    const data: any = {};
+    if (args.balance !== undefined) data.balance = Number(args.balance);
+    if (args.emergencyFund !== undefined) data.emergencyFund = Number(args.emergencyFund);
+    if (args.monthlyIncome !== undefined) data.monthlyIncome = Number(args.monthlyIncome);
+    if (args.monthlyExpenses !== undefined) data.monthlyExpenses = Number(args.monthlyExpenses);
+    if (args.currency !== undefined) data.currency = safeString(args.currency);
+
+    let result;
+    if (profile) {
+        result = await prisma.financialProfile.update({
+            where: { id: profile.id },
+            data,
+        });
+    } else {
+        result = await prisma.financialProfile.create({
+            data,
+        });
+    }
+    return { success: true, profile: result };
+}
+
+async function toolAddSubscription(args: Record<string, unknown>): Promise<unknown> {
+    const merchant = safeString(args.merchant);
+    if (!merchant) throw new Error("Merchant is required");
+    const amount = Number(args.amount);
+    if (isNaN(amount)) throw new Error("Amount is required");
+    const interval = safeString(args.interval) || "MONTHLY";
+    const nextCharge = parseSafeDate(args.nextCharge);
+
+    const sub = await prisma.subscription.create({
+        data: { merchant, amount, interval, nextCharge, active: true },
+    });
+    return { success: true, subscription: sub };
+}
+
+async function toolUpdateSubscription(args: Record<string, unknown>): Promise<unknown> {
+    const id = safeString(args.id);
+    if (!id) throw new Error("Subscription ID is required");
+
+    const data: any = {};
+    if (args.merchant !== undefined) data.merchant = safeString(args.merchant);
+    if (args.amount !== undefined) data.amount = Number(args.amount);
+    if (args.interval !== undefined) data.interval = safeString(args.interval);
+    if (args.nextCharge !== undefined) data.nextCharge = parseSafeDate(args.nextCharge);
+    if (args.active !== undefined) data.active = Boolean(args.active);
+
+    const sub = await prisma.subscription.update({ where: { id }, data });
+    return { success: true, subscription: sub };
+}
+
+async function toolDeleteSubscription(args: Record<string, unknown>): Promise<unknown> {
+    const id = safeString(args.id);
+    if (!id) throw new Error("Subscription ID is required");
+    await prisma.subscription.delete({ where: { id } });
+    return { success: true, deletedId: id };
+}
+
+async function toolAddCategorizationRule(args: Record<string, unknown>): Promise<unknown> {
+    const merchantName = safeString(args.merchantName);
+    const categoryName = safeString(args.categoryName);
+    if (!merchantName || !categoryName) throw new Error("merchantName and categoryName are required");
+
+    let category = await prisma.category.findUnique({ where: { name: categoryName } });
+    if (!category) {
+        category = await prisma.category.create({ data: { name: categoryName } });
+    }
+
+    const merchantKey = merchantName.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+    const rule = await prisma.merchantCategoryMap.upsert({
+        where: { merchantKey },
+        update: { categoryId: category.id, merchantName },
+        create: { merchantKey, merchantName, categoryId: category.id, source: "AI_ADVISOR" },
+    });
+    return { success: true, rule };
+}
+
+async function toolDeleteCategorizationRule(args: Record<string, unknown>): Promise<unknown> {
+    const merchantName = safeString(args.merchantName);
+    if (!merchantName) throw new Error("merchantName is required");
+    const merchantKey = merchantName.toLowerCase().replace(/[^a-z0-9]/g, "");
+    await prisma.merchantCategoryMap.delete({ where: { merchantKey } });
+    return { success: true };
+}
+
+// ─── Generic Tools ────────────────────────────────────────────────────────────
+
+const ALLOWED_GENERIC_MODELS = [
+    "MutualFund", "Stock", "PPFAccount", "EPFAccount", "FDAccount", "RDAccount",
+    "VehicleAsset", "PlotAsset", "IndependentPropertyAsset", "ApartmentAsset",
+    "JewelleryAsset", "ReceivableAsset", "LoanLiability", "CreditCardLiability",
+    "BnplLiability", "BorrowedLiability"
+];
+
+async function toolGetDatabaseSchema(args: Record<string, unknown>): Promise<unknown> {
+    const modelName = safeString(args.modelName);
+    if (!modelName) {
+        return { allowedModels: ALLOWED_GENERIC_MODELS, message: "Provide a modelName to see its fields." };
+    }
+    if (!ALLOWED_GENERIC_MODELS.includes(modelName)) {
+        throw new Error(`Model ${modelName} is not allowed for generic operations.`);
+    }
+
+    const modelSchema = Prisma.dmmf.datamodel.models.find((m: any) => m.name === modelName);
+    if (!modelSchema) throw new Error(`Model ${modelName} not found in Prisma DMMF.`);
+
+    const fields = modelSchema.fields.map((f: any) => ({
+        name: f.name,
+        type: f.type,
+        isRequired: f.isRequired,
+        isId: f.isId,
+        default: f.default,
+    }));
+
+    return { model: modelName, fields };
+}
+
+async function toolWriteDatabaseRecord(args: Record<string, unknown>): Promise<unknown> {
+    const modelName = safeString(args.modelName);
+    const action = safeString(args.action)?.toUpperCase();
+    const id = safeString(args.id);
+    let data = args.data as Record<string, any>;
+
+    if (!modelName || !action) throw new Error("modelName and action are required");
+    if (!ALLOWED_GENERIC_MODELS.includes(modelName)) {
+        throw new Error(`Model ${modelName} is not allowed for generic operations.`);
+    }
+    if (typeof data === "string") {
+        try { data = JSON.parse(data); } catch { /* ignore */ }
+    }
+
+    // Type coercion based on DMMF
+    const modelSchema = Prisma.dmmf.datamodel.models.find((m: any) => m.name === modelName);
+    if (data && modelSchema) {
+        for (const field of modelSchema.fields) {
+            if (data[field.name] !== undefined) {
+                if (field.type === "DateTime") {
+                    data[field.name] = parseSafeDate(data[field.name]);
+                } else if (field.type === "Float" || field.type === "Int") {
+                    data[field.name] = Number(data[field.name]);
+                } else if (field.type === "Boolean") {
+                    data[field.name] = Boolean(data[field.name]);
+                }
+            }
+        }
+    }
+
+    const delegate = (prisma as any)[modelName.charAt(0).toLowerCase() + modelName.slice(1)];
+
+    if (action === "CREATE") {
+        const result = await delegate.create({ data });
+        return { success: true, action: "CREATE", data: result };
+    } else if (action === "UPDATE") {
+        if (!id) throw new Error("id is required for UPDATE");
+        const result = await delegate.update({ where: { id }, data });
+        return { success: true, action: "UPDATE", data: result };
+    } else if (action === "DELETE") {
+        if (!id) throw new Error("id is required for DELETE");
+        await delegate.delete({ where: { id } });
+        return { success: true, action: "DELETE", id };
+    }
+
+    throw new Error("Invalid action. Use CREATE, UPDATE, or DELETE.");
+}
+
 // ─── Dispatcher ───────────────────────────────────────────────────────────────
 
 /**
@@ -537,6 +1000,48 @@ export async function executeAdvisorTool(call: ToolCallRequest): Promise<ToolCal
                 break;
             case "queryInsights":
                 data = await toolQueryInsights(call.args);
+                break;
+            case "addTransaction":
+                data = await toolAddTransaction(call.args);
+                break;
+            case "updateTransaction":
+                data = await toolUpdateTransaction(call.args);
+                break;
+            case "deleteTransaction":
+                data = await toolDeleteTransaction(call.args);
+                break;
+            case "addGoal":
+                data = await toolAddGoal(call.args);
+                break;
+            case "updateGoal":
+                data = await toolUpdateGoal(call.args);
+                break;
+            case "deleteGoal":
+                data = await toolDeleteGoal(call.args);
+                break;
+            case "updateFinancialProfile":
+                data = await toolUpdateFinancialProfile(call.args);
+                break;
+            case "addSubscription":
+                data = await toolAddSubscription(call.args);
+                break;
+            case "updateSubscription":
+                data = await toolUpdateSubscription(call.args);
+                break;
+            case "deleteSubscription":
+                data = await toolDeleteSubscription(call.args);
+                break;
+            case "addCategorizationRule":
+                data = await toolAddCategorizationRule(call.args);
+                break;
+            case "deleteCategorizationRule":
+                data = await toolDeleteCategorizationRule(call.args);
+                break;
+            case "getDatabaseSchema":
+                data = await toolGetDatabaseSchema(call.args);
+                break;
+            case "writeDatabaseRecord":
+                data = await toolWriteDatabaseRecord(call.args);
                 break;
             default:
                 return { name: call.name, data: null, error: `Unknown tool: ${call.name}` };

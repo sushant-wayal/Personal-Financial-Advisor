@@ -8,7 +8,7 @@ import { fetchNetWorth, createNetWorth, updateNetWorth, deleteNetWorth, NetWorth
 import { DatePickerModal, fullDateLabel } from "../../components/DatePickerModal";
 
 function CustomSwitch({ value, onValueChange }: { value: boolean; onValueChange: (v: boolean) => void }) {
-  const animValue = useRef(new Animated.Value(value ? 1 : 0)).current;
+  const [animValue] = useState(() => new Animated.Value(value ? 1 : 0));
 
   useEffect(() => {
     Animated.timing(animValue, {
@@ -79,6 +79,7 @@ export default function NetWorthFormScreen() {
              initForm[f.name] = new Date(initForm[f.name]).toISOString().split('T')[0];
            }
         });
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setForm(initForm);
       }
     }

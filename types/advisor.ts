@@ -123,6 +123,22 @@ export type AdvisorText = {
     content: string;
 };
 
+export type AdvisorActionConfirmation = {
+    type: "actionConfirmation";
+    title: string;
+    message: string;
+    actionLabel?: string;
+    cancelLabel?: string;
+    actionCommand: string; // The text to send to chat when confirmed
+};
+
+export type AdvisorSuggestedAction = {
+    type: "suggestedAction";
+    label: string;
+    message: string;
+    actionCommand: string; // The text to send to chat when clicked
+};
+
 export type AdvisorArtifact =
     | AdvisorHealthCard
     | AdvisorDualMetric
@@ -136,6 +152,8 @@ export type AdvisorArtifact =
     | AdvisorComparisonTable
     | AdvisorPriorityCard
     | AdvisorDecisionSummary
+    | AdvisorActionConfirmation
+    | AdvisorSuggestedAction
     | AdvisorText;
 
 export type AdvisorResponse = {

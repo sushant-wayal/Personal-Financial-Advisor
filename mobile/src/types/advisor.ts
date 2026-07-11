@@ -139,6 +139,22 @@ export type AdvisorText = {
     content: string;
 };
 
+export type AdvisorActionConfirmation = {
+    type: "actionConfirmation";
+    title: string;
+    message: string;
+    actionLabel?: string;
+    cancelLabel?: string;
+    actionCommand: string;
+};
+
+export type AdvisorSuggestedAction = {
+    type: "suggestedAction";
+    label: string;
+    message: string;
+    actionCommand: string;
+};
+
 export type AdvisorArtifact =
     | AdvisorHealthCard
     | AdvisorDualMetric
@@ -153,7 +169,9 @@ export type AdvisorArtifact =
     | AdvisorPriorityCard
     | AdvisorDecisionSummary
     | AdvisorForm
-    | AdvisorText;
+    | AdvisorText
+    | AdvisorActionConfirmation
+    | AdvisorSuggestedAction;
 
 export type AdvisorResponse = {
     narrative: string;
