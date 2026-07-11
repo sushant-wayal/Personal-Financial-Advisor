@@ -1,10 +1,18 @@
 import { NextResponse } from "next/server";
 import { prisma } from "../../../src/lib/prisma";
+import { calculateAveragedMonthlyIncomeAndExpense } from "../../../src/services/analytics";
 
 export async function GET() {
     try {
         const profile = await prisma.financialProfile.findFirst();
-        return NextResponse.json({ ok: true, profile });
+        const averages = await calculateAveragedMonthlyIncomeAndExpense();
+        
+        if (profile) {
+            profile.monthlyIncome = averages.monthlyIncome;
+            profile.monthlyExpenses = averages.monthlyExpenses;
+        }
+        
+        return NextResponse.json({ ok: true, profile: profile || { ...averages, balance: 0, emergencyFundMonths: 6, currency: "INR" } });
     } catch (e: any) {
         return NextResponse.json({ error: e.message || String(e) }, { status: 500 });
     }
@@ -29,10 +37,11 @@ export async function PUT(req: Request) {
                     currency: body.currency ?? existing.currency,
                     balance: typeof body.balance === "number" ? body.balance : existing.balance,
                     emergencyFundMonths: incomingMonths !== null ? incomingMonths : existing.emergencyFundMonths,
-                    monthlyIncome: typeof body.monthlyIncome === "number" ? body.monthlyIncome : existing.monthlyIncome,
-                    monthlyExpenses: typeof body.monthlyExpenses === "number" ? body.monthlyExpenses : existing.monthlyExpenses,
                 },
             });
+            const averages = await calculateAveragedMonthlyIncomeAndExpense();
+            updated.monthlyIncome = averages.monthlyIncome;
+            updated.monthlyExpenses = averages.monthlyExpenses;
             return NextResponse.json({ ok: true, profile: updated });
         }
 
@@ -42,12 +51,14 @@ export async function PUT(req: Request) {
                 currency: body.currency || "INR",
                 balance: typeof body.balance === "number" ? body.balance : 0,
                 emergencyFundMonths: incomingMonths !== null ? incomingMonths : 6,
-                monthlyIncome: typeof body.monthlyIncome === "number" ? body.monthlyIncome : 0,
-                monthlyExpenses: typeof body.monthlyExpenses === "number" ? body.monthlyExpenses : 0,
             },
         });
+        const averages = await calculateAveragedMonthlyIncomeAndExpense();
+        created.monthlyIncome = averages.monthlyIncome;
+        created.monthlyExpenses = averages.monthlyExpenses;
         return NextResponse.json({ ok: true, profile: created });
     } catch (e: any) {
         return NextResponse.json({ error: e.message || String(e) }, { status: 500 });
     }
 }
+

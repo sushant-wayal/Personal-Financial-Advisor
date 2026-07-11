@@ -1,4 +1,4 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { buildFinancialContext } from "../../../../../src/services/aiContext";
 import { generateText } from "../../../../../src/services/gemini";
 

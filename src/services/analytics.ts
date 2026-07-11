@@ -194,6 +194,26 @@ export async function calculateRunway() {
     };
 }
 
+export async function calculateAveragedMonthlyIncomeAndExpense() {
+    const now = new Date();
+    const start = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+    const totals = await aggregateMonthlyTotals(start, now);
+    return {
+        monthlyIncome: Math.round(totals.income / 3),
+        monthlyExpenses: Math.round(totals.expenses / 3),
+    };
+}
+
+export async function getEnhancedProfile() {
+    const profile = await prisma.financialProfile.findFirst();
+    const averages = await calculateAveragedMonthlyIncomeAndExpense();
+    if (profile) {
+        profile.monthlyIncome = averages.monthlyIncome;
+        profile.monthlyExpenses = averages.monthlyExpenses;
+    }
+    return profile;
+}
+
 export async function monthlyTrend(months = 12) {
     const now = new Date();
     const results: Array<{ month: string; income: number; expense: number }> = [];

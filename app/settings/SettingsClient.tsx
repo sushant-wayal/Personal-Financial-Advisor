@@ -191,8 +191,8 @@ export default function SettingsClient() {
                                         id="monthly-income"
                                         type="number"
                                         value={profile?.monthlyIncome ?? 0}
-                                        onChange={(e) => setProfile({ ...profile, monthlyIncome: Number(e.target.value) })}
                                         placeholder="0"
+                                        disabled
                                     />
                                 </div>
                                 <div className="space-y-2">
@@ -201,8 +201,8 @@ export default function SettingsClient() {
                                         id="monthly-expenses"
                                         type="number"
                                         value={profile?.monthlyExpenses ?? 0}
-                                        onChange={(e) => setProfile({ ...profile, monthlyExpenses: Number(e.target.value) })}
                                         placeholder="0"
+                                        disabled
                                     />
                                 </div>
                             </div>

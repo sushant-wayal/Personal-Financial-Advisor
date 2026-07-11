@@ -1,7 +1,8 @@
 import { prisma } from "../lib/prisma";
+import { getEnhancedProfile } from "./analytics";
 
 export async function predictMonthEndBalance() {
-    const profile = await prisma.financialProfile.findFirst();
+    const profile = await getEnhancedProfile();
     const txs = await prisma.transaction.findMany({ orderBy: { timestamp: "desc" }, take: 90, include: { category: true } });
 
     const monthlyExpense = profile?.monthlyExpenses ?? estimateMonthlyExpenses(txs);

@@ -1,5 +1,5 @@
 import { prisma } from "../lib/prisma";
-import { calculateBurnRate, calculateMonthlySavingsRate, calculateRunway, categoryBreakdown, monthlyTrend } from "./analytics";
+import { calculateBurnRate, calculateMonthlySavingsRate, calculateRunway, categoryBreakdown, monthlyTrend, calculateAveragedMonthlyIncomeAndExpense } from "./analytics";
 import { generateText } from "./gemini";
 import { listGoals, predictETA, recommendMonthlyContribution } from "./goals";
 
@@ -74,7 +74,7 @@ function summarizeSubscription(sub: any, currency: string) {
 }
 
 export async function buildFinancialContext(limit = 24) {
-    const [transactions, goals, profile, subscriptions, memories, monthly, categoryData, savings, burn, runway] = await Promise.all([
+    const [transactions, goals, profile, subscriptions, memories, monthly, categoryData, savings, burn, runway, averages] = await Promise.all([
         prisma.transaction.findMany({ orderBy: { timestamp: "desc" }, take: Math.max(12, Math.min(limit, 30)), include: { category: true } }),
         listGoals(),
         prisma.financialProfile.findFirst(),
@@ -85,7 +85,13 @@ export async function buildFinancialContext(limit = 24) {
         calculateMonthlySavingsRate(),
         calculateBurnRate(),
         calculateRunway(),
+        calculateAveragedMonthlyIncomeAndExpense(),
     ]);
+
+    if (profile && averages) {
+        profile.monthlyIncome = averages.monthlyIncome;
+        profile.monthlyExpenses = averages.monthlyExpenses;
+    }
 
     const currency = profile?.currency || "INR";
     const activeSubscriptions = subscriptions.filter((subscription: any) => subscription.active !== false);
@@ -204,8 +210,10 @@ export async function buildFinancialContext(limit = 24) {
                 emergencyFundMonths: profile.emergencyFundMonths,
                 monthlyIncome: profile.monthlyIncome,
                 monthlyIncomeLabel: formatCurrency(profile.monthlyIncome || 0, currency),
+                monthlyIncomeDescription: "Calculated as a 90-day rolling average of actual tracked income.",
                 monthlyExpenses: profile.monthlyExpenses,
                 monthlyExpensesLabel: formatCurrency(profile.monthlyExpenses || 0, currency),
+                monthlyExpensesDescription: "Calculated as a 90-day rolling average of actual tracked expenses.",
             }
             : null,
         analytics: {

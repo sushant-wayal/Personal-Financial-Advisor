@@ -340,8 +340,8 @@ export default function SettingsScreen() {
               <SettingInput label="Balance" value={String(Math.round((profile.balance ?? 0) * 100) / 100)} keyboardType="numeric" onChangeText={(balance) => updateProfile({ balance: Number(balance || 0) })} />
             </View>
             <View style={styles.twoColumn}>
-              <SettingInput label="Monthly Income" value={String(profile.monthlyIncome ?? 0)} keyboardType="numeric" onChangeText={(monthlyIncome) => updateProfile({ monthlyIncome: Number(monthlyIncome || 0) })} />
-              <SettingInput label="Monthly Expenses" value={String(profile.monthlyExpenses ?? 0)} keyboardType="numeric" onChangeText={(monthlyExpenses) => updateProfile({ monthlyExpenses: Number(monthlyExpenses || 0) })} />
+              <SettingInput label="Monthly Income" value={String(profile.monthlyIncome ?? 0)} editable={false} />
+              <SettingInput label="Monthly Expenses" value={String(profile.monthlyExpenses ?? 0)} editable={false} />
             </View>
 
             <View style={styles.efContainer}>
@@ -551,12 +551,14 @@ function SettingInput({
   onChangeText,
   placeholder,
   keyboardType,
+  editable,
 }: {
   label: string;
   value: string;
-  onChangeText: (value: string) => void;
+  onChangeText?: (value: string) => void;
   placeholder?: string;
   keyboardType?: "default" | "numeric" | "email-address";
+  editable?: boolean;
 }) {
   return (
     <View style={styles.inputGroup}>
@@ -567,7 +569,8 @@ function SettingInput({
         placeholder={placeholder}
         placeholderTextColor="rgba(196,199,200,0.42)"
         keyboardType={keyboardType}
-        style={styles.underlineInput}
+        style={[styles.underlineInput, editable === false && { color: 'rgba(196,199,200,0.5)' }]}
+        editable={editable !== false}
       />
     </View>
   );
