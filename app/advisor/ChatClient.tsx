@@ -311,7 +311,7 @@ export default function ChatClient() {
                 )}
             </div>
 
-            <div className="mt-4 flex flex-col gap-5 sm:flex-row" role="form" aria-label="Send message">
+            <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:gap-5" role="form" aria-label="Send message">
                 <div className="flex-1">
                     <Input
                         className="w-full"
@@ -327,14 +327,29 @@ export default function ChatClient() {
                         placeholder="Ask the financial advisor"
                     />
                 </div>
-                <Button
-                    onClick={() => void send()}
-                    disabled={loading}
-                    className="sm:w-28 flex-none rounded-lg"
-                    aria-label="Send message"
-                >
-                    {loading ? "Thinking…" : "Send"}
-                </Button>
+                <div className="flex gap-2 sm:gap-5">
+                    <Button
+                        variant="outline"
+                        onClick={() => {
+                            setThreads([]);
+                            setQ("");
+                        }}
+                        disabled={loading}
+                        className="flex-none rounded-lg"
+                        aria-label="New chat"
+                        type="button"
+                    >
+                        New Chat
+                    </Button>
+                    <Button
+                        onClick={() => void send()}
+                        disabled={loading}
+                        className="flex-1 sm:flex-none sm:w-28 rounded-lg"
+                        aria-label="Send message"
+                    >
+                        {loading ? "Thinking…" : "Send"}
+                    </Button>
+                </div>
             </div>
         </Card>
     );

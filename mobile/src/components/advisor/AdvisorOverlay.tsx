@@ -452,7 +452,7 @@ export default function AdvisorOverlay() {
                 {/* Top bar */}
                 <View style={styles.topBar}>
                     <Pressable
-                        style={({ pressed }) => [styles.topBarButton, pressed ? styles.pressed : null]}
+                        style={({ pressed }) => [styles.topBarButton, pressed ? (styles as any).pressed : null]}
                         onPress={() => closeAdvisor()}
                         accessibilityRole="button"
                         accessibilityLabel="Close advisor"
@@ -460,14 +460,31 @@ export default function AdvisorOverlay() {
                         <MaterialIcons name="support-agent" size={22} color="#e5e2e1" />
                         <Text style={styles.topBarTitle}>AI ADVISOR</Text>
                     </Pressable>
-                    <Pressable
-                        style={({ pressed }) => [styles.closeButton, pressed ? styles.pressed : null]}
-                        onPress={() => closeAdvisor()}
-                        accessibilityRole="button"
-                        accessibilityLabel="Close advisor"
-                    >
-                        <MaterialIcons name="close" size={24} color="#e5e2e1" />
-                    </Pressable>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 20 }}>
+                        <Pressable
+                            style={({ pressed }) => [
+                                (styles as any).newChatButton,
+                                pressed ? { opacity: 0.7 } : null
+                            ]}
+                            onPress={() => {
+                                setThreads([]);
+                                setQ("");
+                            }}
+                            accessibilityRole="button"
+                            accessibilityLabel="New chat"
+                        >
+                            <MaterialIcons name="refresh" size={16} color="#a78bfa" />
+                            <Text style={(styles as any).newChatText}>Reset</Text>
+                        </Pressable>
+                        <Pressable
+                            style={({ pressed }) => [styles.closeButton, pressed ? { opacity: 0.7 } : null]}
+                            onPress={() => closeAdvisor()}
+                            accessibilityRole="button"
+                            accessibilityLabel="Close advisor"
+                        >
+                            <MaterialIcons name="close" size={24} color="#e5e2e1" />
+                        </Pressable>
+                    </View>
                 </View>
 
                 <ScrollView
@@ -719,6 +736,23 @@ const styles = StyleSheet.create({
         letterSpacing: 2,
     },
     closeButton: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
+    newChatButton: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 6,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 16,
+        backgroundColor: "rgba(167, 139, 250, 0.15)",
+        borderWidth: 1,
+        borderColor: "rgba(167, 139, 250, 0.3)",
+    },
+    newChatText: {
+        color: "#a78bfa",
+        fontSize: 12,
+        fontFamily: "Inter",
+        fontWeight: "600",
+    },
     scroll: { flex: 1 },
     scrollContent: {
         alignSelf: "center",
