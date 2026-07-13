@@ -73,10 +73,10 @@ export async function GET() {
         totalAssets += epf.reduce((sum, item) => sum + (item.currentWorth ?? item.currentBalance), 0);
         totalAssets += fd.reduce((sum, item) => sum + (item.currentWorth ?? item.principalAmount), 0);
         totalAssets += rd.reduce((sum, item) => sum + (item.currentWorth ?? item.currentTotalDeposits), 0);
-        totalAssets += vehicle.reduce((sum, item) => sum + (item.currentWorth ?? item.purchasePrice), 0);
-        totalAssets += plot.reduce((sum, item) => sum + (item.currentWorth ?? item.purchasePrice), 0);
-        totalAssets += independentProperty.reduce((sum, item) => sum + (item.currentWorth ?? item.purchasePrice), 0);
-        totalAssets += apartment.reduce((sum, item) => sum + (item.currentWorth ?? item.purchasePrice), 0);
+        totalAssets += vehicle.reduce((sum, item) => sum + (item.currentWorth ?? (item.purchasePrice || 0)), 0);
+        totalAssets += plot.reduce((sum, item) => sum + (item.currentWorth ?? (item.purchasePrice || 0)), 0);
+        totalAssets += independentProperty.reduce((sum, item) => sum + (item.currentWorth ?? (item.purchasePrice || 0)), 0);
+        totalAssets += apartment.reduce((sum, item) => sum + (item.currentWorth ?? (item.purchasePrice || 0)), 0);
         totalAssets += jewellery.reduce((sum, item) => sum + (item.currentWorth ?? (item.purchasePrice || 0)), 0);
         totalAssets += receivable.reduce((sum, item) => sum + (item.currentWorth ?? item.principalAmount), 0);
         totalAssets += mutualFund.reduce((sum, item) => sum + (item.currentWorth ?? ((item.currentUnits || 0) * (item.currentNav || 0))), 0);

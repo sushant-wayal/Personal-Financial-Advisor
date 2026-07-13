@@ -32,7 +32,7 @@ export async function GET(request: Request) {
             }
 
             // Standard fallback depreciation (10% YoY)
-            const fallbackWorth = vehicle.purchasePrice * Math.pow(0.90, ageInYears);
+            const fallbackWorth = (vehicle.purchasePrice || 0) * Math.pow(0.90, ageInYears);
             let finalWorth = fallbackWorth;
 
             // LLM Valuation
@@ -54,7 +54,7 @@ Do NOT wrap in markdown blocks, just raw JSON.`;
                 
                 if (data && typeof data.estimatedValue === 'number' && data.estimatedValue > 0) {
                     // Prevent AI from hallucinating a value higher than original purchase price
-                    finalWorth = Math.min(data.estimatedValue, vehicle.purchasePrice);
+                    finalWorth = Math.min(data.estimatedValue, vehicle.purchasePrice || 0);
                     console.info(`[cron-vehicle] AI successfully valued ${vehicle.brand} ${vehicle.modelName} at ${finalWorth}`);
                 } else {
                     console.warn(`[cron-vehicle] Invalid AI response for ${vehicle.id}, using fallback ${fallbackWorth}`);
@@ -65,7 +65,7 @@ Do NOT wrap in markdown blocks, just raw JSON.`;
             }
 
             // Update record if worth changed by more than 1 rupee
-            if (Math.abs(finalWorth - vehicle.currentWorth) > 1) {
+            if (Math.abs(finalWorth - (vehicle.currentWorth || 0)) > 1) {
                 updatedVehicles.push(
                     prisma.vehicleAsset.update({
                         where: { id: vehicle.id },

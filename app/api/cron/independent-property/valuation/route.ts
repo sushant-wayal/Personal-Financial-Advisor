@@ -21,11 +21,11 @@ export async function GET(request: Request) {
         const updatedProperties = [];
 
         for (const property of properties) {
-            let finalWorth = property.currentWorth;
+            let finalWorth = property.currentWorth || 0;
             
             // If currentWorth is 0 (first run), fallback to purchasePrice
             if (finalWorth === 0) {
-                finalWorth = property.purchasePrice;
+                finalWorth = property.purchasePrice || 0;
             }
 
             // LLM Valuation
@@ -69,7 +69,7 @@ Do NOT wrap in markdown blocks, just raw JSON.`;
             }
 
             // Update record if worth changed by more than 1 rupee
-            if (Math.abs(finalWorth - property.currentWorth) > 1) {
+            if (Math.abs(finalWorth - (property.currentWorth || 0)) > 1) {
                 updatedProperties.push(
                     prisma.independentPropertyAsset.update({
                         where: { id: property.id },

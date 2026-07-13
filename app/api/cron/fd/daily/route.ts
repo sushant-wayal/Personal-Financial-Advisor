@@ -26,7 +26,7 @@ export async function GET(request: Request) {
             let isMatured = account.isMatured;
 
             // Cap elapsed time at maturity date
-            const endDate = now >= account.maturityDate ? account.maturityDate : now;
+            const endDate = account.maturityDate && now >= account.maturityDate ? account.maturityDate : now;
             const elapsedMs = endDate.getTime() - account.startDate.getTime();
             const t = Math.max(0, elapsedMs / (1000 * 60 * 60 * 24 * 365.25)); // years
 
@@ -44,7 +44,7 @@ export async function GET(request: Request) {
             }
 
             // Check if matured today or in the past
-            if (now >= account.maturityDate) {
+            if (account.maturityDate && now >= account.maturityDate) {
                 isMatured = true;
                 console.info(`[cron-fd] FD ${account.id} has matured. Worth capped at ${newWorth}`);
             }

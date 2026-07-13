@@ -21,11 +21,11 @@ export async function GET(request: Request) {
         const updatedPlots = [];
 
         for (const plot of plots) {
-            let finalWorth = plot.currentWorth;
+            let finalWorth = plot.currentWorth || 0;
             
             // If currentWorth is 0 (first run), fallback to purchasePrice
             if (finalWorth === 0) {
-                finalWorth = plot.purchasePrice;
+                finalWorth = plot.purchasePrice || 0;
             }
 
             // LLM Valuation
@@ -65,7 +65,7 @@ Do NOT wrap in markdown blocks, just raw JSON.`;
             }
 
             // Update record if worth changed by more than 1 rupee
-            if (Math.abs(finalWorth - plot.currentWorth) > 1) {
+            if (Math.abs(finalWorth - (plot.currentWorth || 0)) > 1) {
                 updatedPlots.push(
                     prisma.plotAsset.update({
                         where: { id: plot.id },

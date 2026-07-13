@@ -26,7 +26,7 @@ export async function GET(request: Request) {
             let currentTotalDeposits = account.currentTotalDeposits;
 
             // Cap elapsed time at maturity date
-            const endDate = now >= account.maturityDate ? account.maturityDate : now;
+            const endDate = account.maturityDate && now >= account.maturityDate ? account.maturityDate : now;
             
             // 1. Calculate Exact Historical Deposit Dates
             // This prevents drift or double-counting if the cron job runs multiple times or is missed.
@@ -66,7 +66,7 @@ export async function GET(request: Request) {
             }
 
             // 3. Maturity Check
-            if (now >= account.maturityDate) {
+            if (account.maturityDate && now >= account.maturityDate) {
                 isMatured = true;
                 console.info(`[cron-rd] RD ${account.id} has matured. Worth capped at ${newWorth}`);
             }

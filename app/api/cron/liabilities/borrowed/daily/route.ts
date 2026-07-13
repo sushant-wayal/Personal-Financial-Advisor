@@ -46,9 +46,9 @@ export async function GET(request: Request) {
                             interestFactor = 1 / 12;
                         } else if (borrowed.repaymentFrequency === "QUARTERLY") {
                             interestFactor = 3 / 12;
-                        } else if (borrowed.repaymentFrequency === "ONE_TIME") {
+                        } else if (borrowed.repaymentFrequency === "ONE_TIME" && borrowed.borrowDate) {
                             // Calculate daily interest from borrow date to today
-                            const borrowDateObj = new Date(borrowed.borrowDate);
+                            const borrowDateObj = borrowed.borrowDate;
                             const daysDiff = Math.max(1, Math.ceil((now.getTime() - borrowDateObj.getTime()) / (1000 * 3600 * 24)));
                             interestFactor = daysDiff / 365;
                         }

@@ -84,7 +84,7 @@ Do NOT wrap in markdown blocks, just raw JSON.`;
             const finalWorth = fineWeight * currentPricePerGram;
 
             // Update record if worth changed by more than 1 rupee
-            if (Math.abs(finalWorth - item.currentWorth) > 1) {
+            if (Math.abs(finalWorth - (item.currentWorth || 0)) > 1) {
                 updatedItems.push(
                     prisma.jewelleryAsset.update({
                         where: { id: item.id },

@@ -53,7 +53,7 @@ export async function GET(request: Request) {
             // Only update if things changed
             if (
                 isOverdue !== item.isOverdue ||
-                Math.abs(currentWorth - item.currentWorth) > 0.01 // allow for 1 paisa rounding diff
+                Math.abs(currentWorth - (item.currentWorth || 0)) > 0.01 // allow for 1 paisa rounding diff
             ) {
                 updatedItems.push(
                     prisma.receivableAsset.update({
