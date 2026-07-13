@@ -235,8 +235,8 @@ export default function NetWorthFormScreen() {
         <Pressable onPress={() => router.back()} style={styles.backButton}>
           <MaterialIcons name="arrow-back" size={24} color="#fff" />
         </Pressable>
-        <Text style={styles.headerTitle}>{id ? "Edit" : "Add"} {config.label}</Text>
-        <View style={{ width: 24 }} />
+        <Text style={styles.headerTitle} numberOfLines={1} ellipsizeMode="tail">{id ? "Edit" : "Add"} {config.label}</Text>
+        <View style={{ width: 40 }} />
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
@@ -250,7 +250,8 @@ export default function NetWorthFormScreen() {
 
         {id && (
           <Pressable style={styles.deleteBtn} onPress={handleDelete} disabled={loading}>
-            <Text style={styles.deleteBtnText}>Delete {config?.label}</Text>
+            <MaterialIcons name="delete-outline" size={18} color="#FF453A" />
+            <Text style={styles.deleteBtnText}>Delete</Text>
           </Pressable>
         )}
         
@@ -277,7 +278,7 @@ const styles = StyleSheet.create({
   errorText: { color: "#ffb4ab", fontSize: 16 },
   header: { height: 96, paddingTop: 14, paddingHorizontal: 24, borderBottomWidth: 1, borderBottomColor: "rgba(68,71,72,0.20)", backgroundColor: "rgba(19,19,19,0.94)", flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   backButton: { width: 40, height: 40, marginLeft: -8, borderRadius: 20, alignItems: "center", justifyContent: "center" },
-  headerTitle: { color: "#ffffff", fontFamily: "Hanken Grotesk", fontSize: 20, fontWeight: "700" },
+  headerTitle: { flex: 1, textAlign: "center", color: "#ffffff", fontFamily: "Hanken Grotesk", fontSize: 20, fontWeight: "700", paddingHorizontal: 12 },
   scroll: { flex: 1 },
   scrollContent: { padding: 24 },
   formCard: { borderRadius: 16, borderWidth: 1, borderColor: "rgba(68,71,72,0.35)", backgroundColor: "#0e0e0e", padding: 22, gap: 20, marginBottom: 32 },
@@ -298,6 +299,6 @@ const styles = StyleSheet.create({
   optionTextActive: { color: "#7dffa2" },
   saveBtn: { height: 50, borderRadius: 8, backgroundColor: "#ffffff", alignItems: "center", justifyContent: "center" },
   saveBtnText: { color: "#000000", fontFamily: "JetBrains Mono", fontSize: 14, letterSpacing: 1.6, textTransform: "uppercase", fontWeight: "700" },
-  deleteBtn: { marginTop: 16, height: 50, borderRadius: 8, borderWidth: 1, borderColor: "rgba(255,180,171,0.3)", backgroundColor: "rgba(255,180,171,0.05)", alignItems: "center", justifyContent: "center" },
-  deleteBtnText: { color: "#ffb4ab", fontFamily: "JetBrains Mono", fontSize: 14, letterSpacing: 1.6, textTransform: "uppercase", fontWeight: "700" },
+  deleteBtn: { marginTop: 16, height: 50, borderRadius: 8, backgroundColor: "transparent", borderWidth: 1, borderColor: "rgba(255, 69, 58, 0.4)", alignItems: "center", justifyContent: "center", flexDirection: "row" },
+  deleteBtnText: { color: "#FF453A", fontFamily: "JetBrains Mono", fontSize: 14, letterSpacing: 1.2, textTransform: "uppercase", fontWeight: "700", marginLeft: 8 },
 });
