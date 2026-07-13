@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, ActivityIndicator, Alert, Animated } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, ActivityIndicator, Alert, Animated, Modal } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -58,6 +58,22 @@ export default function NetWorthFormScreen() {
   const [form, setForm] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(false);
   const [datePickerField, setDatePickerField] = useState<string | null>(null);
+  
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (loading) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, { toValue: 0.4, duration: 800, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true })
+        ])
+      ).start();
+    } else {
+      pulseAnim.stopAnimation();
+      pulseAnim.setValue(1);
+    }
+  }, [loading]);
 
   useEffect(() => {
     if (id) {
@@ -229,6 +245,29 @@ export default function NetWorthFormScreen() {
     );
   };
 
+  const renderLoadingOverlay = () => {
+    const isPredictable = ["vehicleAsset", "plotAsset", "independentPropertyAsset", "apartmentAsset", "mutualFund", "stock", "jewelleryAsset"].includes(type);
+    const title = isPredictable ? "Evaluating Asset" : "Saving Details";
+    const desc = isPredictable 
+      ? "Our AI is currently crunching market data to accurately predict the current worth of your asset..." 
+      : "Securely saving your details...";
+
+    return (
+      <Modal visible={loading} transparent animationType="fade">
+        <View style={styles.loadingOverlayContainer}>
+          <View style={styles.loadingOverlayBox}>
+             <Animated.View style={{ opacity: pulseAnim, marginBottom: 16 }}>
+               <MaterialIcons name={isPredictable ? "auto-awesome" : "cloud-sync"} size={48} color="#05e777" />
+             </Animated.View>
+             <Text style={styles.loadingOverlayTitle}>{title}</Text>
+             <Text style={styles.loadingOverlayDesc}>{desc}</Text>
+             <ActivityIndicator size="small" color="#05e777" style={{ marginTop: 24 }} />
+          </View>
+        </View>
+      </Modal>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -268,6 +307,7 @@ export default function NetWorthFormScreen() {
           if (datePickerField) handleChange(datePickerField, date);
         }}
       />
+      {renderLoadingOverlay()}
     </SafeAreaView>
   );
 }
@@ -301,4 +341,8 @@ const styles = StyleSheet.create({
   saveBtnText: { color: "#000000", fontFamily: "JetBrains Mono", fontSize: 14, letterSpacing: 1.6, textTransform: "uppercase", fontWeight: "700" },
   deleteBtn: { marginTop: 16, height: 50, borderRadius: 8, backgroundColor: "transparent", borderWidth: 1, borderColor: "rgba(255, 69, 58, 0.4)", alignItems: "center", justifyContent: "center", flexDirection: "row" },
   deleteBtnText: { color: "#FF453A", fontFamily: "JetBrains Mono", fontSize: 14, letterSpacing: 1.2, textTransform: "uppercase", fontWeight: "700", marginLeft: 8 },
+  loadingOverlayContainer: { flex: 1, backgroundColor: "rgba(0,0,0,0.85)", justifyContent: "center", alignItems: "center" },
+  loadingOverlayBox: { width: "80%", backgroundColor: "#1A1A1A", borderRadius: 20, padding: 32, alignItems: "center", borderWidth: 1, borderColor: "rgba(5,231,119,0.3)" },
+  loadingOverlayTitle: { color: "#ffffff", fontFamily: "Hanken Grotesk", fontSize: 22, fontWeight: "700", marginBottom: 12, textAlign: "center" },
+  loadingOverlayDesc: { color: "rgba(255,255,255,0.7)", fontSize: 14, lineHeight: 22, textAlign: "center", fontFamily: "JetBrains Mono" },
 });

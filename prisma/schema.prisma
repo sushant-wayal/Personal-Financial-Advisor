@@ -161,7 +161,7 @@ model MutualFund {
   currentUnits        Float
   currentNav          Float?
   currentWorth        Float?
-  setupDate           DateTime
+  setupDate           DateTime?
   processedMessageIds String[] @default([])
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
@@ -174,7 +174,7 @@ model Stock {
   currentQuantity     Float
   currentPrice        Float?
   currentWorth        Float?
-  setupDate           DateTime
+  setupDate           DateTime?
   processedMessageIds String[] @default([])
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
@@ -183,7 +183,7 @@ model Stock {
 model PPFAccount {
   id                        String    @id @default(cuid())
   currentBalance            Float
-  setupDate                 DateTime
+  setupDate                 DateTime?
   monthlyMinimumBalance     Float
   accruedInterest           Float     @default(0)
   currentInterestRate       Float     @default(7.1)
@@ -198,7 +198,7 @@ model EPFAccount {
   currentBalance              Float
   monthlyEmployeeContribution Float
   monthlyEmployerContribution Float
-  setupDate                   DateTime
+  setupDate                   DateTime?
   epfCreditDay                Int       @default(15)
   annualInterestCreditDate    String    @default("03-31")
   accruedInterest             Float     @default(0)
@@ -214,7 +214,7 @@ model FDAccount {
   bankName             String
   principalAmount      Float
   startDate            DateTime
-  maturityDate         DateTime
+  maturityDate         DateTime?
   annualInterestRate   Float
   payoutType           String    @default("CUMULATIVE") // CUMULATIVE or NON_CUMULATIVE
   compoundingFrequency String    @default("QUARTERLY")  // QUARTERLY, MONTHLY, YEARLY, HALF_YEARLY
@@ -230,7 +230,7 @@ model RDAccount {
   bankName             String
   monthlyDepositAmount Float
   startDate            DateTime
-  maturityDate         DateTime
+  maturityDate         DateTime?
   annualInterestRate   Float
   compoundingFrequency String    @default("QUARTERLY")  // QUARTERLY, MONTHLY, YEARLY, HALF_YEARLY
   rdDepositDay         Int
@@ -249,11 +249,11 @@ model VehicleAsset {
   modelName          String
   variant            String
   manufacturingYear  Int
-  purchaseDate       DateTime
-  purchasePrice      Float
+  purchaseDate       DateTime?
+  purchasePrice      Float?
   fuelType           String?
   odometerAtSetup    Int?
-  currentWorth       Float
+  currentWorth       Float?
   lastValuationDate  DateTime?
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
@@ -261,15 +261,15 @@ model VehicleAsset {
 
 model PlotAsset {
   id                 String    @id @default(cuid())
-  purchasePrice      Float
-  purchaseDate       DateTime
+  purchasePrice      Float?
+  purchaseDate       DateTime?
   country            String
   state              String
   city               String
   locality           String
   area               Float
   areaUnit           String
-  currentWorth       Float
+  currentWorth       Float?
   lastValuationDate  DateTime?
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
@@ -277,8 +277,8 @@ model PlotAsset {
 
 model IndependentPropertyAsset {
   id                 String    @id @default(cuid())
-  purchasePrice      Float
-  purchaseDate       DateTime
+  purchasePrice      Float?
+  purchaseDate       DateTime?
   country            String
   state              String
   city               String
@@ -286,9 +286,9 @@ model IndependentPropertyAsset {
   landArea           Float
   landAreaUnit       String
   builtUpArea        Float
-  constructionYear   Int
+  constructionYear   Int?
   lastRenovationYear Int?
-  currentWorth       Float
+  currentWorth       Float?
   lastValuationDate  DateTime?
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
@@ -296,20 +296,20 @@ model IndependentPropertyAsset {
 
 model ApartmentAsset {
   id                 String    @id @default(cuid())
-  purchasePrice      Float
-  purchaseDate       DateTime
+  purchasePrice      Float?
+  purchaseDate       DateTime?
   country            String
   state              String
   city               String
   locality           String
   builtUpArea        Float
-  constructionYear   Int
+  constructionYear   Int?
   bhk                String?
   floorNumber        String?
   builder            String?
   projectName        String?
   lastRenovationYear Int?
-  currentWorth       Float
+  currentWorth       Float?
   lastValuationDate  DateTime?
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
@@ -323,7 +323,7 @@ model JewelleryAsset {
   weightUnit         String    // "g" or "kg"
   purchaseDate       DateTime?
   purchasePrice      Float?
-  currentWorth       Float     @default(0)
+  currentWorth       Float?    @default(0)
   lastValuationDate  DateTime?
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
@@ -333,14 +333,14 @@ model ReceivableAsset {
   id                 String    @id @default(cuid())
   name               String
   principalAmount    Float
-  setupDate          DateTime
+  setupDate          DateTime?
   category           String    // "SECURITY_DEPOSIT", "PERSONAL_LOAN", "REFUNDABLE_DEPOSIT", "OTHER"
   expectedReturnDate DateTime?
   interestRate       Float?    @default(0)
   interestType       String    @default("NONE") // "NONE", "SIMPLE", "COMPOUND"
   accruedInterest    Float     @default(0)
   isOverdue          Boolean   @default(false)
-  currentWorth       Float
+  currentWorth       Float?
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 }
@@ -396,7 +396,7 @@ model BorrowedLiability {
   id                       String    @id @default(cuid())
   lenderName               String
   outstandingAmount        Float
-  borrowDate               DateTime
+  borrowDate               DateTime?
   interestRate             Float     @default(0)
   repaymentFrequency       String    @default("MONTHLY") // "MONTHLY", "QUARTERLY", "ONE_TIME"
   installmentAmount        Float?

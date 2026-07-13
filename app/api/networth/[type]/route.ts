@@ -20,6 +20,16 @@ const ALLOWED_TYPES = [
     "stock"
 ];
 
+const typeToCronPath: Record<string, string> = {
+    mutualFund: "/api/cron/mutual-funds/nav",
+    stock: "/api/cron/stocks/price",
+    vehicleAsset: "/api/cron/vehicles/valuation",
+    plotAsset: "/api/cron/plots/valuation",
+    independentPropertyAsset: "/api/cron/independent-property/valuation",
+    apartmentAsset: "/api/cron/apartments/valuation",
+    jewelleryAsset: "/api/cron/jewellery/daily"
+};
+
 export async function POST(
     req: NextRequest,
     { params }: { params: Promise<{ type: string }> }
@@ -38,6 +48,23 @@ export async function POST(
         const created = await prisma[type].create({
             data
         });
+
+        // Trigger valuation sync if applicable
+        const cronPath = typeToCronPath[type];
+        if (cronPath) {
+            try {
+                const cronUrl = `${req.nextUrl.origin}${cronPath}`;
+                console.log(`[POST ${type}] Triggering valuation sync at ${cronUrl}`);
+                // Fire and await so Vercel doesn't kill the function before it finishes
+                await fetch(cronUrl, {
+                    headers: {
+                        'authorization': `Bearer ${process.env.CRON_SECRET}`
+                    }
+                });
+            } catch (err) {
+                console.error(`[POST ${type}] Failed to trigger cron:`, err);
+            }
+        }
 
         return NextResponse.json(created);
     } catch (e: any) {
