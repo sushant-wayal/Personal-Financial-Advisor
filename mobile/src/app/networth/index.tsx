@@ -107,9 +107,9 @@ export default function NetWorthScreen() {
             <View style={styles.iconBox}>
                <MaterialIcons name={config?.icon || (category === "asset" ? "account-balance" : "credit-card")} size={20} color="#fff" />
             </View>
-            <View>
-              <Text style={styles.cardTitle}>{title}</Text>
-              <Text style={styles.cardSubtitle}>{subtitle}</Text>
+            <View style={styles.cardTextContainer}>
+              <Text style={styles.cardTitle} numberOfLines={1} ellipsizeMode="tail">{title}</Text>
+              <Text style={styles.cardSubtitle} numberOfLines={1} ellipsizeMode="tail">{subtitle}</Text>
             </View>
           </View>
           <Text style={[styles.cardValue, category === "asset" ? styles.assetText : styles.liabilityText]}>
@@ -195,7 +195,8 @@ const styles = StyleSheet.create({
   emptyCard: { backgroundColor: "rgba(255,255,255,0.02)", padding: 20, borderRadius: 12, alignItems: "center" },
   emptyText: { color: "rgba(255,255,255,0.4)", fontSize: 14 },
   card: { backgroundColor: "rgba(255,255,255,0.05)", padding: 16, borderRadius: 12, marginBottom: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  cardLeft: { flexDirection: "row", alignItems: "center", gap: 12 },
+  cardLeft: { flex: 1, flexDirection: "row", alignItems: "center", gap: 12, marginRight: 12 },
+  cardTextContainer: { flex: 1 },
   iconBox: { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.1)", alignItems: "center", justifyContent: "center" },
   cardTitle: { color: "#fff", fontSize: 16, fontWeight: "500", marginBottom: 2 },
   cardSubtitle: { color: "rgba(255,255,255,0.5)", fontSize: 13 },

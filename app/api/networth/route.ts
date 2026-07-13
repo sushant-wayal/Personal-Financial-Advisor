@@ -44,25 +44,25 @@ export async function GET() {
 
         const assets = {
             "Bank Balance": [{ id: "bank_balance", bankName: "Liquid Cash", currentWorth: bankBalance }],
-            ppf,
-            epf,
-            fd,
-            rd,
-            vehicle,
-            plot,
-            independentProperty,
-            apartment,
-            jewellery,
-            receivable,
+            pPFAccount: ppf,
+            ePFAccount: epf,
+            fDAccount: fd,
+            rDAccount: rd,
+            vehicleAsset: vehicle,
+            plotAsset: plot,
+            independentPropertyAsset: independentProperty,
+            apartmentAsset: apartment,
+            jewelleryAsset: jewellery,
+            receivableAsset: receivable,
             mutualFund,
             stock
         };
 
         const liabilities = {
-            loan,
-            creditCard,
-            bnpl,
-            borrowed
+            loanLiability: loan,
+            creditCardLiability: creditCard,
+            bnplLiability: bnpl,
+            borrowedLiability: borrowed
         };
 
         // Calculate totals
