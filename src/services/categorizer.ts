@@ -27,17 +27,20 @@ export const SPENDING_CATEGORIES = [
 type SpendingCategory = typeof SPENDING_CATEGORIES[number];
 
 type CategoryResult = {
-    category: SpendingCategory;
+    category: string;
     confidence: number;
     source: "learned" | "dictionary" | "heuristic" | "ai" | "fallback";
 };
 
-function normalizeCategory(category?: string): SpendingCategory | undefined {
+function normalizeCategory(category?: string): string | undefined {
     if (!category) return undefined;
     const trimmed = category.trim();
     if (!trimmed || INVALID_CATEGORIES.has(trimmed.toLowerCase())) return undefined;
     const match = SPENDING_CATEGORIES.find((c) => c.toLowerCase() === trimmed.toLowerCase());
-    return match;
+    if (match) return match;
+    
+    // Convert to title case for new custom categories
+    return trimmed.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
 }
 
 function merchantKey(merchant: string) {
