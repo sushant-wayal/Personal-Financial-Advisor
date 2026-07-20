@@ -255,6 +255,7 @@ export default function AdvisorOverlay() {
         setActiveRequestId(requestId);
         setThreads((prev) => [...prev, { question: user, response: null }]);
         setQ("");
+        setInputHeight(56);
         setLoading(true);
 
         try {
@@ -475,6 +476,7 @@ export default function AdvisorOverlay() {
                             onPress={() => {
                                 setThreads([]);
                                 setQ("");
+                                setInputHeight(56);
                             }}
                             accessibilityRole="button"
                             accessibilityLabel="New chat"
