@@ -15,6 +15,7 @@ import { Skeleton, SubscriptionsSkeleton } from "../components/LoadingSkeleton";
 import { formatCurrencyAmount, useCurrency } from "../providers/CurrencyProvider";
 import { API_BASE_URL } from "../lib/apiBaseUrl";
 import { clearClientCache, fetchCachedValue } from "../lib/clientCache";
+import { ConfirmModal } from "../components/ConfirmModal";
 
 type Subscription = {
     id: string;
@@ -92,9 +93,10 @@ export default function SubscriptionsScreen() {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [detecting, setDetecting] = useState(false);
-    const [error, setError] = useState<string | null>(null);
     const [togglingId, setTogglingId] = useState<string | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [deleteTarget, setDeleteTarget] = useState<Subscription | null>(null);
 
     const load = useCallback(async (force = false) => {
         setError(null);
@@ -162,13 +164,15 @@ export default function SubscriptionsScreen() {
         }
     }
 
-    async function removeSubscription(item: Subscription) {
-        setDeletingId(item.id);
+    async function removeSubscription() {
+        if (!deleteTarget) return;
+        setDeletingId(deleteTarget.id);
         setError(null);
         try {
-            await deleteSubscription(item.id);
-            setSubscriptions((current) => current.filter((subscription) => subscription.id !== item.id));
+            await deleteSubscription(deleteTarget.id);
+            setSubscriptions((current) => current.filter((subscription) => subscription.id !== deleteTarget.id));
             clearClientCache();
+            setDeleteTarget(null);
         } catch (e: unknown) {
             setError(e instanceof Error ? e.message : String(e));
         } finally {
@@ -238,7 +242,7 @@ export default function SubscriptionsScreen() {
                                         <Pressable style={({ pressed }) => [styles.toggleButton, item.active ? styles.disableButton : styles.enableButton, pressed ? styles.pressed : null]} onPress={() => void toggleActive(item)} disabled={togglingId === item.id}>
                                             {togglingId === item.id ? <Skeleton width={56} height={14} radius={7} /> : <Text style={[styles.toggleButtonText, item.active ? styles.disableButtonText : styles.enableButtonText]}>{item.active ? "DISABLE" : "ENABLE"}</Text>}
                                         </Pressable>
-                                        <Pressable style={({ pressed }) => [styles.deleteButton, pressed ? styles.pressed : null]} onPress={() => void removeSubscription(item)} disabled={deletingId === item.id}>
+                                        <Pressable style={({ pressed }) => [styles.deleteButton, pressed ? styles.pressed : null]} onPress={() => setDeleteTarget(item)} disabled={deletingId === item.id}>
                                             {deletingId === item.id ? <Skeleton width={56} height={14} radius={7} /> : <Text style={styles.deleteButtonText}>DELETE</Text>}
                                         </Pressable>
                                     </View>
@@ -256,6 +260,15 @@ export default function SubscriptionsScreen() {
 
                 </ScrollView>
 
+                <ConfirmModal
+                    visible={!!deleteTarget}
+                    title="Delete Subscription?"
+                    description={`This will permanently delete ${deleteTarget?.merchant ?? "this subscription"}.`}
+                    error={error}
+                    loading={!!deletingId}
+                    onCancel={() => { setDeleteTarget(null); setError(null); }}
+                    onConfirm={() => void removeSubscription()}
+                />
             </View>
         </SafeAreaView>
     );

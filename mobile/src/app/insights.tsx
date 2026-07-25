@@ -22,6 +22,8 @@ import { API_BASE_URL } from "../lib/apiBaseUrl";
 import { beginHorizontalScroll, endHorizontalScroll, updateHorizontalScroll } from "../lib/horizontalScrollPriority";
 import { fetchCachedValue } from "../lib/clientCache";
 
+const fs = (size: number) => Math.round(size * 0.9 * 10) / 10;
+
 type Insight = {
     id?: string;
     type?: string;
@@ -38,10 +40,6 @@ type MetricTone = {
 
 function apiUrl(path: string) {
     return `${API_BASE_URL}${path}`;
-}
-
-function fs(size: number) {
-    return Math.round(size * 0.9 * 10) / 10;
 }
 
 function toneForInsight(type?: string): MetricTone {
@@ -68,6 +66,7 @@ export default function InsightsScreen() {
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [metricIndex, setMetricIndex] = useState(0);
+    const [activeTab, setActiveTab] = useState<"INSIGHTS" | "BUDGETS">("INSIGHTS");
 
     const cardWidth = Math.max(280, width - 48);
     const metricInsights = useMemo(() => insights.filter((item) => item.type !== "ai_summary"), [insights]);
@@ -167,7 +166,7 @@ export default function InsightsScreen() {
                         <Pressable style={({ pressed }) => [styles.iconButton, pressed ? styles.iconPressed : null]} onPress={() => router.back()}>
                             <MaterialIcons name="arrow-back" size={24} color="#ffffff" />
                         </Pressable>
-                        <Text style={styles.topBarTitle}>Insights</Text>
+                        <Text style={[styles.tabButtonText, styles.tabButtonTextActive, { marginLeft: 10, fontSize: fs(18) }]}>Insights</Text>
                     </View>
                 </View>
 
@@ -291,7 +290,6 @@ export default function InsightsScreen() {
                         )}
                     </View>
                 </ScrollView>
-
             </View>
         </SafeAreaView>
     );
@@ -310,8 +308,12 @@ const styles = StyleSheet.create({
         justifyContent: "space-between",
         backgroundColor: "#131313",
     },
-    topBarLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
-    topBarTitle: { color: "#ffffff", fontFamily: "Hanken Grotesk", fontSize: fs(20), lineHeight: 28, fontWeight: "700" },
+    topBarLeft: { flexDirection: "row", alignItems: "center", gap: 10, flex: 1 },
+    tabSwitcher: { flexDirection: "row", gap: 8, marginLeft: 8 },
+    tabButton: { height: 36, paddingHorizontal: 16, borderRadius: 18, borderWidth: 1, borderColor: "rgba(255,255,255,0.08)", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.02)" },
+    tabButtonActive: { backgroundColor: "rgba(255,255,255,0.12)", borderColor: "rgba(255,255,255,0.18)" },
+    tabButtonText: { color: "#8e9192", fontFamily: "JetBrains Mono", fontSize: fs(11), letterSpacing: 0.8, textTransform: "uppercase" },
+    tabButtonTextActive: { color: "#ffffff", fontWeight: "700" },
     iconButton: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
     iconPressed: { backgroundColor: "rgba(255,255,255,0.05)", transform: [{ scale: 0.95 }] },
     scroll: { flex: 1 },

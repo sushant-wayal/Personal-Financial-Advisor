@@ -14,6 +14,7 @@
 
 import { prisma } from "../lib/prisma";
 import { Prisma } from "@prisma/client";
+import { getEnrichedBudgets } from "./budgets";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -39,7 +40,11 @@ export type ToolName =
     | "addCategorizationRule"
     | "deleteCategorizationRule"
     | "getDatabaseSchema"
-    | "writeDatabaseRecord";
+    | "writeDatabaseRecord"
+    | "queryBudgets"
+    | "addBudget"
+    | "updateBudget"
+    | "deleteBudget";
 
 export type ToolCallRequest = {
     name: ToolName;
@@ -306,6 +311,52 @@ export const ADVISOR_TOOL_DECLARATIONS = [
             },
             required: [],
         }
+    },
+    {
+        name: "queryBudgets",
+        description: "Fetch the user's active category budgets, including their monthly limits, total spent, and available amounts.",
+        parameters: {
+            type: "object",
+            properties: {},
+            required: [],
+        }
+    },
+    {
+        name: "addBudget",
+        description: "Add a new category budget. MUST ONLY BE CALLED AFTER EXPLICIT USER CONFIRMATION.",
+        parameters: {
+            type: "object",
+            properties: {
+                categoryName: { type: "string", description: "Name of the category to budget for." },
+                monthlyLimit: { type: "number", description: "The monthly budget limit." },
+                rollover: { type: "boolean", description: "Whether unused amounts rollover to the next month." }
+            },
+            required: ["categoryName", "monthlyLimit"],
+        }
+    },
+    {
+        name: "updateBudget",
+        description: "Update an existing category budget. MUST ONLY BE CALLED AFTER EXPLICIT USER CONFIRMATION.",
+        parameters: {
+            type: "object",
+            properties: {
+                id: { type: "string", description: "ID of the budget to update." },
+                monthlyLimit: { type: "number", description: "New monthly budget limit." },
+                rollover: { type: "boolean", description: "New rollover setting." }
+            },
+            required: ["id"],
+        }
+    },
+    {
+        name: "deleteBudget",
+        description: "Delete a category budget by ID. MUST ONLY BE CALLED AFTER EXPLICIT USER CONFIRMATION.",
+        parameters: {
+            type: "object",
+            properties: {
+                id: { type: "string", description: "ID of the budget to delete." }
+            },
+            required: ["id"],
+        }
     }
 ];
 
@@ -417,8 +468,15 @@ async function toolQueryTransactions(args: Record<string, unknown>): Promise<unk
     if (dateBounds.gte || dateBounds.lt) {
         andConditions.push({ timestamp: dateBounds });
     }
-    if (amountMin !== undefined || amountMax !== undefined) {
-        andConditions.push({ amount: { gte: amountMin, lte: amountMax } });
+    if (args.amountMin !== undefined || args.amountMax !== undefined) {
+        const amountMin = Number(args.amountMin);
+        const amountMax = Number(args.amountMax);
+        andConditions.push({
+            amount: {
+                gte: Number.isFinite(amountMin) ? amountMin : undefined,
+                lte: Number.isFinite(amountMax) ? amountMax : undefined,
+            }
+        });
     }
 
     const where = andConditions.length > 0 ? { AND: andConditions } : {};
@@ -966,6 +1024,55 @@ async function toolWriteDatabaseRecord(args: Record<string, unknown>): Promise<u
     throw new Error("Invalid action. Use CREATE, UPDATE, or DELETE.");
 }
 
+async function toolQueryBudgets(): Promise<unknown> {
+    const budgets = await getEnrichedBudgets();
+    return { budgets, total: budgets.length };
+}
+
+async function toolAddBudget(args: Record<string, unknown>): Promise<unknown> {
+    const categoryName = safeString(args.categoryName);
+    if (!categoryName) throw new Error("Category name is required");
+    const monthlyLimit = Number(args.monthlyLimit);
+    if (isNaN(monthlyLimit)) throw new Error("Invalid monthly limit");
+    const rollover = Boolean(args.rollover);
+
+    let category = await prisma.category.findUnique({ where: { name: categoryName } });
+    if (!category) {
+        category = await prisma.category.create({ data: { name: categoryName } });
+    }
+
+    const budget = await prisma.categoryBudget.create({
+        data: {
+            categoryId: category.id,
+            monthlyLimit,
+            rollover,
+        }
+    });
+    return { success: true, budget };
+}
+
+async function toolUpdateBudget(args: Record<string, unknown>): Promise<unknown> {
+    const id = safeString(args.id);
+    if (!id) throw new Error("Budget ID is required");
+
+    const data: any = {};
+    if (args.monthlyLimit !== undefined) data.monthlyLimit = Number(args.monthlyLimit);
+    if (args.rollover !== undefined) data.rollover = Boolean(args.rollover);
+
+    const budget = await prisma.categoryBudget.update({
+        where: { id },
+        data,
+    });
+    return { success: true, budget };
+}
+
+async function toolDeleteBudget(args: Record<string, unknown>): Promise<unknown> {
+    const id = safeString(args.id);
+    if (!id) throw new Error("Budget ID is required");
+    await prisma.categoryBudget.delete({ where: { id } });
+    return { success: true, deletedId: id };
+}
+
 // ─── Dispatcher ───────────────────────────────────────────────────────────────
 
 /**
@@ -1042,6 +1149,18 @@ export async function executeAdvisorTool(call: ToolCallRequest): Promise<ToolCal
                 break;
             case "writeDatabaseRecord":
                 data = await toolWriteDatabaseRecord(call.args);
+                break;
+            case "queryBudgets":
+                data = await toolQueryBudgets();
+                break;
+            case "addBudget":
+                data = await toolAddBudget(call.args);
+                break;
+            case "updateBudget":
+                data = await toolUpdateBudget(call.args);
+                break;
+            case "deleteBudget":
+                data = await toolDeleteBudget(call.args);
                 break;
             default:
                 return { name: call.name, data: null, error: `Unknown tool: ${call.name}` };

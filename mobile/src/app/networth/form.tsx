@@ -7,6 +7,7 @@ import { NETWORTH_CONFIG, FieldConfig } from "../../lib/networthConfig";
 import { fetchNetWorth, createNetWorth, updateNetWorth, deleteNetWorth, NetWorthData } from "../../lib/networthApi";
 import { DatePickerModal, fullDateLabel } from "../../components/DatePickerModal";
 import { formatIndianAmountInput, parseIndianAmountInput } from "../../providers/CurrencyProvider";
+import { ConfirmModal } from "../../components/ConfirmModal";
 
 function CustomSwitch({ value, onValueChange }: { value: boolean; onValueChange: (v: boolean) => void }) {
   const [animValue] = useState(() => new Animated.Value(value ? 1 : 0));
@@ -58,6 +59,7 @@ export default function NetWorthFormScreen() {
   const [networthData, setNetworthData] = useState<NetWorthData | null>(null);
   const [form, setForm] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(false);
+  const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [datePickerField, setDatePickerField] = useState<string | null>(null);
   
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -156,24 +158,21 @@ export default function NetWorthFormScreen() {
   };
 
   const handleDelete = () => {
-    Alert.alert("Delete", "Are you sure you want to delete this?", [
-      { text: "Cancel", style: "cancel" },
-      { 
-        text: "Delete", 
-        style: "destructive",
-        onPress: async () => {
-          setLoading(true);
-          try {
-            await deleteNetWorth(type, id!);
-            router.back();
-          } catch (e: any) {
-            Alert.alert("Error", e.message || "Failed to delete");
-          } finally {
-            setLoading(false);
-          }
-        }
-      }
-    ]);
+    setDeleteConfirmVisible(true);
+  };
+
+  const confirmDelete = async () => {
+    setLoading(true);
+    try {
+      await deleteNetWorth(type, id!);
+      setDeleteConfirmVisible(false);
+      router.back();
+    } catch (e: any) {
+      Alert.alert("Error", e.message || "Failed to delete");
+      setDeleteConfirmVisible(false);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const renderField = (field: FieldConfig) => {
@@ -271,46 +270,55 @@ export default function NetWorthFormScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <MaterialIcons name="arrow-back" size={24} color="#fff" />
-        </Pressable>
-        <Text style={styles.headerTitle} numberOfLines={1} ellipsizeMode="tail">{id ? "Edit" : "Add"} {config.label}</Text>
-        <View style={{ width: 40 }} />
-      </View>
-
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-        <View style={styles.formCard}>
-          {config.fields.map(renderField)}
+    <Modal visible={true} animationType="slide" presentationStyle="fullScreen" onRequestClose={() => router.back()}>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <Pressable onPress={() => router.back()} style={styles.backButton}>
+            <MaterialIcons name="arrow-back" size={24} color="#fff" />
+          </Pressable>
+          <Text style={styles.headerTitle} numberOfLines={1} ellipsizeMode="tail">{id ? "Edit" : "Add"} {config.label}</Text>
+          <View style={{ width: 40 }} />
         </View>
 
-        <Pressable style={styles.saveBtn} onPress={handleSave} disabled={loading}>
-          {loading ? <ActivityIndicator color="#000" /> : <Text style={styles.saveBtnText}>Save</Text>}
-        </Pressable>
+        <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+          <View style={styles.formCard}>
+            {config.fields.map(renderField)}
+          </View>
 
-        {id && (
-          <Pressable style={styles.deleteBtn} onPress={handleDelete} disabled={loading}>
-            <MaterialIcons name="delete-outline" size={18} color="#FF453A" />
-            <Text style={styles.deleteBtnText}>Delete</Text>
+          <Pressable style={styles.saveBtn} onPress={handleSave} disabled={loading}>
+            {loading ? <ActivityIndicator color="#000" /> : <Text style={styles.saveBtnText}>Save</Text>}
           </Pressable>
-        )}
-        
-        <View style={{ height: 160 }} />
-      </ScrollView>
 
-      <DatePickerModal 
-        visible={!!datePickerField}
-        initialDate={datePickerField ? form[datePickerField] : null}
-        disableFuture={datePickerField ? ["startDate", "purchaseDate", "setupDate", "borrowDate", "annualInterestCreditDate"].includes(datePickerField) : false}
-        disablePast={datePickerField ? ["maturityDate", "expectedReturnDate", "nextRepaymentDate"].includes(datePickerField) : false}
-        onClose={() => setDatePickerField(null)}
-        onSelect={(date) => {
-          if (datePickerField) handleChange(datePickerField, date);
-        }}
-      />
-      {renderLoadingOverlay()}
-    </SafeAreaView>
+          {id && (
+            <Pressable style={styles.deleteBtn} onPress={handleDelete} disabled={loading}>
+              <MaterialIcons name="delete-outline" size={18} color="#FF453A" />
+              <Text style={styles.deleteBtnText}>Delete</Text>
+            </Pressable>
+          )}
+        </ScrollView>
+
+        <DatePickerModal 
+          visible={!!datePickerField}
+          initialDate={datePickerField ? form[datePickerField] : null}
+          disableFuture={datePickerField ? ["startDate", "purchaseDate", "setupDate", "borrowDate", "annualInterestCreditDate"].includes(datePickerField) : false}
+          disablePast={datePickerField ? ["maturityDate", "expectedReturnDate", "nextRepaymentDate"].includes(datePickerField) : false}
+          onClose={() => setDatePickerField(null)}
+          onSelect={(date) => {
+            if (datePickerField) handleChange(datePickerField, date);
+          }}
+        />
+        {renderLoadingOverlay()}
+        
+        <ConfirmModal
+          visible={deleteConfirmVisible}
+          title="Delete Asset"
+          description="Are you sure you want to delete this? This action cannot be undone."
+          onCancel={() => setDeleteConfirmVisible(false)}
+          onConfirm={() => void confirmDelete()}
+          loading={loading}
+        />
+      </SafeAreaView>
+    </Modal>
   );
 }
 

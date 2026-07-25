@@ -61,6 +61,14 @@ function describeToolCall(name: string, args: Record<string, unknown>): string {
             return "Reading subscriptions";
         case "queryCategories":
             return "Loading categories";
+        case "queryBudgets":
+            return "Reading category budgets";
+        case "addBudget":
+            return "Creating new budget";
+        case "updateBudget":
+            return "Updating budget";
+        case "deleteBudget":
+            return "Deleting budget";
         case "getFinancialProfile":
             return "Reading financial profile";
         case "queryMemories":

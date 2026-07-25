@@ -23,6 +23,7 @@ import { getCurrencySymbol, useCurrency, formatIndianAmountInput, parseIndianAmo
 import { API_BASE_URL } from "../lib/apiBaseUrl";
 import { beginHorizontalScroll, endHorizontalScroll, updateHorizontalScroll } from "../lib/horizontalScrollPriority";
 import { clearClientCache, fetchCachedValue } from "../lib/clientCache";
+import { ConfirmModal } from "../components/ConfirmModal";
 
 type Transaction = {
   id: string;
@@ -1264,36 +1265,15 @@ export default function TransactionsScreen() {
         </SafeAreaView>
       </Modal>
 
-      <Modal visible={!!deleteTarget} transparent animationType="fade" onRequestClose={() => setDeleteTarget(null)}>
-        <SafeAreaView style={styles.confirmOverlay} edges={["top", "bottom"]}>
-          <View style={styles.confirmCard}>
-            <View style={styles.confirmIcon}>
-              <MaterialIcons name="delete-outline" size={26} color="#ffb4ab" />
-            </View>
-            <Text style={styles.confirmTitle}>Delete transaction?</Text>
-            <Text style={styles.confirmBody}>
-              This will permanently delete {deleteTarget?.merchant ?? "this transaction"} from your ledger.
-            </Text>
-            {deleteError ? <Text style={styles.addError}>{deleteError}</Text> : null}
-            <View style={styles.confirmActions}>
-              <Pressable
-                disabled={deletingTransaction}
-                style={({ pressed }) => [styles.confirmCancel, pressed ? styles.footerPressed : null]}
-                onPress={() => setDeleteTarget(null)}
-              >
-                <Text style={styles.confirmCancelText}>Go Back</Text>
-              </Pressable>
-              <Pressable
-                disabled={deletingTransaction}
-                style={({ pressed }) => [styles.confirmDelete, deletingTransaction ? styles.rangeApplyDisabled : null, pressed ? styles.footerPressed : null]}
-                onPress={() => void confirmDeleteTransaction()}
-              >
-                {deletingTransaction ? <Skeleton width={56} height={16} radius={8} /> : <Text style={styles.confirmDeleteText}>Delete</Text>}
-              </Pressable>
-            </View>
-          </View>
-        </SafeAreaView>
-      </Modal>
+      <ConfirmModal
+        visible={!!deleteTarget}
+        title="Delete transaction?"
+        description={`This will permanently delete ${deleteTarget?.merchant ?? "this transaction"} from your ledger.`}
+        error={deleteError}
+        loading={deletingTransaction}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={() => void confirmDeleteTransaction()}
+      />
 
       <Modal visible={!!activeSheet} transparent animationType="none" onRequestClose={closeSheet}>
         <SafeAreaView style={styles.popupSafeArea} edges={["top", "bottom"]}>
@@ -2110,16 +2090,6 @@ const styles = StyleSheet.create({
   typeChangeButton: { paddingHorizontal: 12, height: 40, borderRadius: 999, backgroundColor: "#d0bcff", alignItems: "center", justifyContent: "center" },
   typeChangeButtonText: { color: "#131313", fontFamily: "JetBrains Mono", fontSize: fs(10), fontWeight: "800" },
   typeChangeCancel: { color: "#c4c7c8", fontFamily: "Inter", fontSize: fs(13), fontWeight: "700", textAlign: "center", paddingVertical: 6 },
-  confirmOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.74)", alignItems: "center", justifyContent: "center", padding: 24 },
-  confirmCard: { width: "100%", borderRadius: 20, borderWidth: 1, borderColor: "rgba(255,255,255,0.12)", backgroundColor: "#131313", padding: 24, gap: 14 },
-  confirmIcon: { width: 52, height: 52, borderRadius: 26, backgroundColor: "rgba(255,180,171,0.08)", alignItems: "center", justifyContent: "center" },
-  confirmTitle: { color: "#ffffff", fontFamily: "Hanken Grotesk", fontSize: fs(24), lineHeight: 32, fontWeight: "700" },
-  confirmBody: { color: "#c4c7c8", fontFamily: "Inter", fontSize: fs(16), lineHeight: 24 },
-  confirmActions: { flexDirection: "row", gap: 14, paddingTop: 8 },
-  confirmCancel: { flex: 1, height: 52, borderRadius: 999, borderWidth: 1, borderColor: "rgba(255,255,255,0.10)", alignItems: "center", justifyContent: "center" },
-  confirmDelete: { flex: 1, height: 52, borderRadius: 999, backgroundColor: "#ffb4ab", alignItems: "center", justifyContent: "center" },
-  confirmCancelText: { color: "#ffffff", fontFamily: "Hanken Grotesk", fontSize: fs(14), fontWeight: "700", letterSpacing: 1.6, textTransform: "uppercase" },
-  confirmDeleteText: { color: "#690005", fontFamily: "Hanken Grotesk", fontSize: fs(14), fontWeight: "700", letterSpacing: 1.6, textTransform: "uppercase" },
   sheetOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.70)" },
   sheetContainer: {
     position: "absolute",

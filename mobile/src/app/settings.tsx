@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { ConfirmModal } from "../components/ConfirmModal";
 import { SettingsSkeleton, Skeleton } from "../components/LoadingSkeleton";
 import { DEFAULT_CURRENCY_CODE, useCurrency } from "../providers/CurrencyProvider";
 import { useUserProfile } from "../providers/UserProfileProvider";
@@ -509,38 +510,17 @@ export default function SettingsScreen() {
             </View>
           </View>
         </SafeAreaView>
-      </Modal >
-
-      <Modal visible={confirmDeleteMemoryVisible} transparent animationType="fade" onRequestClose={() => setConfirmDeleteMemoryVisible(false)}>
-        <SafeAreaView style={styles.confirmOverlay} edges={["top", "bottom"]}>
-          <View style={styles.confirmCard}>
-            <View style={styles.confirmIcon}>
-              <MaterialIcons name="delete-outline" size={26} color="#ffb4ab" />
-            </View>
-            <Text style={styles.confirmTitle}>Delete memory entry?</Text>
-            <Text style={styles.confirmBody}>
-              This will permanently delete {selectedMemory?.key ?? "this entry"} from AI memory.
-            </Text>
-            {error ? <Text style={styles.confirmErrorText}>{error}</Text> : null}
-            <View style={styles.confirmActions}>
-              <Pressable
-                disabled={saving}
-                style={({ pressed }) => [styles.confirmCancel, pressed ? { opacity: 0.85 } : null]}
-                onPress={() => setConfirmDeleteMemoryVisible(false)}
-              >
-                <Text style={styles.confirmCancelText}>Go Back</Text>
-              </Pressable>
-              <Pressable
-                disabled={saving}
-                style={({ pressed }) => [styles.confirmDelete, saving ? { opacity: 0.7 } : null, pressed ? { opacity: 0.85 } : null]}
-                onPress={() => void removeSelectedMemory()}
-              >
-                {saving ? <Skeleton width={56} height={14} radius={7} /> : <Text style={styles.confirmDeleteText}>Delete</Text>}
-              </Pressable>
-            </View>
-          </View>
-        </SafeAreaView>
       </Modal>
+
+      <ConfirmModal
+        visible={confirmDeleteMemoryVisible}
+        title="Delete memory entry?"
+        description={`This will permanently delete ${selectedMemory?.key ?? "this entry"} from AI memory.`}
+        error={error}
+        loading={saving}
+        onCancel={() => setConfirmDeleteMemoryVisible(false)}
+        onConfirm={() => void removeSelectedMemory()}
+      />
     </SafeAreaView >
   );
 }
@@ -664,15 +644,4 @@ const styles = StyleSheet.create({
   memoryModalFooter: { padding: 24, borderTopWidth: 1, borderTopColor: "#333333", backgroundColor: "#1A1A1A" },
   deleteMemoryButton: { height: 54, borderRadius: 12, borderWidth: 1, borderColor: "rgba(255,82,82,0.35)", backgroundColor: "rgba(255,82,82,0.08)", alignItems: "center", justifyContent: "center" },
   deleteMemoryText: { color: "#ffb4ab", fontFamily: "JetBrains Mono", fontSize: fs(13), letterSpacing: 1.4, textTransform: "uppercase", fontWeight: "700" },
-  confirmOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.74)", alignItems: "center", justifyContent: "center", padding: 24 },
-  confirmCard: { width: "100%", borderRadius: 20, borderWidth: 1, borderColor: "rgba(255,255,255,0.12)", backgroundColor: "#131313", padding: 24, gap: 14 },
-  confirmIcon: { width: 52, height: 52, borderRadius: 26, backgroundColor: "rgba(255,180,171,0.08)", alignItems: "center", justifyContent: "center" },
-  confirmTitle: { color: "#ffffff", fontFamily: "Hanken Grotesk", fontSize: fs(24), lineHeight: 32, fontWeight: "700" },
-  confirmBody: { color: "#c4c7c8", fontFamily: "Inter", fontSize: fs(16), lineHeight: 24 },
-  confirmErrorText: { color: "#ffb4ab", fontFamily: "Inter", fontSize: fs(13), lineHeight: 19 },
-  confirmActions: { flexDirection: "row", gap: 14, paddingTop: 8 },
-  confirmCancel: { flex: 1, height: 52, borderRadius: 999, borderWidth: 1, borderColor: "rgba(255,255,255,0.10)", alignItems: "center", justifyContent: "center" },
-  confirmDelete: { flex: 1, height: 52, borderRadius: 999, backgroundColor: "#ffb4ab", alignItems: "center", justifyContent: "center" },
-  confirmCancelText: { color: "#ffffff", fontFamily: "Hanken Grotesk", fontSize: fs(14), fontWeight: "700", letterSpacing: 1.6, textTransform: "uppercase" },
-  confirmDeleteText: { color: "#690005", fontFamily: "Hanken Grotesk", fontSize: fs(14), fontWeight: "700", letterSpacing: 1.6, textTransform: "uppercase" },
 });

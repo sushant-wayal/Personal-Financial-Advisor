@@ -240,6 +240,34 @@ export function SubscriptionsSkeleton() {
     );
 }
 
+export function BudgetsSkeleton() {
+    return (
+        <View style={styles.screen}>
+            <View style={styles.topRow}>
+                <Skeleton width={160} height={20} />
+                <Skeleton width={70} height={32} radius={16} />
+            </View>
+
+            <View style={styles.listStack}>
+                {Array.from({ length: 4 }).map((_, index) => (
+                    <View key={index} style={styles.sectionCard}>
+                        <View style={styles.listRow}>
+                            <Skeleton width="45%" height={20} />
+                            <Skeleton width="25%" height={16} />
+                        </View>
+                        <View style={styles.listRow}>
+                            <Skeleton width="30%" height={26} />
+                            <Skeleton width="25%" height={26} />
+                        </View>
+                        <Skeleton width="100%" height={8} radius={4} style={{ marginVertical: 12 }} />
+                        <Skeleton width="35%" height={14} />
+                    </View>
+                ))}
+            </View>
+        </View>
+    );
+}
+
 export function AdvisorSkeleton() {
     return (
         <View style={styles.screen}>

@@ -2,6 +2,7 @@ import { prisma } from "../lib/prisma";
 import { calculateBurnRate, calculateMonthlySavingsRate, calculateRunway, categoryBreakdown, monthlyTrend, calculateAveragedMonthlyIncomeAndExpense } from "./analytics";
 import { generateText } from "./gemini";
 import { listGoals, predictETA, recommendMonthlyContribution } from "./goals";
+import { getEnrichedBudgets } from "./budgets";
 
 function formatCurrency(amount: number, currency = "INR") {
     return new Intl.NumberFormat("en-IN", {
@@ -74,7 +75,7 @@ function summarizeSubscription(sub: any, currency: string) {
 }
 
 export async function buildFinancialContext(limit = 24) {
-    const [transactions, goals, profile, subscriptions, memories, monthly, categoryData, savings, burn, runway, averages] = await Promise.all([
+    const [transactions, goals, profile, subscriptions, memories, monthly, categoryData, savings, burn, runway, averages, budgets] = await Promise.all([
         prisma.transaction.findMany({ orderBy: { timestamp: "desc" }, take: Math.max(12, Math.min(limit, 30)), include: { category: true } }),
         listGoals(),
         prisma.financialProfile.findFirst(),
@@ -86,6 +87,7 @@ export async function buildFinancialContext(limit = 24) {
         calculateBurnRate(),
         calculateRunway(),
         calculateAveragedMonthlyIncomeAndExpense(),
+        getEnrichedBudgets(),
     ]);
 
     if (profile && averages) {
@@ -249,6 +251,15 @@ export async function buildFinancialContext(limit = 24) {
             message: insight.message,
             score: insight.score,
             createdAt: insight.createdAt,
+        })),
+        budgets: budgets.map((budget: any) => ({
+            id: budget.id,
+            categoryName: budget.category?.name,
+            monthlyLimit: budget.monthlyLimit,
+            rollover: budget.rollover,
+            spent: budget.spent,
+            available: budget.available,
+            totalLimit: budget.totalLimit,
         })),
         // New derived summary fields
         monthlySurplus: monthlySurplusVal,

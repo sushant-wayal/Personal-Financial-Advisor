@@ -141,6 +141,16 @@ type Insight = {
   score?: number | null;
 };
 
+type BudgetData = {
+  id: string;
+  category?: { name: string };
+  monthlyLimit: number;
+  spent: number;
+  available: number;
+  totalLimit: number;
+  rollover: boolean;
+};
+
 type DashboardData = {
   balance: BalanceData | null;
   networth: { totals: { netWorth: number } } | null;
@@ -153,6 +163,7 @@ type DashboardData = {
   seasonality: SeasonalityData | null;
   acceleration: AccelerationData | null;
   insights: Insight[];
+  budgets: BudgetData[];
 };
 
 function apiUrl(path: string) {
@@ -178,7 +189,7 @@ async function loadDashboard(force = false): Promise<DashboardData> {
   return fetchCachedValue(
     "dashboard-v2",
     async () => {
-      const [balance, networth, savings, burn, runway, monthly, categories, heatmap, seasonality, acceleration, insights] = await Promise.all([
+      const [balance, networth, savings, burn, runway, monthly, categories, heatmap, seasonality, acceleration, insights, budgets] = await Promise.all([
         fetchJson<BalanceData>("/api/analytics/balance"),
         fetchJson<{ totals: { netWorth: number } }>("/api/networth"),
         fetchJson<SavingsData>("/api/analytics/savings-rate"),
@@ -190,6 +201,7 @@ async function loadDashboard(force = false): Promise<DashboardData> {
         fetchJson<SeasonalityData>("/api/analytics/seasonality"),
         fetchJson<AccelerationData>("/api/analytics/acceleration"),
         fetchJson<Insight[]>("/api/insights/generate"),
+        fetchJson<{ budgets: BudgetData[] }>("/api/budgets").then(res => res.budgets || []),
       ]);
 
       const resolvedBalance: BalanceData = balance;
@@ -214,6 +226,7 @@ async function loadDashboard(force = false): Promise<DashboardData> {
         seasonality,
         acceleration,
         insights,
+        budgets,
       };
     },
     { force },
@@ -891,6 +904,66 @@ function compactInsights(insights: Insight[]) {
   return insights.slice(0, 3);
 }
 
+function BudgetWidget({ budgets }: { budgets: BudgetData[] }) {
+  const router = useRouter();
+  if (!budgets || budgets.length === 0) {
+    return null;
+  }
+  
+  const totalLimit = budgets.reduce((sum, b) => sum + (b.totalLimit || 0), 0);
+  const totalSpent = budgets.reduce((sum, b) => sum + (b.spent || 0), 0);
+  
+  return (
+    <View style={styles.budgetWidget}>
+      <SectionHeading title="Budgets" actionLabel="Manage" onActionPress={() => router.push("/budgets")} />
+      <Text style={styles.budgetWidgetCount}>
+        <Text style={{color: "#fff"}}>{formatCompactCurrency(totalSpent)}</Text>
+        <Text style={{color: "#8e9192"}}> spent of </Text>
+        <Text style={{color: "#c4c7c8"}}>{formatCompactCurrency(totalLimit)}</Text>
+      </Text>
+      <View style={styles.budgetWidgetBody}>
+        {budgets.map((b) => {
+          const limit = b.totalLimit || 0;
+          const spent = b.spent || 0;
+          const progressPct = limit > 0 ? Math.min(100, Math.round((spent / limit) * 100)) : 0;
+          
+          let barColor = "#7dffa2"; // Green for < 75%
+          if (progressPct >= 90) {
+            barColor = "#ffb4ab"; // Red for >= 90%
+          } else if (progressPct >= 75) {
+            barColor = "#ffd166"; // Yellow for 75-89%
+          }
+
+          const isOver = progressPct >= 90;
+          const name = b.category?.name || "Unknown";
+          
+          return (
+            <View key={b.id} style={styles.budgetItem}>
+              <View style={styles.budgetItemHeader}>
+                <Text style={styles.budgetItemName} numberOfLines={1}>{name}</Text>
+                <Text style={styles.budgetItemValues}>
+                  <Text style={{ color: isOver ? "#ffb4ab" : "#fff", fontWeight: "600" }}>
+                    {formatCurrency(spent, 0)}
+                  </Text>
+                  <Text style={{ color: "#8b8b8b" }}> / {formatCurrency(limit, 0)}</Text>
+                </Text>
+              </View>
+              <View style={styles.budgetProgressBar}>
+                <View 
+                  style={[
+                    styles.budgetProgressFill, 
+                    { width: `${progressPct}%`, backgroundColor: barColor }
+                  ]} 
+                />
+              </View>
+            </View>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
 export default function Index() {
   useCurrency();
   const { firstName } = useUserProfile();
@@ -1121,6 +1194,8 @@ export default function Index() {
             wide
           />
         </View>
+        
+        <BudgetWidget budgets={dashboard.budgets || []} />
 
         <SectionHeading title="Advisor Summary" actionLabel="INSIGHTS" iconName="psychology" onActionPress={() => router.push("/insights")} />
         {insights.length ? (
@@ -1262,6 +1337,38 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#131313",
+  },
+  budgetWidgetHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  budgetWidgetTitle: {
+    color: "#ffffff",
+    fontFamily: "Hanken Grotesk",
+    fontSize: fs(18),
+    lineHeight: 24,
+    fontWeight: "600",
+    marginBottom: 2,
+  },
+  viewAllButton: {
+    height: 32,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    backgroundColor: "#201f1f",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  viewAllButtonText: {
+    color: "#c4c7c8",
+    fontFamily: "JetBrains Mono",
+    fontSize: fs(11),
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
   },
   content: {
     paddingHorizontal: 24,
@@ -2080,5 +2187,51 @@ const styles = StyleSheet.create({
   loadingText: {
     color: "#c4c7c8",
     fontSize: fs(12),
+  },
+  budgetWidget: {
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "#1c1b1b",
+    borderRadius: 12,
+    padding: 16,
+    gap: 16,
+  },
+  budgetWidgetCount: {
+    color: "#c4c7c8",
+    fontSize: fs(13),
+    letterSpacing: 0.2,
+    marginTop: -8,
+    marginBottom: 4,
+  },
+  budgetWidgetBody: {
+    gap: 16,
+  },
+  budgetItem: {
+    gap: 6,
+  },
+  budgetItemHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  budgetItemName: {
+    color: "#fff",
+    fontSize: fs(14),
+    fontWeight: "600",
+    flex: 1,
+    paddingRight: 8,
+  },
+  budgetItemValues: {
+    fontSize: fs(13),
+  },
+  budgetProgressBar: {
+    height: 4,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderRadius: 2,
+    overflow: "hidden",
+  },
+  budgetProgressFill: {
+    height: "100%",
+    borderRadius: 2,
   },
 });

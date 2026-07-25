@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Pressable, Modal } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -28,31 +28,31 @@ export default function AddNetWorthScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <MaterialIcons name="close" size={24} color="#fff" />
-        </Pressable>
-        <Text style={styles.headerTitle}>{filter === "asset" ? "Add Asset" : filter === "liability" ? "Add Liability" : "Add Account"}</Text>
-        <View style={{ width: 24 }} />
-      </View>
+    <Modal visible={true} animationType="slide" presentationStyle="fullScreen" onRequestClose={() => router.back()}>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <Pressable onPress={() => router.back()} style={styles.backButton}>
+            <MaterialIcons name="close" size={24} color="#fff" />
+          </Pressable>
+          <Text style={styles.headerTitle}>{filter === "asset" ? "Add Asset" : filter === "liability" ? "Add Liability" : "Add Account"}</Text>
+          <View style={{ width: 24 }} />
+        </View>
 
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-        {(!filter || filter === "asset") && (
-          <View style={styles.listCard}>
-            {assets.map(renderItem)}
-          </View>
-        )}
+        <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+          {(!filter || filter === "asset") && (
+            <View style={styles.listCard}>
+              {assets.map(renderItem)}
+            </View>
+          )}
 
-        {(!filter || filter === "liability") && (
-          <View style={[styles.listCard, { marginTop: filter ? 0 : 24 }]}>
-            {liabilities.map(renderItem)}
-          </View>
-        )}
-
-        <View style={{ height: 160 }} />
-      </ScrollView>
-    </SafeAreaView>
+          {(!filter || filter === "liability") && (
+            <View style={[styles.listCard, { marginTop: filter ? 0 : 24 }]}>
+              {liabilities.map(renderItem)}
+            </View>
+          )}
+        </ScrollView>
+      </SafeAreaView>
+    </Modal>
   );
 }
 

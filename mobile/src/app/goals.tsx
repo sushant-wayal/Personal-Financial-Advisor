@@ -17,6 +17,7 @@ import {
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { DatePickerModal } from "../components/DatePickerModal";
+import { ConfirmModal } from "../components/ConfirmModal";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { GoalsSkeleton, Skeleton } from "../components/LoadingSkeleton";
@@ -1093,6 +1094,7 @@ function GoalSheet({
   const update = (patch: Partial<GoalFormState>) => onChange({ ...form, ...patch });
   const selectedTargetDate = parseDateKey(form.targetDate);
   const todayKey = toDateKey(new Date());
+  const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [datePickerVisible, setDatePickerVisible] = useState(false);
   const [dateDraft, setDateDraft] = useState(form.targetDate && compareDateKeys(form.targetDate, todayKey) >= 0 ? form.targetDate : todayKey);
   const [dateMonth, setDateMonth] = useState(() => {
@@ -1144,7 +1146,7 @@ function GoalSheet({
             </ScrollView>
             <View style={styles.goalSheetFooter}>
               {editing ? (
-                <Pressable style={styles.sheetDeleteButton} disabled={deleting || saving} onPress={onDelete}>
+                <Pressable style={styles.sheetDeleteButton} disabled={deleting || saving} onPress={() => setDeleteConfirmVisible(true)}>
                   {deleting ? <Skeleton width={22} height={22} radius={11} /> : <MaterialIcons name="delete" size={22} color="#ffb4ab" />}
                 </Pressable>
               ) : null}
@@ -1168,6 +1170,13 @@ function GoalSheet({
           setDateDraft(date);
           update({ targetDate: date });
         }}
+      />
+      <ConfirmModal
+        visible={deleteConfirmVisible}
+        title="Delete Goal"
+        description="Are you sure you want to delete this goal? This action cannot be undone."
+        onCancel={() => setDeleteConfirmVisible(false)}
+        onConfirm={() => { setDeleteConfirmVisible(false); onDelete(); }}
       />
     </>
   );

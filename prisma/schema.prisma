@@ -53,6 +53,7 @@ model Category {
   updatedAt        DateTime              @updatedAt
   transactions     Transaction[]
   merchantMappings MerchantCategoryMap[]
+  budget           CategoryBudget?
 }
 
 model MerchantCategoryMap {
@@ -405,4 +406,14 @@ model BorrowedLiability {
   isClosed                 Boolean   @default(false)
   createdAt                DateTime  @default(now())
   updatedAt                DateTime  @updatedAt
+}
+
+model CategoryBudget {
+  id           String   @id @default(cuid())
+  categoryId   String   @unique
+  category     Category @relation(fields: [categoryId], references: [id])
+  monthlyLimit Float
+  rollover     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
