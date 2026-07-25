@@ -801,8 +801,8 @@ function CategoryRing({
             <Circle cx={center} cy={center} r={74} fill="none" stroke="rgba(125,255,162,0.06)" strokeWidth={1} />
           </Svg>
           <View style={styles.ringCenterOverlay}>
-            <Text style={styles.ringCenterText}>30 Days</Text>
-            <Text style={styles.ringCenterSubtext}>Spending mix</Text>
+            <Text style={styles.ringCenterText}>{formatCurrency(total, 0)}</Text>
+            <Text style={styles.ringCenterSubtext}>30 Days Spend</Text>
           </View>
         </Pressable>
       </View>
@@ -821,7 +821,7 @@ function CategoryRing({
                   <Animated.View style={[styles.categoryDot, { backgroundColor: colors[index % colors.length], transform: [{ scale: dotScale }] }]} />
                   <Text style={styles.categoryLabel}>{category.name}</Text>
                 </View>
-                <Text style={styles.categoryPercent}>{`${total > 0 ? Math.round((category.value / total) * 100) : 0}% • ${formatCompactCurrency(category.value)}`}</Text>
+                <Text style={styles.categoryPercent}>{`${total > 0 ? Math.round((category.value / total) * 100) : 0}% • ${formatCurrency(category.value, 0)}`}</Text>
               </Animated.View>
             </Pressable>
           );
