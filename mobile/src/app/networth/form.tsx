@@ -6,6 +6,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { NETWORTH_CONFIG, FieldConfig } from "../../lib/networthConfig";
 import { fetchNetWorth, createNetWorth, updateNetWorth, deleteNetWorth, NetWorthData } from "../../lib/networthApi";
 import { DatePickerModal, fullDateLabel } from "../../components/DatePickerModal";
+import { formatIndianAmountInput, parseIndianAmountInput } from "../../providers/CurrencyProvider";
 
 function CustomSwitch({ value, onValueChange }: { value: boolean; onValueChange: (v: boolean) => void }) {
   const [animValue] = useState(() => new Animated.Value(value ? 1 : 0));
@@ -236,8 +237,8 @@ export default function NetWorthFormScreen() {
         {field.description && <Text style={styles.description}>{field.description}</Text>}
         <TextInput
           style={styles.input}
-          value={value !== undefined ? String(value) : ""}
-          onChangeText={(text) => handleChange(field.name, text)}
+          value={field.type === "number" ? formatIndianAmountInput(value !== undefined ? String(value) : "") : (value !== undefined ? String(value) : "")}
+          onChangeText={(text) => handleChange(field.name, field.type === "number" ? parseIndianAmountInput(text) : text)}
           placeholder={field.type === "number" ? "0" : "Enter value"}
           placeholderTextColor="rgba(255,255,255,0.3)"
           keyboardType={field.type === "number" ? "numeric" : "default"}

@@ -20,7 +20,7 @@ import { DatePickerModal } from "../components/DatePickerModal";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { GoalsSkeleton, Skeleton } from "../components/LoadingSkeleton";
-import { formatCurrencyAmount, getCurrencySymbol, useCurrency } from "../providers/CurrencyProvider";
+import { formatCurrencyAmount, getCurrencySymbol, useCurrency, formatIndianAmountInput, parseIndianAmountInput } from "../providers/CurrencyProvider";
 import { API_BASE_URL } from "../lib/apiBaseUrl";
 import { beginHorizontalScroll, endHorizontalScroll, updateHorizontalScroll } from "../lib/horizontalScrollPriority";
 import { clearClientCache, fetchCachedValue } from "../lib/clientCache";
@@ -1129,8 +1129,8 @@ function GoalSheet({
             </View>
             <ScrollView contentContainerStyle={styles.goalSheetBody} showsVerticalScrollIndicator={false}>
               <GoalInput label="Title" value={form.title} placeholder="e.g., Retirement Fund" icon="track-changes" onChangeText={(title) => update({ title })} />
-              <GoalInput label="Target Amount" value={form.targetAmount} placeholder="0.00" keyboardType="numeric" prefix={currencySymbol} onChangeText={(targetAmount) => update({ targetAmount: targetAmount.replace(/[^0-9.]/g, "") })} />
-              {!editing ? <GoalInput label="Initial Allocation" value={form.initialAllocation} placeholder="0.00" keyboardType="numeric" prefix={currencySymbol} onChangeText={(initialAllocation) => update({ initialAllocation: initialAllocation.replace(/[^0-9.]/g, "") })} /> : null}
+              <GoalInput label="Target Amount" value={formatIndianAmountInput(form.targetAmount)} placeholder="0.00" keyboardType="numeric" prefix={currencySymbol} onChangeText={(targetAmount) => update({ targetAmount: parseIndianAmountInput(targetAmount) })} />
+              {!editing ? <GoalInput label="Initial Allocation" value={formatIndianAmountInput(form.initialAllocation)} placeholder="0.00" keyboardType="numeric" prefix={currencySymbol} onChangeText={(initialAllocation) => update({ initialAllocation: parseIndianAmountInput(initialAllocation) })} /> : null}
               <GoalDateField value={form.targetDate} onPress={openDatePicker} />
               <GoalInput label="Priority" value={form.priority} placeholder="1-5" keyboardType="numeric" icon="flag" onChangeText={(priority) => update({ priority: priority.replace(/[^0-9]/g, "").slice(0, 1) })} />
               <GoalInput label="Notes" value={form.notes} placeholder="Add optional details..." icon="notes" multiline onChangeText={(notes) => update({ notes })} />

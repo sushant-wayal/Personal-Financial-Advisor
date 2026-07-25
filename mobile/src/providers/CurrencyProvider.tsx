@@ -19,6 +19,10 @@ export function getGlobalCurrencyCode() {
 
 export function getCurrencySymbol(currencyCode = globalCurrencyCode) {
     const normalized = normalizeCurrencyCode(currencyCode);
+    if (normalized === "INR") return "₹";
+    if (normalized === "USD") return "$";
+    if (normalized === "EUR") return "€";
+    if (normalized === "GBP") return "£";
 
     try {
         const part = new Intl.NumberFormat("en-IN", {
@@ -36,23 +40,62 @@ export function getCurrencySymbol(currencyCode = globalCurrencyCode) {
     }
 }
 
+export function formatIndianNumber(value: number, digits = 0): string {
+    const isNegative = value < 0;
+    const absValue = Math.abs(value);
+    const fixedStr = absValue.toFixed(digits);
+    const parts = fixedStr.split(".");
+    let intPart = parts[0];
+    const decPart = parts[1];
+
+    let result = intPart;
+    if (intPart.length > 3) {
+        const lastThree = intPart.substring(intPart.length - 3);
+        const otherNumbers = intPart.substring(0, intPart.length - 3);
+        result = otherNumbers.replace(/\B(?=(\d{2})+(?!\d))/g, ",") + "," + lastThree;
+    }
+
+    if (decPart !== undefined) {
+        result += "." + decPart;
+    }
+
+    return isNegative ? "-" + result : result;
+}
+
+export function formatIndianAmountInput(value: string): string {
+    const cleanValue = value.replace(/[^0-9.]/g, "");
+    if (!cleanValue) return "";
+    
+    const parts = cleanValue.split(".");
+    let intPart = parts[0];
+    const decPart = parts.length > 1 ? parts[1] : undefined;
+
+    if (intPart.length > 3) {
+        const lastThree = intPart.substring(intPart.length - 3);
+        const otherNumbers = intPart.substring(0, intPart.length - 3);
+        intPart = otherNumbers.replace(/\B(?=(\d{2})+(?!\d))/g, ",") + "," + lastThree;
+    }
+
+    if (decPart !== undefined) {
+        return intPart + "." + decPart;
+    }
+    return intPart;
+}
+
+export function parseIndianAmountInput(value: string): string {
+    return value.replace(/,/g, "");
+}
+
 export function formatCurrencyAmount(value: number, currencyCode = globalCurrencyCode, digits = 0) {
     const normalized = normalizeCurrencyCode(currencyCode);
-
-    try {
-        return new Intl.NumberFormat("en-IN", {
-            style: "currency",
-            currency: normalized,
-            minimumFractionDigits: digits,
-            maximumFractionDigits: digits,
-        }).format(value);
-    } catch {
-        const amount = new Intl.NumberFormat("en-IN", {
-            minimumFractionDigits: digits,
-            maximumFractionDigits: digits,
-        }).format(value);
-        return `${getCurrencySymbol(normalized)}${amount}`;
+    const symbol = getCurrencySymbol(normalized);
+    const formattedNum = formatIndianNumber(value, digits);
+    
+    // Put symbol after negative sign if applicable
+    if (formattedNum.startsWith("-")) {
+        return `-${symbol}${formattedNum.substring(1)}`;
     }
+    return `${symbol}${formattedNum}`;
 }
 
 type CurrencyContextValue = {

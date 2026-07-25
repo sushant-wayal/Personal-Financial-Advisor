@@ -3,6 +3,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { ScrollView, StyleSheet, Text, View, TextInput, Pressable, Switch } from "react-native";
 import Markdown from "react-native-markdown-display";
 import { beginHorizontalScroll, endHorizontalScroll, updateHorizontalScroll } from "../../lib/horizontalScrollPriority";
+import { formatIndianAmountInput, parseIndianAmountInput } from "../../providers/CurrencyProvider";
 import type {
     AdvisorArtifact,
     AdvisorComparisonTable,
@@ -392,8 +393,8 @@ export function FormCard({ title, description, questions, submitLabel, onSubmitF
                                 style={styles.formInput}
                                 placeholder={q.placeholder || 'Your answer...'}
                                 placeholderTextColor="#8e9192"
-                                value={String(answers[q.id] || '')}
-                                onChangeText={(text) => setAnswers(prev => ({...prev, [q.id]: text}))}
+                                value={q.type === 'number' ? formatIndianAmountInput(String(answers[q.id] || '')) : String(answers[q.id] || '')}
+                                onChangeText={(text) => setAnswers(prev => ({...prev, [q.id]: q.type === 'number' ? parseIndianAmountInput(text) : text}))}
                                 editable={!submitted}
                                 keyboardType={q.type === 'number' ? 'numeric' : 'default'}
                              />

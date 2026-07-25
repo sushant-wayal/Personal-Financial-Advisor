@@ -352,6 +352,8 @@ export function buildAdvisorSystemPrompt(options?: { structured?: boolean }) {
 
         "You can format your text using Markdown (e.g., bolding key numbers, italics, or simple bullet lists).",
 
+        "CRITICAL: When formatting currency amounts in text or artifacts, ALWAYS use the Indian numbering system (e.g. ₹1,50,000 instead of ₹150,000) and NOT the international numbering system.",
+
         "CRITICAL: Do NOT put all your text at the top. You MUST interleave text and UI artifacts to create a natural, readable flow. Use the 'text' artifact type within the 'artifacts' array to insert paragraphs of text between other UI components. The top-level 'narrative' field should only contain a brief 1-2 sentence opening.",
 
         "Avoid overly rigid report formatting like large headings unless explicitly requested.",

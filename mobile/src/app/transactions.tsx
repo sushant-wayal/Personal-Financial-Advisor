@@ -19,7 +19,7 @@ import { useRouter } from "expo-router";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { DatePickerModal } from "../components/DatePickerModal";
 import { Skeleton, TransactionsSkeleton } from "../components/LoadingSkeleton";
-import { getCurrencySymbol, useCurrency } from "../providers/CurrencyProvider";
+import { getCurrencySymbol, useCurrency, formatIndianAmountInput, parseIndianAmountInput } from "../providers/CurrencyProvider";
 import { API_BASE_URL } from "../lib/apiBaseUrl";
 import { beginHorizontalScroll, endHorizontalScroll, updateHorizontalScroll } from "../lib/horizontalScrollPriority";
 import { clearClientCache, fetchCachedValue } from "../lib/clientCache";
@@ -1495,8 +1495,8 @@ export default function TransactionsScreen() {
                 <View style={styles.addInputWrap}>
                   <Text style={styles.addCurrency}>{currencySymbol}</Text>
                   <TextInput
-                    value={addAmount}
-                    onChangeText={(text) => setAddAmount(text.replace(/[^0-9.]/g, ""))}
+                    value={formatIndianAmountInput(addAmount)}
+                    onChangeText={(text) => setAddAmount(parseIndianAmountInput(text))}
                     editable={!clubSourceIds.length}
                     placeholder="0.00"
                     placeholderTextColor="rgba(196,199,200,0.48)"
