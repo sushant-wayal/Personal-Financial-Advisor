@@ -1,0 +1,6 @@
+# Ignore local build artifacts so EAS CLI does not upload old APKs to cloud builds
+android/app/build/
+android/.gradle/
+ios/build/
+.expo/
+node_modules/
