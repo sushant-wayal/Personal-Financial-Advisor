@@ -353,18 +353,31 @@ function InsightCard({ insight }: { insight: Insight }) {
   );
 }
 
+type ChartPeriod = 3 | 6 | 12 | 0;
+
+const CHART_PERIODS: { label: string; value: ChartPeriod }[] = [
+  { label: "3M", value: 3 },
+  { label: "6M", value: 6 },
+  { label: "1Y", value: 12 },
+  { label: "All", value: 0 },
+];
+
 function TrendChart({
   data,
   width,
   selectedIndex,
   onSelectIndex,
   onBoundsChange,
+  period,
+  onPeriodChange,
 }: {
   data: MonthlyPoint[];
   width: number;
   selectedIndex: number | null;
   onSelectIndex: (index: number) => void;
   onBoundsChange?: (bounds: { x: number; y: number; width: number; height: number }) => void;
+  period: ChartPeriod;
+  onPeriodChange: (period: ChartPeriod) => void;
 }) {
   const chartRef = useRef<View>(null);
   const chartHeight = "100%";
@@ -378,7 +391,7 @@ function TrendChart({
     );
   }
 
-  const chartData = data.slice(-6);
+  const chartData = period === 0 ? data : data.slice(-period);
   const viewBoxWidth = 360;
   const viewBoxHeight = 180;
   const padding = { top: 14, right: 12, bottom: 28, left: 12 };
@@ -430,6 +443,7 @@ function TrendChart({
   const activeIndex = selectedIndex === null ? -1 : Math.min(selectedIndex, points.length - 1);
   const selectedPoint = activeIndex >= 0 ? points[activeIndex] ?? null : null;
 
+
   useEffect(() => {
     if (!onBoundsChange) {
       return;
@@ -467,15 +481,29 @@ function TrendChart({
   return (
     <View ref={chartRef} style={[styles.chartWrap, { height: chartHeight, width: chartWidth }]}>
       <View style={styles.chartLegendRow}>
-        <View style={styles.legendItem}>
-          <View style={[styles.legendDot, styles.legendDotSuccess]} />
-          <Text style={styles.legendText}>Inflow</Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, styles.legendDotSuccess]} />
+            <Text style={styles.legendText}>Inflow</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, styles.legendDotMuted]} />
+            <Text style={styles.legendText}>Outflow</Text>
+          </View>
         </View>
-        <View style={styles.legendItem}>
-          <View style={[styles.legendDot, styles.legendDotMuted]} />
-          <Text style={styles.legendText}>Outflow</Text>
+        <View style={styles.periodPillRow}>
+          {CHART_PERIODS.map((p) => (
+            <Pressable
+              key={p.value}
+              style={[styles.periodPill, period === p.value ? styles.periodPillActive : null]}
+              onPress={() => onPeriodChange(p.value)}
+            >
+              <Text style={[styles.periodPillText, period === p.value ? styles.periodPillTextActive : null]}>
+                {p.label}
+              </Text>
+            </Pressable>
+          ))}
         </View>
-        <Text style={styles.legendTrend}>6 MO TREND</Text>
       </View>
 
       <View style={styles.chartArea}>
@@ -975,6 +1003,7 @@ export default function Index() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cashflowSelection, setCashflowSelection] = useState<number | null>(null);
+  const [cashflowPeriod, setCashflowPeriod] = useState<ChartPeriod>(6);
   const [cashflowChartBounds, setCashflowChartBounds] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const [heatmapSelection, setHeatmapSelection] = useState<HeatmapPoint | null>(null);
   const [heatmapBounds, setHeatmapBounds] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
@@ -1253,6 +1282,11 @@ export default function Index() {
                 selectedIndex={cashflowSelection}
                 onSelectIndex={setCashflowSelection}
                 onBoundsChange={setCashflowChartBounds}
+                period={cashflowPeriod}
+                onPeriodChange={(p) => {
+                  setCashflowPeriod(p);
+                  setCashflowSelection(null);
+                }}
               />
             </View>
           </View>
@@ -1682,6 +1716,32 @@ const styles = StyleSheet.create({
     color: "#c4c7c8",
     fontSize: fs(11),
     letterSpacing: 1.2,
+  },
+  periodPillRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  periodPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+    backgroundColor: "transparent",
+  },
+  periodPillActive: {
+    backgroundColor: "#7dffa2",
+    borderColor: "#7dffa2",
+  },
+  periodPillText: {
+    color: "#c4c7c8",
+    fontSize: fs(10),
+    fontWeight: "600",
+    letterSpacing: 0.8,
+  },
+  periodPillTextActive: {
+    color: "#0d1c11",
   },
   chartArea: {
     position: "relative",
