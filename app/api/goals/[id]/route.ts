@@ -14,7 +14,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
             return NextResponse.json({ error: "missing fields" }, { status: 400 });
         }
 
-        const allowedKeys = new Set(["title", "targetAmount", "monthlyTarget", "targetDate", "priority", "notes"]);
+        const allowedKeys = new Set(["title", "targetAmount", "currentAmount", "monthlyTarget", "targetDate", "priority", "notes"]);
         const unknownKeys = Object.keys(body).filter((key) => !allowedKeys.has(key));
         if (unknownKeys.length > 0) {
             return NextResponse.json({ error: `unknown fields: ${unknownKeys.join(", ")}` }, { status: 400 });
@@ -35,6 +35,14 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
                 return NextResponse.json({ error: "targetAmount must be a positive number" }, { status: 400 });
             }
             patch.targetAmount = targetAmount;
+        }
+
+        if ("currentAmount" in body) {
+            const currentAmount = asFiniteNumber(body.currentAmount);
+            if (currentAmount == null || currentAmount < 0) {
+                return NextResponse.json({ error: "currentAmount must be a non-negative number" }, { status: 400 });
+            }
+            patch.currentAmount = currentAmount;
         }
 
         if ("monthlyTarget" in body) {
