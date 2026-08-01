@@ -239,18 +239,22 @@ export async function listGoals() {
 }
 
 export async function getGoalOverview() {
+    // Run in parallel. buildGoalProgressSignals() calls getEmergencyFundStatus()
+    // internally for availableBalance. We also fetch it here directly to get the
+    // richer payload fields (monthsToComplete, estimatedCompletionDate, etc.)
+    // that the UI needs to render the EF card.
     const [{ goals, signals }, efStatus] = await Promise.all([
         loadDerivedGoals(),
         getEmergencyFundStatus(),
     ]);
 
-    // When emergency fund is not yet fully funded, zero out monthly capacity
-    // for regular goals so the allocation engine gives them nothing.
-    const effectiveCapacity = efStatus.isComplete ? signals.monthlyCapacity : 0;
+    // efIsComplete in signals is derived from the same getEmergencyFundStatus()
+    // call inside buildGoalProgressSignals — use it as the authoritative flag.
+    const effectiveCapacity = signals.efIsComplete ? signals.monthlyCapacity : 0;
 
     const overview = analyzeGoalConflicts(goals as GoalRecord[], effectiveCapacity, signals.currency);
 
-    if (!efStatus.isComplete) {
+    if (!signals.efIsComplete) {
         const shortfallLabel = new Intl.NumberFormat("en-IN", { style: "currency", currency: signals.currency || "INR", maximumFractionDigits: 0 }).format(efStatus.shortfall);
         overview.conflicts.unshift({
             type: "budget" as const,

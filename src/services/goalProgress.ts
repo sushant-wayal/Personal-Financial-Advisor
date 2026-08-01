@@ -4,6 +4,7 @@ import { computeHealthStatus, computeConfidenceScore } from "./GoalFeasibilitySe
 import { estimateForecast } from "./GoalForecastService";
 import { allocateMonthlyCapacity } from "./GoalAllocationService";
 import { computeSavingsCapacity } from "./savings";
+import { getEmergencyFundStatus } from "./emergencyFund";
 
 export type GoalProgressSeed = {
     id: string;
@@ -27,6 +28,10 @@ export type GoalProgressSignals = {
     monthlySavings: number;
     currentMonthSavingsRate: number;
     savingsRateChange: number;
+    /** Whether the emergency fund target has been reached */
+    efIsComplete: boolean;
+    /** The emergency fund target amount (targetMonths × avgMonthlyExpenses) */
+    efTarget: number;
 };
 
 export type DerivedGoalProgress = GoalProgressSeed & {
@@ -82,22 +87,23 @@ function estimateGoalMonthlyNeed(goal: GoalProgressSeed, monthsLeft: number | nu
 }
 
 export async function buildGoalProgressSignals(): Promise<GoalProgressSignals> {
-    const [profile, savingsRate, savingsCapacity] = await Promise.all([
+    const [profile, savingsRate, savingsCapacity, efStatus] = await Promise.all([
         prisma.financialProfile.findFirst({
-            select: { currency: true, balance: true, emergencyFundMonths: true, monthlyIncome: true, monthlyExpenses: true },
+            select: { currency: true, balance: true, monthlyIncome: true, monthlyExpenses: true },
         }),
         calculateMonthlySavingsRate(),
         computeSavingsCapacity(3),
+        // Single source of truth for EF — same data the Goals screen displays
+        getEmergencyFundStatus(),
     ]);
 
     const currentBalanceValue = Number(profile?.balance || 0);
-    // Auto-derive how much of the balance is earmarked for the emergency fund.
-    // Formula: min(efTarget, balance) — EF is filled first, remainder goes to goals.
-    const efMonths = Math.max(3, profile?.emergencyFundMonths ?? 6);
-    const efMonthlyExp = Math.max(0, profile?.monthlyExpenses ?? 0);
-    const efTarget = efMonths * efMonthlyExp;
-    const efSaved = Math.min(efTarget, currentBalanceValue);
-    const availableBalance = Math.max(0, currentBalanceValue - efSaved);
+
+    // Use the EF status (which uses burn rate as its expense source) as the
+    // authoritative reservation. availableBalance is what remains after EF is
+    // filled — if EF is not yet complete the full balance is reserved for it.
+    const availableBalance = Math.max(0, currentBalanceValue - efStatus.savedAmount);
+
     const monthlyCapacity = Math.max(
         0,
         Number(profile?.monthlyIncome || 0) - Number(profile?.monthlyExpenses || 0),
@@ -113,6 +119,8 @@ export async function buildGoalProgressSignals(): Promise<GoalProgressSignals> {
         monthlySavings: savingsRate.monthlySavings,
         currentMonthSavingsRate: savingsRate.currentMonthSavingsRate,
         savingsRateChange: savingsRate.savingsRateChange,
+        efIsComplete: efStatus.isComplete,
+        efTarget: efStatus.targetAmount,
     };
 }
 
@@ -146,19 +154,14 @@ export function deriveGoalProgress(goals: GoalProgressSeed[], signals: GoalProgr
     );
 
     const behaviorMultiplier = clamp(0.75 + signals.currentMonthSavingsRate / 100 + signals.savingsRateChange / 200, 0.5, 1.5);
-    const availableGrowthBudget = Math.max(0, signals.availableBalance - normalizedGoals.reduce((sum, goal) => sum + goal.seedAmount, 0));
-    const provisionalGrowth = normalizedGoals.map((goal, index) => {
-        const allocatedMonthly = allocationPlan.allocations[index]?.allocated ?? 0;
-        const activeMonths = monthsSince(goal.createdAt);
-        return allocatedMonthly * activeMonths * behaviorMultiplier;
-    });
-
-    const totalProvisionalGrowth = provisionalGrowth.reduce((sum, amount) => sum + amount, 0);
-    const growthScale = totalProvisionalGrowth > 0 ? Math.min(1, availableGrowthBudget / totalProvisionalGrowth) : 0;
 
     return normalizedGoals.map((goal, index) => {
-        const scaledGrowth = provisionalGrowth[index] * growthScale;
-        const derivedCurrentAmount = Math.min(goal.targetAmount, goal.seedAmount + scaledGrowth);
+        // derivedCurrentAmount = only the confirmed amount the user has recorded
+        // in the DB. We no longer add phantom "provisional growth" from the
+        // available balance — that caused EF + goal amounts to exceed the real
+        // balance when EF was not yet funded.
+        const derivedCurrentAmount = Math.min(goal.targetAmount, goal.seedAmount);
+
         const forecast = estimateForecast({
             currentAmount: derivedCurrentAmount,
             targetAmount: goal.targetAmount,
