@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  Platform,
   Modal,
   Pressable,
   RefreshControl,
@@ -10,6 +11,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { MaterialIcons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ConfirmModal } from "../components/ConfirmModal";
@@ -323,7 +325,7 @@ export default function SettingsScreen() {
       {loading ? (
         <SettingsSkeleton />
       ) : (
-        <ScrollView
+        <KeyboardAwareScrollView
           style={styles.scroll}
           contentContainerStyle={styles.content}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} tintColor="#ffffff" />}
@@ -482,7 +484,7 @@ export default function SettingsScreen() {
               </View>
             </View>
           </View>
-        </ScrollView>
+        </KeyboardAwareScrollView>
       )}
 
       <Modal visible={!!selectedMemory} transparent animationType="slide" onRequestClose={() => setSelectedMemory(null)}>
@@ -497,17 +499,17 @@ export default function SettingsScreen() {
                 <MaterialIcons name="close" size={24} color="#c4c7c8" />
               </Pressable>
             </View>
-            <ScrollView contentContainerStyle={styles.memoryModalBody}>
+            <KeyboardAwareScrollView contentContainerStyle={styles.memoryModalBody}>
               <Text style={styles.inputLabel}>Value Content</Text>
               <View style={styles.memoryValueBox}>
                 <Text style={styles.memoryValueText}>{selectedMemory ? prettyMemoryValue(selectedMemory.value) : ""}</Text>
               </View>
-            </ScrollView>
             <View style={styles.memoryModalFooter}>
               <Pressable style={styles.deleteMemoryButton} disabled={saving} onPress={() => setConfirmDeleteMemoryVisible(true)}>
                 {saving ? <Skeleton width={112} height={14} radius={7} /> : <Text style={styles.deleteMemoryText}>Delete Memory Entry</Text>}
               </Pressable>
             </View>
+            </KeyboardAwareScrollView>
           </View>
         </SafeAreaView>
       </Modal>

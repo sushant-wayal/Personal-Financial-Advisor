@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, ActivityIndicator, Alert, Animated, Modal } from "react-native";
+import { Platform, View, Text, StyleSheet, Pressable, TextInput, ActivityIndicator, Alert, Animated, Modal, StatusBar } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { MaterialIcons } from "@expo/vector-icons";
 import { NETWORTH_CONFIG, FieldConfig } from "../../lib/networthConfig";
 import { fetchNetWorth, createNetWorth, updateNetWorth, deleteNetWorth, NetWorthData } from "../../lib/networthApi";
@@ -271,7 +272,8 @@ export default function NetWorthFormScreen() {
 
   return (
     <Modal visible={true} animationType="slide" presentationStyle="fullScreen" onRequestClose={() => router.back()}>
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+        <StatusBar barStyle="light-content" backgroundColor="#0A0A0A" />
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.backButton}>
             <MaterialIcons name="arrow-back" size={24} color="#fff" />
@@ -280,7 +282,7 @@ export default function NetWorthFormScreen() {
           <View style={{ width: 40 }} />
         </View>
 
-        <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+        <KeyboardAwareScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           <View style={styles.formCard}>
             {config.fields.map(renderField)}
           </View>
@@ -295,7 +297,7 @@ export default function NetWorthFormScreen() {
               <Text style={styles.deleteBtnText}>Delete</Text>
             </Pressable>
           )}
-        </ScrollView>
+        </KeyboardAwareScrollView>
 
         <DatePickerModal 
           visible={!!datePickerField}

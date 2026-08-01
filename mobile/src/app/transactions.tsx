@@ -2,8 +2,9 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   Animated,
   FlatList,
-  Modal,
+  KeyboardAvoidingView,
   Platform,
+  Modal,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -17,6 +18,7 @@ import {
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { DatePickerModal } from "../components/DatePickerModal";
 import { Skeleton, TransactionsSkeleton } from "../components/LoadingSkeleton";
 import { getCurrencySymbol, useCurrency, formatIndianAmountInput, parseIndianAmountInput } from "../providers/CurrencyProvider";
@@ -1465,7 +1467,7 @@ export default function TransactionsScreen() {
                 <MaterialIcons name="close" size={22} color="#c4c7c8" />
               </Pressable>
             </View>
-            <ScrollView style={styles.addScroll} contentContainerStyle={styles.addContent} showsVerticalScrollIndicator={false}>
+            <KeyboardAwareScrollView style={styles.addScroll} contentContainerStyle={styles.addContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
               <Text style={styles.addHint}>
                 {clubSourceIds.length ? `${clubSourceIds.length} transactions will become one. Amount and time are calculated automatically.` : "Enter the details below. This uses the same spacing and rounded controls as the edit dialog."}
               </Text>
@@ -1526,19 +1528,20 @@ export default function TransactionsScreen() {
               </View>
 
               {addError ? <Text style={styles.addError}>{addError}</Text> : null}
-            </ScrollView>
-            <View style={styles.addFooter}>
-              <Pressable style={({ pressed }) => [styles.addCancelButton, pressed ? styles.footerPressed : null]} onPress={() => { setAddVisible(false); setClubSourceIds([]); }}>
-                <Text style={styles.addCancelText}>Cancel</Text>
-              </Pressable>
-              <Pressable
-                disabled={savingTransaction}
-                style={({ pressed }) => [styles.addSaveButton, savingTransaction ? styles.rangeApplyDisabled : null, pressed ? styles.footerPressed : null]}
-                onPress={() => void saveTransaction()}
-              >
-                {savingTransaction ? <Skeleton width={72} height={16} radius={8} /> : <Text style={styles.addSaveText}>{clubSourceIds.length ? "Create Club" : editingTransaction ? "Save Changes" : "Save"}</Text>}
-              </Pressable>
-            </View>
+
+              <View style={styles.addFooter}>
+                <Pressable style={({ pressed }) => [styles.addCancelButton, pressed ? styles.footerPressed : null]} onPress={() => { setAddVisible(false); setClubSourceIds([]); }}>
+                  <Text style={styles.addCancelText}>Cancel</Text>
+                </Pressable>
+                <Pressable
+                  disabled={savingTransaction}
+                  style={({ pressed }) => [styles.addSaveButton, savingTransaction ? styles.rangeApplyDisabled : null, pressed ? styles.footerPressed : null]}
+                  onPress={() => void saveTransaction()}
+                >
+                  {savingTransaction ? <Skeleton width={72} height={16} radius={8} /> : <Text style={styles.addSaveText}>{clubSourceIds.length ? "Create Club" : editingTransaction ? "Save Changes" : "Save"}</Text>}
+                </Pressable>
+              </View>
+            </KeyboardAwareScrollView>
           </SafeAreaView>
         ) : null}
 

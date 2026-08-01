@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { Pressable, ScrollView, StatusBar, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
+import { Platform, Pressable, StatusBar, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -135,7 +136,7 @@ export default function SimulationScreen() {
                     </View>
                 </View>
 
-                <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+                <KeyboardAwareScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
                     <View style={styles.intro}>
                         <Text style={styles.pageTitle}>What-If Simulation</Text>
                     </View>
@@ -253,7 +254,7 @@ export default function SimulationScreen() {
                             </View>
                         </View>
                     </View>
-                </ScrollView>
+                </KeyboardAwareScrollView>
             </View>
         </SafeAreaView>
     );

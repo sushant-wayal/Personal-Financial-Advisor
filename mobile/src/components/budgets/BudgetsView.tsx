@@ -12,7 +12,9 @@ import {
   Animated,
   TouchableWithoutFeedback,
   Modal,
+  Platform,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { MaterialIcons } from "@expo/vector-icons";
 import { API_BASE_URL } from "../../lib/apiBaseUrl";
 import { useCurrency, formatCurrencyAmount, formatIndianAmountInput, parseIndianAmountInput } from "../../providers/CurrencyProvider";
@@ -287,7 +289,7 @@ export function BudgetsView() {
                 <Text style={styles.sheetTitle}>{editingId ? "Edit Budget" : "New Budget"}</Text>
               </View>
 
-              <View style={styles.sheetBody}>
+              <KeyboardAwareScrollView style={styles.sheetBody} keyboardShouldPersistTaps="handled">
                   <Text style={styles.label}>Category</Text>
                   <ScrollView 
                     style={styles.categoryScroll} 
@@ -342,7 +344,7 @@ export function BudgetsView() {
                       <Text style={styles.sheetPrimaryText}>{editingId ? "SAVE" : "CREATE"}</Text>
                     </Pressable>
                   </View>
-              </View>
+              </KeyboardAwareScrollView>
             </Animated.View>
           </View>
         </Modal>

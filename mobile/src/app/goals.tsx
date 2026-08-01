@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Animated,
+  Platform,
   Modal,
   Pressable,
   RefreshControl,
@@ -15,6 +16,7 @@ import {
   View,
   BackHandler,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { MaterialIcons } from "@expo/vector-icons";
 import { DatePickerModal } from "../components/DatePickerModal";
 import { ConfirmModal } from "../components/ConfirmModal";
@@ -606,14 +608,14 @@ export default function GoalsScreen() {
       {(view === "all" || view === "detail") && !loading && !error ? (
         renderContent()
       ) : (
-        <ScrollView
+        <KeyboardAwareScrollView
           style={styles.scroll}
           contentContainerStyle={[styles.scrollContent, view !== "dashboard" ? styles.scrollContentSecondary : null]}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} tintColor="#ffffff" />}
           showsVerticalScrollIndicator={false}
         >
           {renderContent()}
-        </ScrollView>
+        </KeyboardAwareScrollView>
       )}
       <GoalSheet
         visible={sheetVisible}
@@ -1129,7 +1131,7 @@ function GoalSheet({
                 <MaterialIcons name="close" size={24} color="#c4c7c8" />
               </Pressable>
             </View>
-            <ScrollView contentContainerStyle={styles.goalSheetBody} showsVerticalScrollIndicator={false}>
+            <KeyboardAwareScrollView contentContainerStyle={styles.goalSheetBody} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
               <GoalInput label="Title" value={form.title} placeholder="e.g., Retirement Fund" icon="track-changes" onChangeText={(title) => update({ title })} />
               <GoalInput label="Target Amount" value={formatIndianAmountInput(form.targetAmount)} placeholder="0.00" keyboardType="numeric" prefix={currencySymbol} onChangeText={(targetAmount) => update({ targetAmount: parseIndianAmountInput(targetAmount) })} />
               {!editing ? <GoalInput label="Initial Allocation" value={formatIndianAmountInput(form.initialAllocation)} placeholder="0.00" keyboardType="numeric" prefix={currencySymbol} onChangeText={(initialAllocation) => update({ initialAllocation: parseIndianAmountInput(initialAllocation) })} /> : null}
@@ -1143,20 +1145,21 @@ function GoalSheet({
                 </View>
               ) : null}
               {error ? <Text style={styles.errorText}>{error}</Text> : null}
-            </ScrollView>
-            <View style={styles.goalSheetFooter}>
-              {editing ? (
-                <Pressable style={styles.sheetDeleteButton} disabled={deleting || saving} onPress={() => setDeleteConfirmVisible(true)}>
-                  {deleting ? <Skeleton width={22} height={22} radius={11} /> : <MaterialIcons name="delete" size={22} color="#ffb4ab" />}
+
+              <View style={styles.goalSheetFooter}>
+                {editing ? (
+                  <Pressable style={styles.sheetDeleteButton} disabled={deleting || saving} onPress={() => setDeleteConfirmVisible(true)}>
+                    {deleting ? <Skeleton width={22} height={22} radius={11} /> : <MaterialIcons name="delete" size={22} color="#ffb4ab" />}
+                  </Pressable>
+                ) : null}
+                <Pressable style={styles.sheetCancelButton} onPress={onClose}>
+                  <Text style={styles.sheetCancelText}>CANCEL</Text>
                 </Pressable>
-              ) : null}
-              <Pressable style={styles.sheetCancelButton} onPress={onClose}>
-                <Text style={styles.sheetCancelText}>CANCEL</Text>
-              </Pressable>
-              <Pressable style={styles.sheetPrimaryButton} disabled={saving || deleting} onPress={onSave}>
-                {saving ? <Skeleton width={92} height={16} radius={8} /> : <Text style={styles.sheetPrimaryText}>{editing ? "SAVE" : "CREATE GOAL"}</Text>}
-              </Pressable>
-            </View>
+                <Pressable style={styles.sheetPrimaryButton} disabled={saving || deleting} onPress={onSave}>
+                  {saving ? <Skeleton width={92} height={16} radius={8} /> : <Text style={styles.sheetPrimaryText}>{editing ? "SAVE" : "CREATE GOAL"}</Text>}
+                </Pressable>
+              </View>
+            </KeyboardAwareScrollView>
           </View>
         </SafeAreaView>
       </Modal>
