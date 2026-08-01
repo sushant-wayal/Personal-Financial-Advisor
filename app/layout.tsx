@@ -10,9 +10,7 @@ export const metadata: Metadata = {
   description: "AI-powered personal finance assistant",
 };
 
-import Sidebar from "./components/Sidebar";
-import Header from "./components/Header";
-import MobileNav from "./components/MobileNav";
+import ClientLayout from "./components/ClientLayout";
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
@@ -25,16 +23,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           Skip to main content
         </a>
         <ReactQueryProvider>
-          <div className="flex h-full w-full">
-            <Sidebar />
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-              <Header />
-              <main id="main" className="min-h-0 flex-1 overflow-y-auto px-4 py-4 pb-24 sm:px-6 sm:py-6 lg:px-8 lg:py-6 lg:pb-6">
-                {children}
-              </main>
-            </div>
-          </div>
-          <MobileNav />
+          <ClientLayout>
+            {children}
+          </ClientLayout>
         </ReactQueryProvider>
       </body>
     </html>
