@@ -102,24 +102,46 @@ export async function calculateCurrentBalance() {
 
 export async function calculateMonthlySavingsRate() {
     const now = new Date();
+
+    // --- Trailing 3-month window (months T-1, T-2, T-3) ---
+    // We intentionally exclude the current in-progress month so the rate is
+    // always based on complete data, eliminating the "0% on the 1st" bug.
+    const trailing3Months = [1, 2, 3].map((offset) =>
+        monthRange(new Date(now.getFullYear(), now.getMonth() - offset, 1))
+    );
+    const trailing3Totals = await Promise.all(
+        trailing3Months.map(({ start, end }) => aggregateMonthlyTotals(start, end))
+    );
+    const t3Income = trailing3Totals.reduce((s, t) => s + t.income, 0);
+    const t3Expenses = trailing3Totals.reduce((s, t) => s + t.expenses, 0);
+    const trailingSavingsRate = t3Income > 0 ? ((t3Income - t3Expenses) / t3Income) * 100 : 0;
+
+    // --- Preceding 3-month window (months T-4, T-5, T-6) for change comparison ---
+    const preceding3Months = [4, 5, 6].map((offset) =>
+        monthRange(new Date(now.getFullYear(), now.getMonth() - offset, 1))
+    );
+    const preceding3Totals = await Promise.all(
+        preceding3Months.map(({ start, end }) => aggregateMonthlyTotals(start, end))
+    );
+    const p3Income = preceding3Totals.reduce((s, t) => s + t.income, 0);
+    const p3Expenses = preceding3Totals.reduce((s, t) => s + t.expenses, 0);
+    const precedingSavingsRate = p3Income > 0 ? ((p3Income - p3Expenses) / p3Income) * 100 : 0;
+
+    // --- Current calendar month actuals (kept for goal capacity / AI context) ---
     const { start: currentStart, end: currentEnd } = monthRange(now);
-    const { start: previousStart, end: previousEnd } = monthRange(new Date(now.getFullYear(), now.getMonth() - 1, 1));
-
     const currentTotals = await aggregateMonthlyTotals(currentStart, currentEnd);
-    const previousTotals = await aggregateMonthlyTotals(previousStart, previousEnd);
-
     const monthlyIncome = currentTotals.income;
     const monthlyExpenses = currentTotals.expenses;
     const monthlySavings = monthlyIncome - monthlyExpenses;
-    const currentMonthSavingsRate = monthlyIncome > 0 ? (monthlySavings / monthlyIncome) * 100 : 0;
 
+    // --- Previous single month (kept for previousMonthHasData flag) ---
+    const { start: previousStart, end: previousEnd } = monthRange(
+        new Date(now.getFullYear(), now.getMonth() - 1, 1)
+    );
+    const previousTotals = await aggregateMonthlyTotals(previousStart, previousEnd);
     const previousMonthHasData = previousTotals.count > 0;
-    const previousMonthIncome = previousTotals.income;
-    const previousMonthExpenses = previousTotals.expenses;
-    const previousMonthSavings = previousMonthIncome - previousMonthExpenses;
-    const previousMonthSavingsRate = previousMonthIncome > 0 ? (previousMonthSavings / previousMonthIncome) * 100 : 0;
 
-    const savingsRateChange = currentMonthSavingsRate - previousMonthSavingsRate;
+    const savingsRateChange = trailingSavingsRate - precedingSavingsRate;
     const savingsRateChangeDirection = savingsRateChange > 0
         ? "increase"
         : savingsRateChange < 0
@@ -127,16 +149,21 @@ export async function calculateMonthlySavingsRate() {
             : "neutral";
 
     return {
+        // Current-month actuals — used by goal capacity & AI context; not changed
         monthlyIncome,
         monthlyExpenses,
         monthlySavings,
-        savingsRate: currentMonthSavingsRate,
-        savingsMessage: savingsMessage(currentMonthSavingsRate),
-        currentMonthSavingsRate,
-        previousMonthSavingsRate,
+        // Trailing 3-month average is now the primary savings rate signal
+        savingsRate: trailingSavingsRate,
+        savingsMessage: savingsMessage(trailingSavingsRate),
+        currentMonthSavingsRate: trailingSavingsRate,
+        // Preceding 3-month average used as "previous" for the change indicator
+        previousMonthSavingsRate: precedingSavingsRate,
         savingsRateChange,
         savingsRateChangeDirection,
         previousMonthHasData,
+        // Informational: lets the UI label the window correctly
+        trailingMonths: 3,
     };
 }
 

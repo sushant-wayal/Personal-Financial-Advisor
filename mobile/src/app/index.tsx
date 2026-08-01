@@ -1193,9 +1193,9 @@ export default function Index() {
 
         <View style={styles.kpiGrid}>
           <MetricCard
-            label="Saving rate"
+            label="Saving rate (3mo avg)"
             value={`${Math.round(savings.currentMonthSavingsRate || savings.savingsRate)}%`}
-            note={savings.previousMonthHasData ? `${savings.savingsRateChange > 0 ? "▲ " : savings.savingsRateChange < 0 ? "▼ " : ""}${Math.abs(Math.round(savings.savingsRateChange))}% vs last month` : "Target: 60%"}
+            note={savings.previousMonthHasData ? `${savings.savingsRateChange > 0 ? "▲ " : savings.savingsRateChange < 0 ? "▼ " : ""}${Math.abs(Math.round(savings.savingsRateChange))}% vs prev 3mo` : "Target: 60%"}
             noteTone={savings.previousMonthHasData ? (savings.savingsRateChange > 0 ? "positive" : savings.savingsRateChange < 0 ? "negative" : "neutral") : "neutral"}
             icon="savings"
           />

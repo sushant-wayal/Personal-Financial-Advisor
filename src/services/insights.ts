@@ -87,9 +87,9 @@ export async function generateInsights(limit = 50) {
     const savingsData = await calculateMonthlySavingsRate();
     await addInsight({
         type: "savings_rate",
-        message: savingsData.monthlyIncome > 0
-            ? `Your savings rate is ${Math.round(savingsData.currentMonthSavingsRate)}% this month (${savingsData.savingsMessage}).`
-            : `No income transactions were found this month, so your savings rate is currently ${Math.round(savingsData.currentMonthSavingsRate)}%.`,
+        message: savingsData.monthlyIncome > 0 || savingsData.currentMonthSavingsRate > 0
+            ? `Your 3-month average savings rate is ${Math.round(savingsData.currentMonthSavingsRate)}% (${savingsData.savingsMessage}).`
+            : `Not enough historical data yet to calculate your savings rate.`,
         score: Math.max(0, Math.min(100, savingsData.currentMonthSavingsRate)),
         meta: savingsData,
     });
