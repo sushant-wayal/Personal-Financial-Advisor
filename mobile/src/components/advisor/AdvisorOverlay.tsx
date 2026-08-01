@@ -562,7 +562,9 @@ export default function AdvisorOverlay() {
                                 <View style={styles.aiWrap}>
                                     <View style={styles.aiCard}>
                                         <Text style={styles.aiTitle}>Analysis Complete</Text>
-                                        <Markdown style={markdownStyles}>{entry.response.narrative}</Markdown>
+                                        {!!entry.response.narrative && (
+                                            <Markdown style={markdownStyles}>{entry.response.narrative}</Markdown>
+                                        )}
                                         {entry.response.artifacts.length ? (
                                             <ArtifactRenderer 
                                                 artifacts={entry.response.artifacts} 

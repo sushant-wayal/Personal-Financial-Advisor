@@ -245,7 +245,7 @@ export function parseAdvisorResponse(
 ): AdvisorResponse {
     if (!rawResponse?.trim()) {
         return {
-            narrative: "No response",
+            narrative: "The advisor didn't return a response. Please try asking again.",
             artifacts: [],
         };
     }
@@ -262,9 +262,7 @@ export function parseAdvisorResponse(
                 extractArtifacts(parsed);
 
             return {
-                narrative:
-                    narrative ||
-                    "No narrative provided",
+                narrative: narrative || "",
                 artifacts: artifacts as AdvisorArtifact[],
             };
         }

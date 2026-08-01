@@ -74,11 +74,13 @@ export function buildGeminiRequest(promptOrMessages: string | GeminiMessage[], o
     return body;
 }
 
-function extractTextFromGemini(data: any) {
+function extractTextFromGemini(data: any): string | undefined {
     const candidates = Array.isArray(data?.candidates) ? data.candidates : [];
     const parts = candidates.flatMap((c: any) => c?.content?.parts ?? []);
-    const texts = parts.map((p: any) => p?.text).filter(Boolean);
-    return texts.length ? texts.join("\n") : (data?.text ?? "");
+    const texts = parts.map((p: any) => p?.text).filter((t: unknown) => typeof t === "string" && t.trim().length > 0);
+    if (texts.length) return texts.join("\n");
+    if (typeof data?.text === "string" && data.text.trim().length > 0) return data.text;
+    return undefined;
 }
 
 export type GeminiResponse = {
@@ -106,7 +108,7 @@ export async function generateText(
             });
 
             const data = res.data;
-            const text = extractTextFromGemini(data) || JSON.stringify(data);
+            const text = extractTextFromGemini(data) ?? "";
             return { text, raw: data };
         } catch (error: any) {
             lastError = error;
@@ -181,7 +183,7 @@ export async function generateTextWithTools(
             }
 
             // No function calls — extract text as final answer
-            const text = extractTextFromGemini(data) || JSON.stringify(data);
+            const text = extractTextFromGemini(data);
             return { text, raw: data };
         } catch (error: unknown) {
             lastError = error;

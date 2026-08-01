@@ -204,7 +204,7 @@ export async function runAdvisorAgenticLoop(
                 { temperature: 0.05, complexity: "complex" }
             );
 
-            if (response.text !== undefined) {
+            if (typeof response.text === "string" && response.text.trim().length > 0) {
                 finalText = response.text;
                 break;
             }
@@ -270,7 +270,14 @@ export async function runAdvisorAgenticLoop(
                 temperature: 0.05,
                 complexity: "complex",
             });
-            finalText = fallback.text;
+            finalText = fallback.text?.trim() || undefined;
+
+            if (!finalText) {
+                return {
+                    narrative: "The advisor couldn't generate a response. This may be a temporary issue — please try again.",
+                    artifacts: [],
+                };
+            }
         }
 
         // Mark done in Redis before returning

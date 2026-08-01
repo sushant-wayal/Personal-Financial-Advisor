@@ -291,9 +291,11 @@ export default function ChatClient() {
                             </Card>
                             {entry.response && (
                                 <div className="mt-3 space-y-4">
-                                    <div className="prose prose-invert max-w-none text-sm">
-                                        <ReactMarkdown>{entry.response.narrative}</ReactMarkdown>
-                                    </div>
+                                    {!!entry.response.narrative && (
+                                        <div className="prose prose-invert max-w-none text-sm">
+                                            <ReactMarkdown>{entry.response.narrative}</ReactMarkdown>
+                                        </div>
+                                    )}
                                     {entry.response.artifacts.length > 0 && (
                                         <ArtifactRenderer artifacts={entry.response.artifacts} onAction={send} />
                                     )}
