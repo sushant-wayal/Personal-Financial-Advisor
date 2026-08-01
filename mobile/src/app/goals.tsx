@@ -705,7 +705,7 @@ function EmergencyFundWidget({ ef }: { ef?: EmergencyFundData }) {
 
             <View style={styles.efFooter}>
                 <Text style={styles.efFooterText}>
-                    {isComplete ? `Target of ${ef.targetMonths} months of expenses achieved.` : `ETA: ${etaStr} • ${formatCurrency(ef.monthlyCapacity)}/mo suggested`}
+                    {isComplete ? `Target of ${ef.targetMonths} months of expenses achieved.` : `ETA: ${etaStr} • ${formatCurrency(ef.monthlyCapacity)}/M suggested`}
                 </Text>
             </View>
 

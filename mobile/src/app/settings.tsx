@@ -31,16 +31,16 @@ type Profile = {
 };
 
 type EmergencyFundData = {
-    targetMonths: number;
-    avgMonthlyExpenses: number;
-    targetAmount: number;
-    savedAmount: number;
-    progressPct: number;
-    shortfall: number;
-    monthsToComplete: number | null;
-    estimatedCompletionDate: string | null;
-    isComplete: boolean;
-    monthlyCapacity: number;
+  targetMonths: number;
+  avgMonthlyExpenses: number;
+  targetAmount: number;
+  savedAmount: number;
+  progressPct: number;
+  shortfall: number;
+  monthsToComplete: number | null;
+  estimatedCompletionDate: string | null;
+  isComplete: boolean;
+  monthlyCapacity: number;
 };
 
 type Memory = {
@@ -344,67 +344,67 @@ export default function SettingsScreen() {
             </View>
             <View style={styles.twoColumn}>
               <SettingInput label="Monthly Income" value={String(profile.monthlyIncome ?? 0)} editable={false} />
-              <SettingInput label="Monthly Expenses" value={String(profile.monthlyExpenses ?? 0)} editable={false} />
+              <SettingInput label="Monthly Expense" value={String(profile.monthlyExpenses ?? 0)} editable={false} />
             </View>
 
             <View style={styles.efContainer}>
-                <View style={styles.efHeaderRow}>
-                    <Text style={styles.efIcon}>🛡️</Text>
-                    <View style={styles.efHeaderTexts}>
-                        <Text style={styles.efHeaderTitle}>Emergency Fund Configuration</Text>
-                        <Text style={styles.efHeaderSubtitle}>Set how many months your fund should cover. We calculate the required amount from your actual spending.</Text>
-                    </View>
+              <View style={styles.efHeaderRow}>
+                <Text style={styles.efIcon}>🛡️</Text>
+                <View style={styles.efHeaderTexts}>
+                  <Text style={styles.efHeaderTitle}>Emergency Fund Configuration</Text>
+                  <Text style={styles.efHeaderSubtitle}>Set how many months your fund should cover. We calculate the required amount from your actual spending.</Text>
                 </View>
+              </View>
 
-                <SettingInput 
-                    label="Coverage (months, min 3)" 
-                    value={String(profile.emergencyFundMonths ?? 6)} 
-                    keyboardType="numeric" 
-                    onChangeText={(v) => {
-                        const parsed = Math.max(3, Number(v || 0));
-                        updateProfile({ emergencyFundMonths: parsed });
-                    }} 
-                />
+              <SettingInput
+                label="Coverage (months, min 3)"
+                value={String(profile.emergencyFundMonths ?? 6)}
+                keyboardType="numeric"
+                onChangeText={(v) => {
+                  const parsed = Math.max(3, Number(v || 0));
+                  updateProfile({ emergencyFundMonths: parsed });
+                }}
+              />
 
-                {efStatus && (
-                    <View style={styles.efSummaryBox}>
-                        <View style={styles.efSummaryRow}>
-                            <Text style={styles.efSummaryLabel}>Avg monthly spending</Text>
-                            <Text style={styles.efSummaryValue}>{formatCurrency(efStatus.avgMonthlyExpenses, profile.currency ?? "INR")}</Text>
-                        </View>
-                        <View style={styles.efSummaryRow}>
-                            <Text style={styles.efSummaryLabel}>Target ({profile.emergencyFundMonths ?? 6} months)</Text>
-                            <Text style={styles.efSummaryTarget}>{formatCurrency(efStatus.targetAmount, profile.currency ?? "INR")}</Text>
-                        </View>
-                        <View style={styles.efSummaryRow}>
-                            <Text style={styles.efSummaryLabel}>Saved (auto · from balance)</Text>
-                            <Text style={styles.efSummaryValue}>{formatCurrency(efStatus.savedAmount, profile.currency ?? "INR")}</Text>
-                        </View>
-                        <View style={styles.efSummaryRow}>
-                            <Text style={styles.efSummaryLabel}>Shortfall</Text>
-                            <Text style={[styles.efSummaryValue, efStatus.shortfall > 0 ? styles.efShortfallText : styles.efCompleteText]}>
-                                {efStatus.shortfall > 0 ? `−${formatCurrency(efStatus.shortfall, profile.currency ?? "INR")}` : "✓ Fully funded"}
-                            </Text>
-                        </View>
-                        
-                        <View style={styles.efProgressContainer}>
-                            <View style={styles.efProgressHeader}>
-                                <Text style={styles.efSummaryLabel}>Progress</Text>
-                                <Text style={styles.efSummaryLabel}>{efStatus.progressPct.toFixed(1)}%</Text>
-                            </View>
-                            <View style={styles.efProgressBarBg}>
-                                <View 
-                                    style={[
-                                        styles.efProgressBarFill, 
-                                        { width: `${Math.min(100, efStatus.progressPct)}%` },
-                                        efStatus.isComplete ? { backgroundColor: "#7dffa2" } : { backgroundColor: "#fb923c" }
-                                    ]} 
-                                />
-                            </View>
-                        </View>
-                        <Text style={styles.efSummaryFooter}>Saved amount is auto-derived from your account balance.</Text>
+              {efStatus && (
+                <View style={styles.efSummaryBox}>
+                  <View style={styles.efSummaryRow}>
+                    <Text style={styles.efSummaryLabel}>Avg monthly spending</Text>
+                    <Text style={styles.efSummaryValue}>{formatCurrency(efStatus.avgMonthlyExpenses, profile.currency ?? "INR")}</Text>
+                  </View>
+                  <View style={styles.efSummaryRow}>
+                    <Text style={styles.efSummaryLabel}>Target ({profile.emergencyFundMonths ?? 6} months)</Text>
+                    <Text style={styles.efSummaryTarget}>{formatCurrency(efStatus.targetAmount, profile.currency ?? "INR")}</Text>
+                  </View>
+                  <View style={styles.efSummaryRow}>
+                    <Text style={styles.efSummaryLabel}>Saved (auto · from balance)</Text>
+                    <Text style={styles.efSummaryValue}>{formatCurrency(efStatus.savedAmount, profile.currency ?? "INR")}</Text>
+                  </View>
+                  <View style={styles.efSummaryRow}>
+                    <Text style={styles.efSummaryLabel}>Shortfall</Text>
+                    <Text style={[styles.efSummaryValue, efStatus.shortfall > 0 ? styles.efShortfallText : styles.efCompleteText]}>
+                      {efStatus.shortfall > 0 ? `−${formatCurrency(efStatus.shortfall, profile.currency ?? "INR")}` : "✓ Fully funded"}
+                    </Text>
+                  </View>
+
+                  <View style={styles.efProgressContainer}>
+                    <View style={styles.efProgressHeader}>
+                      <Text style={styles.efSummaryLabel}>Progress</Text>
+                      <Text style={styles.efSummaryLabel}>{efStatus.progressPct.toFixed(1)}%</Text>
                     </View>
-                )}
+                    <View style={styles.efProgressBarBg}>
+                      <View
+                        style={[
+                          styles.efProgressBarFill,
+                          { width: `${Math.min(100, efStatus.progressPct)}%` },
+                          efStatus.isComplete ? { backgroundColor: "#7dffa2" } : { backgroundColor: "#fb923c" }
+                        ]}
+                      />
+                    </View>
+                  </View>
+                  <Text style={styles.efSummaryFooter}>Saved amount is auto-derived from your account balance.</Text>
+                </View>
+              )}
             </View>
 
             <View style={styles.senderBlock}>
@@ -504,11 +504,11 @@ export default function SettingsScreen() {
               <View style={styles.memoryValueBox}>
                 <Text style={styles.memoryValueText}>{selectedMemory ? prettyMemoryValue(selectedMemory.value) : ""}</Text>
               </View>
-            <View style={styles.memoryModalFooter}>
-              <Pressable style={styles.deleteMemoryButton} disabled={saving} onPress={() => setConfirmDeleteMemoryVisible(true)}>
-                {saving ? <Skeleton width={112} height={14} radius={7} /> : <Text style={styles.deleteMemoryText}>Delete Memory Entry</Text>}
-              </Pressable>
-            </View>
+              <View style={styles.memoryModalFooter}>
+                <Pressable style={styles.deleteMemoryButton} disabled={saving} onPress={() => setConfirmDeleteMemoryVisible(true)}>
+                  {saving ? <Skeleton width={112} height={14} radius={7} /> : <Text style={styles.deleteMemoryText}>Delete Memory Entry</Text>}
+                </Pressable>
+              </View>
             </KeyboardAwareScrollView>
           </View>
         </SafeAreaView>

@@ -63,6 +63,8 @@ export function DashboardSkeleton() {
                 <Skeleton width="31%" height={86} radius={22} />
             </View>
 
+            <BudgetWidgetSkeleton />
+
             <View style={styles.sectionCard}>
                 <Text style={styles.skeletonSectionTitle}>Advisor Summary</Text>
                 <Skeleton width="88%" height={14} />
@@ -240,6 +242,34 @@ export function SubscriptionsSkeleton() {
     );
 }
 
+export function BudgetWidgetSkeleton() {
+    return (
+        <View style={styles.budgetWidgetSkeleton}>
+            <View style={styles.budgetWidgetSkeletonHeader}>
+                <Text style={styles.skeletonSectionTitle}>Budgets</Text>
+                <Skeleton width={72} height={24} radius={12} />
+            </View>
+            <Skeleton width={130} height={12} radius={6} />
+            <View style={{ gap: 10, marginTop: 4 }}>
+                <View style={{ gap: 6 }}>
+                    <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                        <Skeleton width={72} height={14} radius={4} />
+                        <Skeleton width={96} height={14} radius={4} />
+                    </View>
+                    <Skeleton width="100%" height={4} radius={2} />
+                </View>
+                <View style={{ gap: 6 }}>
+                    <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                        <Skeleton width={84} height={14} radius={4} />
+                        <Skeleton width={90} height={14} radius={4} />
+                    </View>
+                    <Skeleton width="100%" height={4} radius={2} />
+                </View>
+            </View>
+        </View>
+    );
+}
+
 export function BudgetsSkeleton() {
     return (
         <View style={styles.screen}>
@@ -363,6 +393,19 @@ export function AppBootstrapSkeleton() {
 const styles = StyleSheet.create({
     base: {
         backgroundColor: "#202425",
+    },
+    budgetWidgetSkeleton: {
+        borderWidth: 1,
+        borderColor: "rgba(255,255,255,0.08)",
+        backgroundColor: "#1c1b1b",
+        borderRadius: 12,
+        padding: 16,
+        gap: 10,
+    },
+    budgetWidgetSkeletonHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
     },
     screen: {
         flex: 1,

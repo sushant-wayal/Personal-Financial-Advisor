@@ -19,6 +19,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { API_BASE_URL } from "../../lib/apiBaseUrl";
 import { useCurrency, formatCurrencyAmount, formatIndianAmountInput, parseIndianAmountInput } from "../../providers/CurrencyProvider";
 import { beginHorizontalScroll, endHorizontalScroll } from "../../lib/horizontalScrollPriority";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ConfirmModal } from "../ConfirmModal";
 import { BudgetsSkeleton } from "../LoadingSkeleton";
 
@@ -83,6 +84,7 @@ function CustomSwitch({ value, onValueChange }: { value: boolean; onValueChange:
 }
 
 export function BudgetsView() {
+  const insets = useSafeAreaInsets();
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -284,41 +286,45 @@ export function BudgetsView() {
             <TouchableWithoutFeedback onPress={closeSheet}>
               <Animated.View style={[styles.sheetBackdrop, { opacity: sheetAnim }]} />
             </TouchableWithoutFeedback>
-            <Animated.View style={[styles.sheet, { transform: [{ translateY: sheetTranslateY }] }]}>
+            <Animated.View style={[styles.sheet, { transform: [{ translateY: sheetTranslateY }], paddingBottom: 16 }]}>
               <View style={styles.sheetHeader}>
                 <Text style={styles.sheetTitle}>{editingId ? "Edit Budget" : "New Budget"}</Text>
               </View>
 
               <KeyboardAwareScrollView style={styles.sheetBody} keyboardShouldPersistTaps="handled">
-                  <Text style={styles.label}>Category</Text>
-                  <ScrollView 
-                    style={styles.categoryScroll} 
-                    horizontal 
-                    showsHorizontalScrollIndicator={false}
-                    onTouchStart={beginHorizontalScroll}
-                    onTouchEnd={endHorizontalScroll}
-                    onTouchCancel={endHorizontalScroll}
-                  >
-                    {categories.map((c) => (
-                      <Pressable
-                        key={c.id}
-                        style={[styles.sheetOption, selectedCategory === c.id && styles.sheetOptionSelected]}
-                        onPress={() => setSelectedCategory(c.id)}
-                      >
-                        <Text style={[styles.sheetOptionText, selectedCategory === c.id && styles.sheetOptionTextSelected]}>{c.name}</Text>
-                      </Pressable>
-                    ))}
-                  </ScrollView>
+                  <View style={styles.formField}>
+                    <Text style={styles.label}>Category</Text>
+                    <ScrollView 
+                      style={styles.categoryScroll} 
+                      horizontal 
+                      showsHorizontalScrollIndicator={false}
+                      onTouchStart={beginHorizontalScroll}
+                      onTouchEnd={endHorizontalScroll}
+                      onTouchCancel={endHorizontalScroll}
+                    >
+                      {categories.map((c) => (
+                        <Pressable
+                          key={c.id}
+                          style={[styles.sheetOption, selectedCategory === c.id && styles.sheetOptionSelected]}
+                          onPress={() => setSelectedCategory(c.id)}
+                        >
+                          <Text style={[styles.sheetOptionText, selectedCategory === c.id && styles.sheetOptionTextSelected]}>{c.name}</Text>
+                        </Pressable>
+                      ))}
+                    </ScrollView>
+                  </View>
 
-                  <Text style={styles.label}>Monthly Limit</Text>
-                  <TextInput
-                    style={styles.plainInput}
-                    value={formatIndianAmountInput(limit)}
-                    onChangeText={(t) => setLimit(parseIndianAmountInput(t))}
-                    keyboardType="numeric"
-                    placeholder="0"
-                    placeholderTextColor="#8e9192"
-                  />
+                  <View style={styles.formField}>
+                    <Text style={styles.label}>Monthly Limit</Text>
+                    <TextInput
+                      style={styles.plainInput}
+                      value={formatIndianAmountInput(limit)}
+                      onChangeText={(t) => setLimit(parseIndianAmountInput(t))}
+                      keyboardType="numeric"
+                      placeholder="0"
+                      placeholderTextColor="#8e9192"
+                    />
+                  </View>
 
                   <View style={styles.switchRow}>
                     <View>
@@ -419,7 +425,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderColor: "rgba(255,255,255,0.1)",
     paddingTop: 24,
-    paddingBottom: 20,
+    paddingBottom: 16,
   },
   sheetHeader: {
     paddingHorizontal: 24,
@@ -428,7 +434,10 @@ const styles = StyleSheet.create({
   sheetTitle: { color: "#ffffff", fontFamily: "Hanken Grotesk", fontSize: fs(24), lineHeight: 32, fontWeight: "600" },
   sheetBody: {
     paddingHorizontal: 24,
-    gap: 16,
+    gap: 20,
+  },
+  formField: {
+    gap: 8,
   },
   label: { color: "#8e9192", fontFamily: "JetBrains Mono", fontSize: fs(12), letterSpacing: 0.8, textTransform: "uppercase" },
   subLabel: { color: "#8e9192", fontFamily: "Inter", fontSize: fs(13), marginTop: 4 },

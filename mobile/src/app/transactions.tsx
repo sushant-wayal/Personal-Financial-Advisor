@@ -1150,7 +1150,7 @@ export default function TransactionsScreen() {
       ) : null}
 
       <Modal visible={!!actionTransaction} transparent animationType="fade" onRequestClose={() => setActionTransaction(null)}>
-        <SafeAreaView style={styles.popupSafeArea} edges={["top", "bottom"]}>
+        <View style={styles.popupSafeArea}>
           <TouchableWithoutFeedback onPress={() => setActionTransaction(null)}>
             <View style={styles.actionOverlay} />
           </TouchableWithoutFeedback>
@@ -1207,7 +1207,7 @@ export default function TransactionsScreen() {
               <Text style={styles.txActionCancelText}>Cancel</Text>
             </Pressable>
           </View>
-        </SafeAreaView>
+        </View>
       </Modal>
 
       <Modal visible={!!originalsTarget} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setOriginalsTarget(null)}>
@@ -2050,7 +2050,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#0e0e0e",
     paddingHorizontal: 24,
     paddingTop: 14,
-    paddingBottom: 34,
+    paddingBottom: 16,
     gap: 12,
   },
   txActionTitle: { color: "#ffffff", marginTop: 12, fontFamily: "Hanken Grotesk", fontSize: fs(24), lineHeight: 32, fontWeight: "700" },
@@ -2301,7 +2301,9 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    padding: 24,
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 16,
     borderTopWidth: 1,
     borderTopColor: "#262626",
     backgroundColor: "rgba(14,14,14,0.96)",

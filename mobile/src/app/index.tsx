@@ -19,7 +19,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import Svg, { Circle, Defs, G, Line, LinearGradient, Path, Rect, Stop } from "react-native-svg";
-import { DashboardSkeleton } from "../components/LoadingSkeleton";
+import { DashboardSkeleton, BudgetWidgetSkeleton } from "../components/LoadingSkeleton";
 import { formatCurrencyAmount, getGlobalCurrencyCode, useCurrency } from "../providers/CurrencyProvider";
 import { useUserProfile } from "../providers/UserProfileProvider";
 import { API_BASE_URL } from "../lib/apiBaseUrl";
@@ -935,26 +935,45 @@ function compactInsights(insights: Insight[]) {
 function BudgetWidget({ budgets }: { budgets: BudgetData[] }) {
   const router = useRouter();
   if (!budgets || budgets.length === 0) {
-    return null;
+    return (
+      <View style={styles.budgetWidget}>
+        <SectionHeading title="Budgets" actionLabel="MANAGE" iconName="account_balance_wallet" onActionPress={() => router.push("/budgets")} />
+        <Pressable
+          style={({ pressed }) => [styles.emptyBudgetCard, { opacity: pressed ? 0.8 : 1 }]}
+          onPress={() => router.push("/budgets")}
+        >
+          <View style={styles.emptyBudgetContent}>
+            <View style={styles.emptyBudgetIconWrap}>
+              <MaterialIcons name="account-balance-wallet" size={20} color="#7dffa2" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.emptyBudgetTitle}>No active budgets set</Text>
+              <Text style={styles.emptyBudgetSubtext}>Tap to set monthly spending limits</Text>
+            </View>
+            <MaterialIcons name="chevron-right" size={20} color="#c4c7c8" />
+          </View>
+        </Pressable>
+      </View>
+    );
   }
-  
+
   const totalLimit = budgets.reduce((sum, b) => sum + (b.totalLimit || 0), 0);
   const totalSpent = budgets.reduce((sum, b) => sum + (b.spent || 0), 0);
-  
+
   return (
     <View style={styles.budgetWidget}>
       <SectionHeading title="Budgets" actionLabel="Manage" onActionPress={() => router.push("/budgets")} />
       <Text style={styles.budgetWidgetCount}>
-        <Text style={{color: "#fff"}}>{formatCompactCurrency(totalSpent)}</Text>
-        <Text style={{color: "#8e9192"}}> spent of </Text>
-        <Text style={{color: "#c4c7c8"}}>{formatCompactCurrency(totalLimit)}</Text>
+        <Text style={{ color: "#fff" }}>{formatCompactCurrency(totalSpent)}</Text>
+        <Text style={{ color: "#8e9192" }}> spent of </Text>
+        <Text style={{ color: "#c4c7c8" }}>{formatCompactCurrency(totalLimit)}</Text>
       </Text>
       <View style={styles.budgetWidgetBody}>
         {budgets.map((b) => {
           const limit = b.totalLimit || 0;
           const spent = b.spent || 0;
           const progressPct = limit > 0 ? Math.min(100, Math.round((spent / limit) * 100)) : 0;
-          
+
           let barColor = "#7dffa2"; // Green for < 75%
           if (progressPct >= 90) {
             barColor = "#ffb4ab"; // Red for >= 90%
@@ -964,7 +983,7 @@ function BudgetWidget({ budgets }: { budgets: BudgetData[] }) {
 
           const isOver = progressPct >= 90;
           const name = b.category?.name || "Unknown";
-          
+
           return (
             <View key={b.id} style={styles.budgetItem}>
               <View style={styles.budgetItemHeader}>
@@ -977,11 +996,11 @@ function BudgetWidget({ budgets }: { budgets: BudgetData[] }) {
                 </Text>
               </View>
               <View style={styles.budgetProgressBar}>
-                <View 
+                <View
                   style={[
-                    styles.budgetProgressFill, 
+                    styles.budgetProgressFill,
                     { width: `${progressPct}%`, backgroundColor: barColor }
-                  ]} 
+                  ]}
                 />
               </View>
             </View>
@@ -1176,7 +1195,7 @@ export default function Index() {
             </View>
           </View>
           {dashboard.networth && (
-            <Pressable 
+            <Pressable
               onPress={() => router.push("/networth" as any)}
               style={{ marginTop: 8, flexDirection: "row", alignItems: "center", gap: 6, opacity: 0.8 }}
             >
@@ -1193,25 +1212,25 @@ export default function Index() {
 
         <View style={styles.kpiGrid}>
           <MetricCard
-            label="Saving rate (3mo avg)"
+            label="Saving rate"
             value={`${Math.round(savings.currentMonthSavingsRate || savings.savingsRate)}%`}
-            note={savings.previousMonthHasData ? `${savings.savingsRateChange > 0 ? "▲ " : savings.savingsRateChange < 0 ? "▼ " : ""}${Math.abs(Math.round(savings.savingsRateChange))}% vs prev 3mo` : "Target: 60%"}
+            note={savings.previousMonthHasData ? `${savings.savingsRateChange > 0 ? "▲ " : savings.savingsRateChange < 0 ? "▼ " : ""}${Math.abs(Math.round(savings.savingsRateChange))}%` : "Target: 60%"}
             noteTone={savings.previousMonthHasData ? (savings.savingsRateChange > 0 ? "positive" : savings.savingsRateChange < 0 ? "negative" : "neutral") : "neutral"}
             icon="savings"
           />
           <MetricCard
             label="Burn rate"
             value={formatCurrency(burn.burnRate)}
-            note={burn.previousPeriodHasData ? `${burn.burnRateChange > 0 ? "▲ " : burn.burnRateChange < 0 ? "▼ " : ""}${formatCurrency(Math.abs(burn.burnRateChange))} vs prev mo` : "No prior period to compare"}
+            note={burn.previousPeriodHasData ? `${burn.burnRateChange > 0 ? "▲ " : burn.burnRateChange < 0 ? "▼ " : ""}${formatCurrency(Math.abs(burn.burnRateChange))}` : "No prior period to compare"}
             noteTone={burn.previousPeriodHasData ? (burn.burnRateChange < 0 ? "positive" : burn.burnRateChange > 0 ? "negative" : "neutral") : "neutral"}
             icon="local_fire_department"
           />
           <MetricCard
             label="Runway"
-            value={runway.runwayMonths === null ? "Unlimited" : `${runway.runwayMonths.toFixed(1)} mo`}
+            value={runway.runwayMonths === null ? "Unlimited" : `${runway.runwayMonths.toFixed(1)} M`}
             note={
               runway.previousRunwayMonths !== null && runway.runwayMonths !== null
-                ? `${runway.runwayChange > 0 ? "▲ " : runway.runwayChange < 0 ? "▼ " : ""}${Math.abs(runway.runwayChange).toFixed(1)} mo vs prev`
+                ? `${runway.runwayChange > 0 ? "▲ " : runway.runwayChange < 0 ? "▼ " : ""}${Math.abs(runway.runwayChange).toFixed(1)} M`
                 : "Cash equivalents"
             }
             noteTone={
@@ -1223,7 +1242,7 @@ export default function Index() {
             wide
           />
         </View>
-        
+
         <BudgetWidget budgets={dashboard.budgets || []} />
 
         <SectionHeading title="Advisor Summary" actionLabel="INSIGHTS" iconName="psychology" onActionPress={() => router.push("/insights")} />
@@ -1537,11 +1556,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "space-between",
+    gap: 8,
   },
   metricLabel: {
+    flex: 1,
+    flexShrink: 1,
     color: "#c4c7c8",
     fontSize: fs(11),
-    letterSpacing: 2.4,
+    letterSpacing: 1.2,
     fontWeight: "700",
     textTransform: "uppercase",
   },
@@ -2293,5 +2315,35 @@ const styles = StyleSheet.create({
   budgetProgressFill: {
     height: "100%",
     borderRadius: 2,
+  },
+  emptyBudgetCard: {
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "rgba(58,57,57,0.18)",
+    padding: 14,
+  },
+  emptyBudgetContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  emptyBudgetIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(125,255,162,0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emptyBudgetTitle: {
+    color: "#ffffff",
+    fontSize: fs(14),
+    fontWeight: "600",
+  },
+  emptyBudgetSubtext: {
+    color: "#c4c7c8",
+    fontSize: fs(12),
+    marginTop: 2,
   },
 });

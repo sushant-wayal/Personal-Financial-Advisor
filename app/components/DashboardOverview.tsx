@@ -117,7 +117,7 @@ export default function DashboardOverview() {
     const runwayChange = runwayData?.runwayChange ?? 0;
     const runwayDirection = runwayData?.runwayChangeDirection ?? "neutral";
 
-    const runwayLabel = runwayMonths === null ? "Unlimited" : `${runwayMonths.toFixed(1)} mo`;
+    const runwayLabel = runwayMonths === null ? "Unlimited" : `${runwayMonths.toFixed(1)} M`;
     const runwayDeltaLabel = Math.abs(runwayChange).toFixed(1);
 
     const balanceFormatter = new Intl.NumberFormat("en-IN", {
@@ -194,7 +194,7 @@ export default function DashboardOverview() {
                         </CardHeader>
                         <CardContent>
                             <div className="mt-3 text-3xl font-semibold text-white">
-                                {balanceFormatter.format(Math.round(burnRate))} / mo
+                                {balanceFormatter.format(Math.round(burnRate))} / M
                             </div>
                             {loadingBurn ? (
                                 <div className="mt-1 text-sm text-slate-400">Loading burn rate...</div>
@@ -223,7 +223,7 @@ export default function DashboardOverview() {
                                 <div className="mt-1 text-sm text-slate-400">No change vs previous period</div>
                             ) : (
                                 <div className={`mt-1 text-sm ${runwayDirection === "increase" ? "text-emerald-400" : "text-rose-400"}`}>
-                                    {runwayDirection === "increase" ? "▲" : "▼"} {runwayDeltaLabel} mo vs previous period
+                                    {runwayDirection === "increase" ? "▲" : "▼"} {runwayDeltaLabel} M vs previous period
                                 </div>
                             )}
                         </CardContent>

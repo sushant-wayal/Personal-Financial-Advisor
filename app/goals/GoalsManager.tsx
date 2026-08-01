@@ -269,7 +269,7 @@ function EmergencyFundWidget({ ef }: { ef?: EmergencyFundData }) {
                     <div className="rounded-xl border border-white/10 bg-black/25 p-3">
                         <div className="text-xs uppercase tracking-[0.25em] text-slate-500">Needed</div>
                         <div className="mt-2 text-base font-semibold text-white">{fmt(ef.targetAmount)}</div>
-                        <div className="mt-0.5 text-xs text-slate-500">{ef.targetMonths}mo × avg spend</div>
+                        <div className="mt-0.5 text-xs text-slate-500">{ef.targetMonths}M × avg spend</div>
                     </div>
                     <div className="rounded-xl border border-white/10 bg-black/25 p-3">
                         <div className="text-xs uppercase tracking-[0.25em] text-slate-500">Saved</div>
@@ -286,7 +286,7 @@ function EmergencyFundWidget({ ef }: { ef?: EmergencyFundData }) {
                         <div className="mt-0.5 text-xs text-slate-500">remaining to save</div>
                     </div>
                     <div className="rounded-xl border border-white/10 bg-black/25 p-3">
-                        <div className="text-xs uppercase tracking-[0.25em] text-slate-500">Avg Spend/mo</div>
+                        <div className="text-xs uppercase tracking-[0.25em] text-slate-500">Avg Spend/M</div>
                         <div className="mt-2 text-base font-semibold text-white">{fmt(ef.avgMonthlyExpenses)}</div>
                         <div className="mt-0.5 text-xs text-slate-500">3-month average</div>
                     </div>
