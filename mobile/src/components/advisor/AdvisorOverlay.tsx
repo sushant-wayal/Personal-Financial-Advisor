@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
     Animated,
     Easing,
+    Keyboard,
     KeyboardAvoidingView,
     Platform,
     Pressable,
@@ -243,6 +244,16 @@ export default function AdvisorOverlay() {
         scrollRef.current?.scrollToEnd({ animated: true });
     }, [threads, loading, liveStatus]);
 
+    useEffect(() => {
+        const sub = Keyboard.addListener(
+            Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
+            () => {
+                scrollRef.current?.scrollToEnd({ animated: true });
+            }
+        );
+        return () => sub.remove();
+    }, []);
+
     const send = useCallback(async (overrideText?: string) => {
         const user = overrideText?.trim() || q.trim();
         if (!user || inFlightRef.current) return;
@@ -454,8 +465,8 @@ export default function AdvisorOverlay() {
                     <StatusBar barStyle="light-content" backgroundColor="#131313" />
             <KeyboardAvoidingView
                 style={styles.screen}
-                behavior={Platform.OS === "ios" ? "padding" : "height"}
-                keyboardVerticalOffset={insets.bottom}
+                behavior="padding"
+                keyboardVerticalOffset={Platform.OS === "ios" ? insets.bottom : 0}
             >
                 {/* Top bar */}
                 <View style={styles.topBar}>
@@ -611,7 +622,7 @@ export default function AdvisorOverlay() {
                                     Math.max(56, Math.ceil(event.nativeEvent.contentSize.height)),
                                     200
                                 );
-                                setInputHeight(nextHeight);
+                                setInputHeight((prev) => (prev !== nextHeight ? nextHeight : prev));
                             }}
                             onSubmitEditing={() => void send()}
                             style={[styles.input, { height: inputHeight }]}
