@@ -33,7 +33,6 @@ function getRedis(): Redis | null {
     return _redis;
 }
 
-/** TTL for status keys — 10 minutes is plenty for any advisor response */
 const STATUS_TTL_SECONDS = 600;
 
 export type AdvisorStatusEvent = {
@@ -45,15 +44,40 @@ export type AdvisorStatusEvent = {
     updatedAt: number; // unix ms
 };
 
-/** Write the current status for a requestId to Redis */
+/** In-memory status store for ultra-fast local lookups & fallback when Redis is absent */
+const _inMemoryStatus = new Map<string, { status: AdvisorStatusEvent; expiresAt: number }>();
+
+function pruneExpiredInMemoryStatuses() {
+    const now = Date.now();
+    for (const [key, entry] of _inMemoryStatus.entries()) {
+        if (entry.expiresAt < now) {
+            _inMemoryStatus.delete(key);
+        }
+    }
+}
+
+/** Write the current status for a requestId to Memory and Redis */
 export async function setAdvisorStatus(
     requestId: string,
     status: Omit<AdvisorStatusEvent, "updatedAt">
 ): Promise<void> {
-    const redis = getRedis();
-    if (!redis) return;
+    if (!requestId) return;
 
     const payload: AdvisorStatusEvent = { ...status, updatedAt: Date.now() };
+
+    // 1. Instant synchronous write to in-memory store
+    _inMemoryStatus.set(requestId, {
+        status: payload,
+        expiresAt: Date.now() + STATUS_TTL_SECONDS * 1000,
+    });
+
+    if (_inMemoryStatus.size > 200) {
+        pruneExpiredInMemoryStatuses();
+    }
+
+    // 2. Also persist to Upstash Redis if configured
+    const redis = getRedis();
+    if (!redis) return;
 
     try {
         await redis.set(
@@ -67,15 +91,33 @@ export async function setAdvisorStatus(
     }
 }
 
-/** Read the current status for a requestId from Redis */
+/** Read the current status for a requestId from Memory first, then Redis */
 export async function getAdvisorStatus(requestId: string): Promise<AdvisorStatusEvent | null> {
+    if (!requestId) return null;
+
+    // 1. Fast in-memory check first (0ms latency)
+    const memEntry = _inMemoryStatus.get(requestId);
+    if (memEntry && memEntry.expiresAt > Date.now()) {
+        return memEntry.status;
+    }
+
+    // 2. Fall back to Upstash Redis
     const redis = getRedis();
     if (!redis) return null;
 
     try {
         const raw = await redis.get<string>(`pfs:advisor:status:${requestId}`);
         if (!raw) return null;
-        return typeof raw === "string" ? JSON.parse(raw) : (raw as AdvisorStatusEvent);
+        const parsed = typeof raw === "string" ? JSON.parse(raw) : (raw as AdvisorStatusEvent);
+        
+        // Populate in-memory cache for subsequent polls
+        if (parsed) {
+            _inMemoryStatus.set(requestId, {
+                status: parsed,
+                expiresAt: Date.now() + STATUS_TTL_SECONDS * 1000,
+            });
+        }
+        return parsed;
     } catch (err) {
         console.warn("[redis] getAdvisorStatus failed:", err);
         return null;
@@ -84,6 +126,10 @@ export async function getAdvisorStatus(requestId: string): Promise<AdvisorStatus
 
 /** Delete the status key once the response has been delivered */
 export async function clearAdvisorStatus(requestId: string): Promise<void> {
+    if (!requestId) return;
+
+    _inMemoryStatus.delete(requestId);
+
     const redis = getRedis();
     if (!redis) return;
 

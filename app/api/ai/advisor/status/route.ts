@@ -27,8 +27,10 @@ export async function GET(req: Request) {
         status ?? { status: null },
         {
             headers: {
-                // Short cache — we want fresh data on every poll
-                "Cache-Control": "no-store",
+                "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0",
+                "Pragma": "no-cache",
+                "Expires": "0",
+                "Surrogate-Control": "no-store",
             },
         }
     );

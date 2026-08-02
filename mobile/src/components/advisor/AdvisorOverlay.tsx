@@ -47,7 +47,7 @@ type LiveStatus = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const POLL_INTERVAL_MS = 1500;
+const POLL_INTERVAL_MS = 450;
 
 function apiUrl(path: string) {
     return `${API_BASE_URL}${path}`;
@@ -72,8 +72,26 @@ function toolLabel(name: string): string {
         querySubscriptions: "Subscriptions",
         queryCategories: "Categories",
         getFinancialProfile: "Financial Profile",
-        queryMemories: "Memory",
-        queryInsights: "Insights",
+        queryMemories: "AI Memory",
+        queryInsights: "Financial Insights",
+        queryBudgets: "Category Budgets",
+        addBudget: "Create Budget",
+        updateBudget: "Update Budget",
+        deleteBudget: "Delete Budget",
+        addTransaction: "Add Transaction",
+        updateTransaction: "Update Transaction",
+        deleteTransaction: "Delete Transaction",
+        addGoal: "Add Goal",
+        updateGoal: "Update Goal",
+        deleteGoal: "Delete Goal",
+        updateFinancialProfile: "Update Profile",
+        addSubscription: "Add Subscription",
+        updateSubscription: "Update Subscription",
+        deleteSubscription: "Delete Subscription",
+        addCategorizationRule: "Add Rule",
+        deleteCategorizationRule: "Delete Rule",
+        getDatabaseSchema: "Database Schema",
+        writeDatabaseRecord: "Database Record",
     };
     return map[name] ?? name;
 }
@@ -164,7 +182,7 @@ function LiveStatusPanel({ status }: { status: NonNullable<LiveStatus> }) {
                             />
                             <Text style={liveStyles.toolName}>{toolLabel(tc.name)}</Text>
                             {tc.done && tc.rowCount !== undefined && (
-                                <Text style={liveStyles.rowCount}>{tc.rowCount} rows</Text>
+                                <Text style={liveStyles.rowCount}>{tc.rowCount} {tc.rowCount === 1 ? "row" : "rows"}</Text>
                             )}
                             {!tc.done && <OrbitingLoader color="#a78bfa" />}
                         </View>
@@ -180,25 +198,74 @@ function LiveStatusPanel({ status }: { status: NonNullable<LiveStatus> }) {
 function useAdvisorStatusPoller(requestId: string | null, active: boolean) {
     const [status, setStatus] = useState<LiveStatus>(null);
     const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const progressTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const serverStatusReceivedRef = useRef(false);
 
     useEffect(() => {
         if (!active || !requestId) {
-            setStatus(null);
+            const timeout = setTimeout(() => {
+                setStatus(null);
+            }, 300);
             if (timerRef.current) clearInterval(timerRef.current);
-            return;
+            if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+            serverStatusReceivedRef.current = false;
+            return () => clearTimeout(timeout);
         }
 
+        serverStatusReceivedRef.current = false;
+
+        // Instant optimistic status so UI immediately renders the rich panel from t=0
+        const initialStatus: NonNullable<LiveStatus> = {
+            phase: "thinking",
+            message: "Connecting & loading financial profile…",
+            iteration: 0,
+            toolCalls: [],
+            updatedAt: Date.now(),
+        };
+        setStatus(initialStatus);
+
         let cancelled = false;
+        let progressStep = 0;
+        const progressSteps = [
+            "Connecting & loading financial profile…",
+            "Analyzing recent transactions & categories…",
+            "Checking budget limits & active goals…",
+            "Evaluating cashflow & financial profile…",
+            "Synthesizing personalized advice…",
+        ];
+
+        // Fallback progress updater in case server is doing heavy DB queries before first status write
+        progressTimerRef.current = setInterval(() => {
+            if (cancelled || serverStatusReceivedRef.current) return;
+            progressStep = Math.min(progressStep + 1, progressSteps.length - 1);
+            setStatus((prev) => {
+                if (serverStatusReceivedRef.current && prev) return prev;
+                return {
+                    phase: progressStep >= 4 ? "processing" : "thinking",
+                    message: progressSteps[progressStep],
+                    iteration: 0,
+                    toolCalls: [],
+                    updatedAt: Date.now(),
+                };
+            });
+        }, 1600);
 
         async function poll() {
             if (cancelled) return;
             try {
                 const res = await fetch(
-                    apiUrl(`/api/ai/advisor/status?requestId=${encodeURIComponent(requestId!)}`)
+                    apiUrl(`/api/ai/advisor/status?requestId=${encodeURIComponent(requestId!)}`),
+                    {
+                        headers: {
+                            "Cache-Control": "no-cache",
+                            "Pragma": "no-cache",
+                        },
+                    }
                 );
                 if (!res.ok || cancelled) return;
                 const data = await res.json();
                 if (data && data.type === "status") {
+                    serverStatusReceivedRef.current = true;
                     setStatus(data as LiveStatus);
                 }
             } catch {
@@ -213,6 +280,7 @@ function useAdvisorStatusPoller(requestId: string | null, active: boolean) {
         return () => {
             cancelled = true;
             if (timerRef.current) clearInterval(timerRef.current);
+            if (progressTimerRef.current) clearInterval(progressTimerRef.current);
         };
     }, [requestId, active]);
 
@@ -595,14 +663,18 @@ export default function AdvisorOverlay() {
                         </View>
                     ))}
 
-                    {/* Live status panel (shown while loading, data from Redis poll) */}
-                    {loading && liveStatus ? (
-                        <LiveStatusPanel status={liveStatus} />
-                    ) : loading ? (
-                        <View style={styles.loadingRow}>
-                            <OrbitingLoader color="#60a5fa" />
-                            <Text style={styles.loadingText}>Advisor is working…</Text>
-                        </View>
+                    {/* Live status panel (shown while loading, data from status poll) */}
+                    {loading ? (
+                        <LiveStatusPanel
+                            status={
+                                liveStatus ?? {
+                                    phase: "thinking",
+                                    message: "Connecting & loading financial profile…",
+                                    iteration: 0,
+                                    toolCalls: [],
+                                }
+                            }
+                        />
                     ) : null}
                 </ScrollView>
 

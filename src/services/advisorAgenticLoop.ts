@@ -58,23 +58,37 @@ function describeToolCall(name: string, args: Record<string, unknown>): string {
         case "queryGoals":
             return "Reading financial goals";
         case "querySubscriptions":
-            return "Reading subscriptions";
+            return "Reading recurring subscriptions";
         case "queryCategories":
-            return "Loading categories";
+            return "Loading category structure";
         case "queryBudgets":
-            return "Reading category budgets";
+            return "Reading category budgets & limits";
         case "addBudget":
-            return "Creating new budget";
+            return `Creating budget for ${args.categoryName || "category"}`;
         case "updateBudget":
-            return "Updating budget";
+            return "Updating budget limit";
         case "deleteBudget":
-            return "Deleting budget";
+            return "Removing category budget";
+        case "addTransaction":
+            return `Recording transaction (${args.merchant || "entry"} $${args.amount || ""})`;
+        case "updateTransaction":
+            return "Updating transaction record";
+        case "deleteTransaction":
+            return "Deleting transaction record";
+        case "addGoal":
+            return `Adding financial goal (${args.title || ""})`;
+        case "updateGoal":
+            return "Updating financial goal";
+        case "deleteGoal":
+            return "Deleting financial goal";
         case "getFinancialProfile":
-            return "Reading financial profile";
+            return "Reading financial profile & balances";
+        case "updateFinancialProfile":
+            return "Updating financial profile parameters";
         case "queryMemories":
-            return "Searching memory";
+            return "Searching stored AI memory";
         case "queryInsights":
-            return "Loading insights";
+            return "Loading financial insights & trends";
         default:
             return `Querying database (${name})`;
     }
@@ -89,9 +103,12 @@ function countRows(data: unknown): number | undefined {
     if (Array.isArray(d.goals)) return d.goals.length;
     if (Array.isArray(d.subscriptions)) return d.subscriptions.length;
     if (Array.isArray(d.categories)) return d.categories.length;
+    if (Array.isArray(d.budgets)) return d.budgets.length;
     if (Array.isArray(d.memories)) return d.memories.length;
     if (Array.isArray(d.insights)) return d.insights.length;
     if (Array.isArray(d.results)) return d.results.length;
+    if (d.profile) return 1;
+    if (d.transaction) return 1;
     return undefined;
 }
 

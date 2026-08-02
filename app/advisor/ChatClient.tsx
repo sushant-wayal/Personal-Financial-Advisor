@@ -20,7 +20,7 @@ type LiveStatus = {
     toolCalls: ToolCallState[];
 } | null;
 
-const POLL_INTERVAL_MS = 1500;
+const POLL_INTERVAL_MS = 450;
 
 function toolLabel(name: string): string {
     const map: Record<string, string> = {
@@ -30,8 +30,26 @@ function toolLabel(name: string): string {
         querySubscriptions: "Subscriptions",
         queryCategories: "Categories",
         getFinancialProfile: "Financial Profile",
-        queryMemories: "Memory",
-        queryInsights: "Insights",
+        queryMemories: "AI Memory",
+        queryInsights: "Financial Insights",
+        queryBudgets: "Category Budgets",
+        addBudget: "Create Budget",
+        updateBudget: "Update Budget",
+        deleteBudget: "Delete Budget",
+        addTransaction: "Add Transaction",
+        updateTransaction: "Update Transaction",
+        deleteTransaction: "Delete Transaction",
+        addGoal: "Add Goal",
+        updateGoal: "Update Goal",
+        deleteGoal: "Delete Goal",
+        updateFinancialProfile: "Update Profile",
+        addSubscription: "Add Subscription",
+        updateSubscription: "Update Subscription",
+        deleteSubscription: "Delete Subscription",
+        addCategorizationRule: "Add Rule",
+        deleteCategorizationRule: "Delete Rule",
+        getDatabaseSchema: "Database Schema",
+        writeDatabaseRecord: "Database Record",
     };
     return map[name] ?? name;
 }
@@ -130,7 +148,7 @@ function LiveStatusPanel({ status }: { status: NonNullable<LiveStatus> }) {
 
                             {tc.done && tc.rowCount !== undefined ? (
                                 <span className="shrink-0 font-mono text-[10px] text-emerald-500">
-                                    {tc.rowCount} rows
+                                    {tc.rowCount} {tc.rowCount === 1 ? "row" : "rows"}
                                 </span>
                             ) : !tc.done ? (
                                 <span className="shrink-0 font-mono text-[10px] text-zinc-600">
@@ -148,26 +166,73 @@ function LiveStatusPanel({ status }: { status: NonNullable<LiveStatus> }) {
 function useStatusPoller(requestId: string | null, active: boolean): LiveStatus {
     const [status, setStatus] = useState<LiveStatus>(null);
     const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const progressTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const serverStatusReceivedRef = useRef(false);
 
     useEffect(() => {
         if (!active || !requestId) {
-            // eslint-disable-next-line react-hooks/set-state-in-effect
-            setStatus(null);
+            const timeout = setTimeout(() => {
+                setStatus(null);
+            }, 300);
             if (timerRef.current) clearInterval(timerRef.current);
-            return;
+            if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+            serverStatusReceivedRef.current = false;
+            return () => clearTimeout(timeout);
         }
 
+        serverStatusReceivedRef.current = false;
+
+        // Instant optimistic status for 0ms visual feedback
+        const initialStatus: NonNullable<LiveStatus> = {
+            phase: "thinking",
+            message: "Connecting & loading financial profile…",
+            iteration: 0,
+            toolCalls: [],
+        };
+        setStatus(initialStatus);
+
         let cancelled = false;
+        let progressStep = 0;
+        const progressSteps = [
+            "Connecting & loading financial profile…",
+            "Analyzing recent transactions & categories…",
+            "Checking budget limits & active goals…",
+            "Evaluating cashflow & financial profile…",
+            "Synthesizing personalized advice…",
+        ];
+
+        progressTimerRef.current = setInterval(() => {
+            if (cancelled || serverStatusReceivedRef.current) return;
+            progressStep = Math.min(progressStep + 1, progressSteps.length - 1);
+            setStatus((prev) => {
+                if (serverStatusReceivedRef.current && prev) return prev;
+                return {
+                    phase: progressStep >= 4 ? "processing" : "thinking",
+                    message: progressSteps[progressStep],
+                    iteration: 0,
+                    toolCalls: [],
+                };
+            });
+        }, 1600);
 
         async function poll() {
             if (cancelled) return;
             try {
                 const res = await fetch(
-                    `/api/ai/advisor/status?requestId=${encodeURIComponent(requestId!)}`
+                    `/api/ai/advisor/status?requestId=${encodeURIComponent(requestId!)}`,
+                    {
+                        headers: {
+                            "Cache-Control": "no-cache",
+                            "Pragma": "no-cache",
+                        },
+                    }
                 );
                 if (!res.ok || cancelled) return;
                 const data = await res.json();
-                if (data?.type === "status") setStatus(data as LiveStatus);
+                if (data?.type === "status") {
+                    serverStatusReceivedRef.current = true;
+                    setStatus(data as LiveStatus);
+                }
             } catch { }
         }
 
@@ -177,6 +242,7 @@ function useStatusPoller(requestId: string | null, active: boolean): LiveStatus 
         return () => {
             cancelled = true;
             if (timerRef.current) clearInterval(timerRef.current);
+            if (progressTimerRef.current) clearInterval(progressTimerRef.current);
         };
     }, [requestId, active]);
 
@@ -305,13 +371,19 @@ export default function ChatClient() {
                     ))}
                 </div>
 
-                {loading && liveStatus && (
+                {loading && (
                     <div className="mb-4 mt-2">
-                        <LiveStatusPanel status={liveStatus} />
+                        <LiveStatusPanel
+                            status={
+                                liveStatus ?? {
+                                    phase: "thinking",
+                                    message: "Connecting & loading financial profile…",
+                                    iteration: 0,
+                                    toolCalls: [],
+                                }
+                            }
+                        />
                     </div>
-                )}
-                {loading && !liveStatus && (
-                    <div className="mt-3 text-sm text-muted-foreground">Assistant is thinking…</div>
                 )}
             </div>
 

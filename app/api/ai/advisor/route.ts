@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { buildFinancialContext } from "../../../../src/services/aiContext";
 import { runAdvisorAgenticLoop } from "../../../../src/services/advisorAgenticLoop";
+import { setAdvisorStatus } from "../../../../src/lib/redis";
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
@@ -28,6 +29,15 @@ export async function POST(req: Request) {
             console.log(`[advisor] start requestId=${requestId}`);
         }
 
+        // 1. Immediately emit initial status before heavy DB operations start
+        await setAdvisorStatus(requestId, {
+            type: "status",
+            phase: "thinking",
+            message: "Connecting & loading financial profile…",
+            iteration: 0,
+            toolCalls: [],
+        });
+
         const normalizedHistory = (history as AdvisorHistoryInput[])
             .map((turn) => ({
                 question: typeof turn?.question === "string" ? turn.question : "",
@@ -43,7 +53,7 @@ export async function POST(req: Request) {
             }))
             .filter((turn) => turn.question || turn.response);
 
-        // Build initial financial context snapshot
+        // 2. Build initial financial context snapshot
         const context = await buildFinancialContext(200);
 
         // Run the agentic loop — writes status to Redis, returns final result
