@@ -29,7 +29,7 @@ export default function AddNetWorthScreen() {
 
   return (
     <Modal visible={true} animationType="slide" presentationStyle="fullScreen" onRequestClose={() => router.back()}>
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.backButton}>
             <MaterialIcons name="close" size={24} color="#fff" />

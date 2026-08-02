@@ -256,7 +256,7 @@ export default function NetWorthFormScreen() {
 
     return (
       <Modal visible={loading} transparent animationType="fade">
-        <View style={styles.loadingOverlayContainer}>
+        <SafeAreaView style={styles.loadingOverlayContainer} edges={["top", "bottom"]}>
           <View style={styles.loadingOverlayBox}>
              <Animated.View style={{ opacity: pulseAnim, marginBottom: 16 }}>
                <MaterialIcons name={isPredictable ? "auto-awesome" : "cloud-sync"} size={48} color="#05e777" />
@@ -265,7 +265,7 @@ export default function NetWorthFormScreen() {
              <Text style={styles.loadingOverlayDesc}>{desc}</Text>
              <ActivityIndicator size="small" color="#05e777" style={{ marginTop: 24 }} />
           </View>
-        </View>
+        </SafeAreaView>
       </Modal>
     );
   };

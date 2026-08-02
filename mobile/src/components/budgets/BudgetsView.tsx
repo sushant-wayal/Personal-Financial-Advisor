@@ -19,7 +19,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { API_BASE_URL } from "../../lib/apiBaseUrl";
 import { useCurrency, formatCurrencyAmount, formatIndianAmountInput, parseIndianAmountInput } from "../../providers/CurrencyProvider";
 import { beginHorizontalScroll, endHorizontalScroll } from "../../lib/horizontalScrollPriority";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { ConfirmModal } from "../ConfirmModal";
 import { BudgetsSkeleton } from "../LoadingSkeleton";
 
@@ -84,7 +84,6 @@ function CustomSwitch({ value, onValueChange }: { value: boolean; onValueChange:
 }
 
 export function BudgetsView() {
-  const insets = useSafeAreaInsets();
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -282,7 +281,7 @@ export function BudgetsView() {
 
       {modalVisible && (
         <Modal visible={modalVisible} transparent animationType="none" onRequestClose={closeSheet}>
-          <View style={styles.sheetOverlayWrap}>
+          <SafeAreaView style={styles.sheetOverlayWrap} edges={["bottom"]}>
             <TouchableWithoutFeedback onPress={closeSheet}>
               <Animated.View style={[styles.sheetBackdrop, { opacity: sheetAnim }]} />
             </TouchableWithoutFeedback>
@@ -357,7 +356,7 @@ export function BudgetsView() {
                   </View>
               </KeyboardAwareScrollView>
             </Animated.View>
-          </View>
+          </SafeAreaView>
         </Modal>
       )}
 

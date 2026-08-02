@@ -2046,10 +2046,6 @@ const styles = StyleSheet.create({
   actionOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.68)" },
   popupSafeArea: { flex: 1, backgroundColor: "transparent" },
   txActionSheet: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     borderTopWidth: 1,
@@ -2102,10 +2098,6 @@ const styles = StyleSheet.create({
   typeChangeCancel: { color: "#c4c7c8", fontFamily: "Inter", fontSize: fs(13), fontWeight: "700", textAlign: "center", paddingVertical: 6 },
   sheetOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.70)" },
   sheetContainer: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
     overflow: "hidden",
     backgroundColor: "#0A0A0A",
     borderTopLeftRadius: 24,
