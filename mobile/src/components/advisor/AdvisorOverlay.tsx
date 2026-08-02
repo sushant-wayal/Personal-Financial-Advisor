@@ -454,7 +454,8 @@ export default function AdvisorOverlay() {
                     <StatusBar barStyle="light-content" backgroundColor="#131313" />
             <KeyboardAvoidingView
                 style={styles.screen}
-                behavior="padding"
+                behavior={Platform.OS === "ios" ? "padding" : "height"}
+                keyboardVerticalOffset={insets.bottom}
             >
                 {/* Top bar */}
                 <View style={styles.topBar}>

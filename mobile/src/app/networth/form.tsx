@@ -282,7 +282,13 @@ export default function NetWorthFormScreen() {
           <View style={{ width: 40 }} />
         </View>
 
-        <KeyboardAwareScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+        <KeyboardAwareScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          enableOnAndroid
+          extraScrollHeight={24}
+        >
           <View style={styles.formCard}>
             {config.fields.map(renderField)}
           </View>

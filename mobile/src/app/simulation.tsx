@@ -136,7 +136,13 @@ export default function SimulationScreen() {
                     </View>
                 </View>
 
-                <KeyboardAwareScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                <KeyboardAwareScrollView
+                    contentContainerStyle={styles.content}
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                    enableOnAndroid
+                    extraScrollHeight={24}
+                >
                     <View style={styles.intro}>
                         <Text style={styles.pageTitle}>What-If Simulation</Text>
                     </View>

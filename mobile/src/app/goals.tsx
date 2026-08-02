@@ -1131,7 +1131,13 @@ function GoalSheet({
                 <MaterialIcons name="close" size={24} color="#c4c7c8" />
               </Pressable>
             </View>
-            <KeyboardAwareScrollView contentContainerStyle={styles.goalSheetBody} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <KeyboardAwareScrollView
+              contentContainerStyle={styles.goalSheetBody}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              enableOnAndroid
+              extraScrollHeight={24}
+            >
               <GoalInput label="Title" value={form.title} placeholder="e.g., Retirement Fund" icon="track-changes" onChangeText={(title) => update({ title })} />
               <GoalInput label="Target Amount" value={formatIndianAmountInput(form.targetAmount)} placeholder="0.00" keyboardType="numeric" prefix={currencySymbol} onChangeText={(targetAmount) => update({ targetAmount: parseIndianAmountInput(targetAmount) })} />
               {!editing ? <GoalInput label="Initial Allocation" value={formatIndianAmountInput(form.initialAllocation)} placeholder="0.00" keyboardType="numeric" prefix={currencySymbol} onChangeText={(initialAllocation) => update({ initialAllocation: parseIndianAmountInput(initialAllocation) })} /> : null}

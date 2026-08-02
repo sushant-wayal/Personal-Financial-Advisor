@@ -1150,7 +1150,7 @@ export default function TransactionsScreen() {
       ) : null}
 
       <Modal visible={!!actionTransaction} transparent animationType="fade" onRequestClose={() => setActionTransaction(null)}>
-        <View style={styles.popupSafeArea}>
+        <SafeAreaView style={styles.popupSafeArea} edges={["bottom"]}>
           <TouchableWithoutFeedback onPress={() => setActionTransaction(null)}>
             <View style={styles.actionOverlay} />
           </TouchableWithoutFeedback>
@@ -1207,7 +1207,7 @@ export default function TransactionsScreen() {
               <Text style={styles.txActionCancelText}>Cancel</Text>
             </Pressable>
           </View>
-        </View>
+        </SafeAreaView>
       </Modal>
 
       <Modal visible={!!originalsTarget} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setOriginalsTarget(null)}>
@@ -1467,7 +1467,14 @@ export default function TransactionsScreen() {
                 <MaterialIcons name="close" size={22} color="#c4c7c8" />
               </Pressable>
             </View>
-            <KeyboardAwareScrollView style={styles.addScroll} contentContainerStyle={styles.addContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <KeyboardAwareScrollView
+              style={styles.addScroll}
+              contentContainerStyle={styles.addContent}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              enableOnAndroid
+              extraScrollHeight={24}
+            >
               <Text style={styles.addHint}>
                 {clubSourceIds.length ? `${clubSourceIds.length} transactions will become one. Amount and time are calculated automatically.` : "Enter the details below. This uses the same spacing and rounded controls as the edit dialog."}
               </Text>

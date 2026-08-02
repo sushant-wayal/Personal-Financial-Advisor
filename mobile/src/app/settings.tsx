@@ -330,6 +330,9 @@ export default function SettingsScreen() {
           contentContainerStyle={styles.content}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} tintColor="#ffffff" />}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          enableOnAndroid
+          extraScrollHeight={24}
         >
           <View style={styles.profileCard}>
             <View style={styles.cardHeader}>

@@ -291,7 +291,12 @@ export function BudgetsView() {
                 <Text style={styles.sheetTitle}>{editingId ? "Edit Budget" : "New Budget"}</Text>
               </View>
 
-              <KeyboardAwareScrollView style={styles.sheetBody} keyboardShouldPersistTaps="handled">
+              <KeyboardAwareScrollView
+                style={styles.sheetBody}
+                keyboardShouldPersistTaps="handled"
+                enableOnAndroid
+                extraScrollHeight={24}
+              >
                   <View style={styles.formField}>
                     <Text style={styles.label}>Category</Text>
                     <ScrollView 
