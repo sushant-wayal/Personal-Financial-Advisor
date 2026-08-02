@@ -1,8 +1,17 @@
 import axios from "axios";
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
-const GEMINI_FLASH_MODEL = process.env.GEMINI_FLASH_MODEL || "gemini-2.5-flash";
-const GEMINI_PRO_MODEL = process.env.GEMINI_PRO_MODEL || "gemini-2.5-pro";
+function getApiKey() {
+    return process.env.GEMINI_API_KEY || "";
+}
+
+function getFlashModel() {
+    return process.env.GEMINI_FLASH_MODEL || "gemini-3.5-flash";
+}
+
+function getProModel() {
+    return process.env.GEMINI_PRO_MODEL || "gemini-3.5-flash";
+}
+
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 
 type GeminiMessage = { role: string; content: string };
@@ -31,7 +40,7 @@ export type GeminiWithToolsResponse = {
 };
 
 function buildGeminiUrl(model: string) {
-    return `${GEMINI_BASE_URL}/${model}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`;
+    return `${GEMINI_BASE_URL}/${model}:generateContent?key=${encodeURIComponent(getApiKey())}`;
 }
 
 export function buildGeminiRequest(promptOrMessages: string | GeminiMessage[], opts?: GeminiOptions) {
@@ -40,6 +49,8 @@ export function buildGeminiRequest(promptOrMessages: string | GeminiMessage[], o
             contents: [{ role: "user", parts: [{ text: promptOrMessages }] }],
             generationConfig: {
                 temperature: opts?.temperature ?? 0.2,
+                ...(opts?.responseMimeType ? { responseMimeType: opts.responseMimeType } : {}),
+                ...(opts?.responseSchema ? { responseSchema: opts.responseSchema } : {}),
             },
         };
     }
@@ -92,10 +103,13 @@ export async function generateText(
     promptOrMessages: string | GeminiMessage[],
     opts?: GeminiOptions
 ): Promise<GeminiResponse> {
-    if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY not set");
+    const apiKey = getApiKey();
+    if (!apiKey) throw new Error("GEMINI_API_KEY not set");
 
+    const flashModel = getFlashModel();
+    const defaultModel = opts?.complexity === "complex" ? getProModel() : flashModel;
     const body = buildGeminiRequest(promptOrMessages, opts);
-    const model = opts?.model || (opts?.complexity === "complex" ? GEMINI_PRO_MODEL : GEMINI_FLASH_MODEL);
+    let model = opts?.model || defaultModel;
 
     let lastError: unknown;
     for (let attempt = 0; attempt < 3; attempt++) {
@@ -116,10 +130,18 @@ export async function generateText(
             if (status && status >= 400) {
                 const body = error?.response?.data;
                 console.error(
-                    `[gemini] generateText failed (HTTP ${status}):`,
+                    `[gemini] generateText with model ${model} failed (HTTP ${status}):`,
                     typeof body === "object" ? JSON.stringify(body) : body
                 );
             }
+
+            // Automatic fallback to flashModel on 404 or 429 quota exhaustion
+            if ((status === 404 || status === 429) && model !== flashModel) {
+                console.warn(`[gemini] Falling back from ${model} to ${flashModel}`);
+                model = flashModel;
+                continue;
+            }
+
             const retryable = status === 429 || status === 503 || !status;
             if (!retryable || attempt === 2) {
                 throw error;
@@ -144,10 +166,13 @@ export async function generateTextWithTools(
     toolDeclarations: Record<string, unknown>[],
     opts?: GeminiOptions
 ): Promise<GeminiWithToolsResponse> {
-    if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY not set");
+    const apiKey = getApiKey();
+    if (!apiKey) throw new Error("GEMINI_API_KEY not set");
 
+    const flashModel = getFlashModel();
+    const defaultModel = opts?.complexity === "complex" ? getProModel() : flashModel;
     const body = buildGeminiRequest(promptOrMessages, opts);
-    const model = opts?.complexity === "complex" ? GEMINI_PRO_MODEL : GEMINI_FLASH_MODEL;
+    let model = opts?.model || defaultModel;
 
     // Attach tool declarations
     if (toolDeclarations.length > 0) {
@@ -192,10 +217,18 @@ export async function generateTextWithTools(
             if (status && status >= 400) {
                 const body = errObj?.response?.data;
                 console.error(
-                    `[gemini] generateTextWithTools failed (HTTP ${status}):`,
+                    `[gemini] generateTextWithTools with model ${model} failed (HTTP ${status}):`,
                     typeof body === "object" ? JSON.stringify(body) : body
                 );
             }
+
+            // Automatic fallback to flashModel on 404 or 429 quota exhaustion
+            if ((status === 404 || status === 429) && model !== flashModel) {
+                console.warn(`[gemini] Falling back from ${model} to ${flashModel}`);
+                model = flashModel;
+                continue;
+            }
+
             const retryable = status === 429 || status === 503 || !status;
             if (!retryable || attempt === 2) throw error;
             await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
@@ -204,3 +237,4 @@ export async function generateTextWithTools(
 
     throw lastError instanceof Error ? lastError : new Error("Failed to generate Gemini response with tools");
 }
+

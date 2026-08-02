@@ -35,7 +35,7 @@ A robust, local-first, single-user financial workspace built with Next.js, Prism
 - **Framework**: [Next.js 16](https://nextjs.org/) (App Router)
 - **Language**: TypeScript
 - **Database**: SQLite (default) / PostgreSQL via [Prisma ORM](https://www.prisma.io/)
-- **AI Integration**: Google Gemini API (`gemini-2.5-pro` and `gemini-2.5-flash`)
+- **AI Integration**: Google Gemini API (`gemini-3.5-flash`)
 - **Styling**: Tailwind CSS v4, [shadcn/ui](https://ui.shadcn.com/), Framer Motion
 - **State Management**: Zustand (Global state), TanStack React Query (Server state)
 - **Data Visualization**: Recharts
@@ -154,8 +154,8 @@ Ensure the following variables are set in your `.env` file:
 
 - `DATABASE_URL`: Connection string for the database (e.g., `file:./dev.db` or a Postgres URL).
 - `GEMINI_API_KEY`: **Required** for AI advisor, categorization, and extraction.
-- `GEMINI_FLASH_MODEL`: (Optional) Model for simple tasks. Defaults to `gemini-2.5-flash`.
-- `GEMINI_PRO_MODEL`: (Optional) Model for complex reasoning. Defaults to `gemini-2.5-pro`.
+- `GEMINI_FLASH_MODEL`: (Optional) Defaults to `gemini-3.5-flash`.
+- `GEMINI_PRO_MODEL`: (Optional) Defaults to `gemini-3.5-flash`.
 - `GOOGLE_CLIENT_ID`: (Optional) For Gmail OAuth sync.
 - `GOOGLE_CLIENT_SECRET`: (Optional) For Gmail OAuth sync.
 - `GOOGLE_REDIRECT_URI`: (Optional) Callback URL for Gmail OAuth.
