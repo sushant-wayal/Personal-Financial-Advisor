@@ -86,6 +86,12 @@ type EmergencyFundData = {
   estimatedCompletionDate: string | null;
   isComplete: boolean;
   monthlyCapacity: number;
+  efStrategy?: string;
+  efRatio?: number;
+  goalsRatio?: number;
+  tier?: number;
+  efMonthlyDrip?: number;
+  availableGoalCapacity?: number;
 };
 
 type Overview = {
@@ -678,13 +684,17 @@ function EmergencyFundWidget({ ef }: { ef?: EmergencyFundData }) {
                 <View>
                     <Text style={styles.efCleanTitle}>{isComplete ? "✅" : "🛡️"}  Emergency Fund</Text>
                     {!isComplete && (
-                        <View style={styles.efWarningBadge}>
-                            <Text style={styles.efWarningBadgeText}>⏸  GOALS PAUSED UNTIL FUNDED</Text>
+                        <View style={[styles.efWarningBadge, ef.goalsRatio && ef.goalsRatio > 0 ? { backgroundColor: "rgba(16, 185, 129, 0.15)", borderColor: "rgba(16, 185, 129, 0.4)" } : null]}>
+                            <Text style={[styles.efWarningBadgeText, ef.goalsRatio && ef.goalsRatio > 0 ? { color: "#6ee7b7" } : null]}>
+                                {ef.goalsRatio && ef.goalsRatio > 0
+                                    ? `⚡ DUAL-TRACK (${Math.round((ef.efRatio ?? 0.7) * 100)}% EF / ${Math.round((ef.goalsRatio ?? 0.3) * 100)}% GOALS)`
+                                    : "🔒 STRICT MODE: 100% EF DRIP"}
+                            </Text>
                         </View>
                     )}
                 </View>
                 <Text style={[styles.efCleanSubtitle, isComplete ? { color: "#6ee7b7" } : { color: "#fdba74" }]}>
-                    {isComplete ? "Fully Funded" : "Priority"}
+                    {isComplete ? "Fully Funded" : `Tier ${ef.tier ?? 2}`}
                 </Text>
             </View>
             
@@ -704,7 +714,9 @@ function EmergencyFundWidget({ ef }: { ef?: EmergencyFundData }) {
 
             <View style={styles.efFooter}>
                 <Text style={styles.efFooterText}>
-                    {isComplete ? `Target of ${ef.targetMonths} months of expenses achieved.` : `ETA: ${etaStr} • ${formatCurrency(ef.monthlyCapacity)}/M suggested`}
+                    {isComplete
+                        ? `Target of ${ef.targetMonths} months of expenses achieved.`
+                        : `EF Drip: ${formatCurrency(ef.efMonthlyDrip ?? ef.monthlyCapacity)}/mo • Goals Pool: ${formatCurrency(ef.availableGoalCapacity ?? 0)}/mo • ETA: ${etaStr}`}
                 </Text>
             </View>
 

@@ -24,6 +24,7 @@ type Profile = {
   currency?: string | null;
   balance?: number | null;
   emergencyFundMonths?: number | null;
+  efStrategy?: string | null;
   monthlyIncome?: number | null;
   monthlyExpenses?: number | null;
 };
@@ -33,12 +34,19 @@ type EmergencyFundData = {
   avgMonthlyExpenses: number;
   targetAmount: number;
   savedAmount: number;
+  availableBalance?: number;
   progressPct: number;
   shortfall: number;
   monthsToComplete: number | null;
   estimatedCompletionDate: string | null;
   isComplete: boolean;
   monthlyCapacity: number;
+  efStrategy?: string;
+  efRatio?: number;
+  goalsRatio?: number;
+  tier?: number;
+  efMonthlyDrip?: number;
+  availableGoalCapacity?: number;
 };
 
 type Memory = {
@@ -54,6 +62,7 @@ const blankProfile: Profile = {
   currency: DEFAULT_CURRENCY_CODE,
   balance: 0,
   emergencyFundMonths: 6,
+  efStrategy: "BALANCED",
   monthlyIncome: 0,
   monthlyExpenses: 0,
 };
@@ -83,6 +92,7 @@ async function saveProfileApi(profile: Profile): Promise<Profile> {
       ...profile,
       balance: Number(profile.balance ?? 0),
       emergencyFundMonths: Math.max(3, Number(profile.emergencyFundMonths ?? 6)),
+      efStrategy: profile.efStrategy || "BALANCED",
       monthlyIncome: Number(profile.monthlyIncome ?? 0),
       monthlyExpenses: Number(profile.monthlyExpenses ?? 0),
     }),
@@ -348,17 +358,14 @@ export default function SettingsScreen() {
               <SettingInput label="Monthly Expense" value={String(profile.monthlyExpenses ?? 0)} editable={false} />
             </View>
 
-            <View style={styles.efContainer}>
-              <View style={styles.efHeaderRow}>
-                <Text style={styles.efIcon}>🛡️</Text>
-                <View style={styles.efHeaderTexts}>
-                  <Text style={styles.efHeaderTitle}>Emergency Fund Configuration</Text>
-                  <Text style={styles.efHeaderSubtitle}>Set how many months your fund should cover. We calculate the required amount from your actual spending.</Text>
-                </View>
+            <View style={styles.efCleanSection}>
+              <View style={styles.efHeaderBlock}>
+                <Text style={styles.sectionKicker}>Emergency Reserve & Strategy</Text>
+                <Text style={styles.sectionSubtext}>Safety coverage and capital allocation.</Text>
               </View>
 
               <SettingInput
-                label="Coverage (months, min 3)"
+                label="Coverage (Months, Min 3)"
                 value={String(profile.emergencyFundMonths ?? 6)}
                 keyboardType="numeric"
                 onChangeText={(v) => {
@@ -367,43 +374,89 @@ export default function SettingsScreen() {
                 }}
               />
 
+              <View style={{ gap: 10 }}>
+                <Text style={styles.efSmallLabel}>Strategy</Text>
+                <View style={styles.segmentGrid}>
+                  {[
+                    { id: "BALANCED", label: "Balanced" },
+                    { id: "AGGRESSIVE_EF", label: "Aggressive" },
+                    { id: "ACCELERATED_GOALS", label: "Accelerated" },
+                    { id: "STRICT", label: "Strict" },
+                  ].map((tab) => {
+                    const active = (profile.efStrategy || "BALANCED") === tab.id;
+                    return (
+                      <Pressable
+                        key={tab.id}
+                        onPress={() => updateProfile({ efStrategy: tab.id })}
+                        style={[
+                          styles.segmentButton,
+                          active ? styles.segmentButtonActive : styles.segmentButtonInactive
+                        ]}
+                      >
+                        <Text style={[styles.segmentButtonText, active && { color: "#ffffff", fontWeight: "700" }]}>
+                          {tab.label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                <Text style={styles.efSplitHint}>
+                  {profile.efStrategy === "AGGRESSIVE_EF" && "85% EF • 15% Goals"}
+                  {profile.efStrategy === "ACCELERATED_GOALS" && "50% EF • 50% Goals"}
+                  {profile.efStrategy === "STRICT" && "100% EF • 0% Goals"}
+                  {(!profile.efStrategy || profile.efStrategy === "BALANCED") && "70% EF • 30% Goals"}
+                </Text>
+              </View>
+
               {efStatus && (
-                <View style={styles.efSummaryBox}>
-                  <View style={styles.efSummaryRow}>
-                    <Text style={styles.efSummaryLabel}>Avg monthly spending</Text>
-                    <Text style={styles.efSummaryValue}>{formatCurrency(efStatus.avgMonthlyExpenses, profile.currency ?? "INR")}</Text>
+                <View style={styles.efMetricsList}>
+                  <View style={styles.efMetricRow}>
+                    <Text style={styles.efMetricLabel} numberOfLines={1}>Expenses / mo</Text>
+                    <Text style={styles.efMetricValue} numberOfLines={1}>{formatCurrency(efStatus.avgMonthlyExpenses, profile.currency ?? "INR")}</Text>
                   </View>
-                  <View style={styles.efSummaryRow}>
-                    <Text style={styles.efSummaryLabel}>Target ({profile.emergencyFundMonths ?? 6} months)</Text>
-                    <Text style={styles.efSummaryTarget}>{formatCurrency(efStatus.targetAmount, profile.currency ?? "INR")}</Text>
+
+                  <View style={styles.efMetricRow}>
+                    <Text style={styles.efMetricLabel} numberOfLines={1}>Target ({profile.emergencyFundMonths ?? 6} mo)</Text>
+                    <Text style={styles.efMetricTarget} numberOfLines={1}>{formatCurrency(efStatus.targetAmount, profile.currency ?? "INR")}</Text>
                   </View>
-                  <View style={styles.efSummaryRow}>
-                    <Text style={styles.efSummaryLabel}>Saved (auto · from balance)</Text>
-                    <Text style={styles.efSummaryValue}>{formatCurrency(efStatus.savedAmount, profile.currency ?? "INR")}</Text>
+
+                  <View style={styles.efMetricRow}>
+                    <Text style={styles.efMetricLabel} numberOfLines={1}>EF Reserved</Text>
+                    <Text style={styles.efMetricValue} numberOfLines={1}>{formatCurrency(efStatus.savedAmount, profile.currency ?? "INR")}</Text>
                   </View>
-                  <View style={styles.efSummaryRow}>
-                    <Text style={styles.efSummaryLabel}>Shortfall</Text>
-                    <Text style={[styles.efSummaryValue, efStatus.shortfall > 0 ? styles.efShortfallText : styles.efCompleteText]}>
-                      {efStatus.shortfall > 0 ? `−${formatCurrency(efStatus.shortfall, profile.currency ?? "INR")}` : "✓ Fully funded"}
-                    </Text>
+
+                  <View style={styles.efMetricRow}>
+                    <Text style={styles.efMetricLabel} numberOfLines={1}>Goals Pool</Text>
+                    <Text style={styles.efMetricGreen} numberOfLines={1}>{formatCurrency(efStatus.availableBalance ?? 0, profile.currency ?? "INR")}</Text>
+                  </View>
+
+                  <View style={styles.efMetricRow}>
+                    <Text style={styles.efMetricLabel} numberOfLines={1}>EF Drip / mo</Text>
+                    <Text style={styles.efMetricValue} numberOfLines={1}>{formatCurrency(efStatus.efMonthlyDrip ?? 0, profile.currency ?? "INR")}</Text>
+                  </View>
+
+                  <View style={styles.efMetricRow}>
+                    <Text style={styles.efMetricLabel} numberOfLines={1}>Goals Drip / mo</Text>
+                    <Text style={styles.efMetricGreen} numberOfLines={1}>{formatCurrency(efStatus.availableGoalCapacity ?? 0, profile.currency ?? "INR")}</Text>
                   </View>
 
                   <View style={styles.efProgressContainer}>
                     <View style={styles.efProgressHeader}>
-                      <Text style={styles.efSummaryLabel}>Progress</Text>
-                      <Text style={styles.efSummaryLabel}>{efStatus.progressPct.toFixed(1)}%</Text>
+                      <Text style={styles.efMetricLabel} numberOfLines={1}>Tier {efStatus.tier ?? 2}</Text>
+                      <Text style={styles.efProgressPctText}>{efStatus.progressPct.toFixed(1)}%</Text>
                     </View>
                     <View style={styles.efProgressBarBg}>
                       <View
                         style={[
                           styles.efProgressBarFill,
-                          { width: `${Math.min(100, efStatus.progressPct)}%` },
-                          efStatus.isComplete ? { backgroundColor: "#7dffa2" } : { backgroundColor: "#fb923c" }
+                          {
+                            width: `${Math.min(100, efStatus.progressPct)}%`,
+                            backgroundColor: efStatus.isComplete ? "#7dffa2" : "#f97316"
+                          },
                         ]}
                       />
                     </View>
                   </View>
-                  <Text style={styles.efSummaryFooter}>Saved amount is auto-derived from your account balance.</Text>
                 </View>
               )}
             </View>
@@ -587,24 +640,26 @@ const styles = StyleSheet.create({
   inputGroup: { flex: 1 },
   inputLabel: { color: "#c4c7c8", fontFamily: "JetBrains Mono", fontSize: fs(12), lineHeight: 18, letterSpacing: 1.6, textTransform: "uppercase", marginBottom: 8 },
   underlineInput: { minHeight: 42, color: "#ffffff", borderBottomWidth: 1, borderBottomColor: "#333333", fontFamily: "Inter", fontSize: fs(16), lineHeight: 24, paddingVertical: 8 },
-  efContainer: { borderRadius: 12, borderWidth: 1, borderColor: "rgba(249, 115, 22, 0.2)", backgroundColor: "rgba(67, 20, 7, 0.1)", padding: 16, gap: 16 },
-  efHeaderRow: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
-  efIcon: { fontSize: fs(18), lineHeight: 24 },
-  efHeaderTexts: { flex: 1, gap: 4 },
-  efHeaderTitle: { color: "#fdba74", fontFamily: "Hanken Grotesk", fontSize: fs(15), lineHeight: 20, fontWeight: "700" },
-  efHeaderSubtitle: { color: "#8e9192", fontFamily: "Inter", fontSize: fs(13), lineHeight: 18 },
-  efSummaryBox: { borderRadius: 8, backgroundColor: "rgba(0, 0, 0, 0.2)", padding: 16, gap: 10 },
-  efSummaryRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  efSummaryLabel: { color: "#8e9192", fontFamily: "Inter", fontSize: fs(13), lineHeight: 18 },
-  efSummaryValue: { color: "#ffffff", fontFamily: "JetBrains Mono", fontSize: fs(13), lineHeight: 18, fontWeight: "500" },
-  efSummaryTarget: { color: "#fdba74", fontFamily: "JetBrains Mono", fontSize: fs(13), lineHeight: 18, fontWeight: "700" },
-  efShortfallText: { color: "#ffb4ab" },
-  efCompleteText: { color: "#7dffa2" },
-  efProgressContainer: { paddingTop: 4, gap: 6 },
-  efProgressHeader: { flexDirection: "row", justifyContent: "space-between" },
-  efProgressBarBg: { height: 6, borderRadius: 3, backgroundColor: "rgba(255, 255, 255, 0.1)" },
-  efProgressBarFill: { height: 6, borderRadius: 3 },
-  efSummaryFooter: { color: "#8e9192", fontFamily: "Inter", fontSize: fs(12), lineHeight: 16, paddingTop: 6 },
+  efCleanSection: { borderRadius: 12, borderWidth: 1, borderColor: "#333333", backgroundColor: "#1A1A1A", padding: 16, gap: 16 },
+  efHeaderBlock: { gap: 4 },
+  efSmallLabel: { color: "#8e9192", fontFamily: "Inter", fontSize: fs(12), marginBottom: 2 },
+  efSplitHint: { color: "#f97316", fontFamily: "JetBrains Mono", fontSize: fs(11), fontWeight: "600", textAlign: "center" },
+  segmentGrid: { flexDirection: "row", flexWrap: "wrap", gap: 6, padding: 4, borderRadius: 10, backgroundColor: "#111111", borderWidth: 1, borderColor: "#262626" },
+  segmentButton: { flexGrow: 1, flexBasis: "40%", paddingVertical: 10, paddingHorizontal: 6, borderRadius: 8, alignItems: "center", justifyContent: "center" },
+  segmentButtonActive: { backgroundColor: "#f97316" },
+  segmentButtonInactive: { backgroundColor: "transparent" },
+  segmentButtonText: { color: "#94a3b8", fontFamily: "Inter", fontSize: fs(12) },
+  efMetricsList: { paddingTop: 12, borderTopWidth: 1, borderTopColor: "#262626", gap: 10 },
+  efMetricRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  efMetricLabel: { flex: 1, flexShrink: 1, color: "#8e9192", fontFamily: "Inter", fontSize: fs(12) },
+  efMetricValue: { flexShrink: 0, color: "#ffffff", fontFamily: "JetBrains Mono", fontSize: fs(12), fontWeight: "500", textAlign: "right" },
+  efMetricTarget: { flexShrink: 0, color: "#fdba74", fontFamily: "JetBrains Mono", fontSize: fs(12), fontWeight: "700", textAlign: "right" },
+  efMetricGreen: { flexShrink: 0, color: "#7dffa2", fontFamily: "JetBrains Mono", fontSize: fs(12), fontWeight: "600", textAlign: "right" },
+  efProgressContainer: { paddingTop: 6, gap: 6 },
+  efProgressHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  efProgressPctText: { color: "#f97316", fontFamily: "JetBrains Mono", fontSize: fs(12), fontWeight: "700" },
+  efProgressBarBg: { height: 8, borderRadius: 4, backgroundColor: "#262626", overflow: "hidden" },
+  efProgressBarFill: { height: 8, borderRadius: 4 },
   senderBlock: { gap: 10, marginTop: 16 },
   senderChips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   senderChip: { maxWidth: "100%", borderRadius: 999, borderWidth: 1, borderColor: "#333333", backgroundColor: "#0A0A0A", paddingLeft: 12, paddingRight: 8, paddingVertical: 7, flexDirection: "row", alignItems: "center", gap: 8 },

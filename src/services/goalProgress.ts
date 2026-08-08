@@ -25,6 +25,7 @@ export type GoalProgressSignals = {
     availableBalance: number;
     currentBalance: number;
     monthlyCapacity: number;
+    availableGoalCapacity: number;
     monthlySavings: number;
     currentMonthSavingsRate: number;
     savingsRateChange: number;
@@ -32,6 +33,14 @@ export type GoalProgressSignals = {
     efIsComplete: boolean;
     /** The emergency fund target amount (targetMonths × avgMonthlyExpenses) */
     efTarget: number;
+    /** Monthly drip going into EF */
+    efMonthlyDrip: number;
+    /** EF Allocation ratio */
+    efRatio: number;
+    /** Goals Allocation ratio */
+    goalsRatio: number;
+    /** Selected EF strategy preset */
+    efStrategy: string;
 };
 
 export type DerivedGoalProgress = GoalProgressSeed & {
@@ -99,10 +108,8 @@ export async function buildGoalProgressSignals(): Promise<GoalProgressSignals> {
 
     const currentBalanceValue = Number(profile?.balance || 0);
 
-    // Use the EF status (which uses burn rate as its expense source) as the
-    // authoritative reservation. availableBalance is what remains after EF is
-    // filled — if EF is not yet complete the full balance is reserved for it.
-    const availableBalance = Math.max(0, currentBalanceValue - efStatus.savedAmount);
+    // Available balance = unreserved balance after deducting EF saved amount
+    const availableBalance = efStatus.availableBalance;
 
     const monthlyCapacity = Math.max(
         0,
@@ -116,19 +123,44 @@ export async function buildGoalProgressSignals(): Promise<GoalProgressSignals> {
         availableBalance,
         currentBalance: currentBalanceValue,
         monthlyCapacity,
+        availableGoalCapacity: efStatus.availableGoalCapacity,
         monthlySavings: savingsRate.monthlySavings,
         currentMonthSavingsRate: savingsRate.currentMonthSavingsRate,
         savingsRateChange: savingsRate.savingsRateChange,
         efIsComplete: efStatus.isComplete,
         efTarget: efStatus.targetAmount,
+        efMonthlyDrip: efStatus.efMonthlyDrip,
+        efRatio: efStatus.efRatio,
+        goalsRatio: efStatus.goalsRatio,
+        efStrategy: efStatus.efStrategy,
     };
 }
 
 export function deriveGoalProgress(goals: GoalProgressSeed[], signals: GoalProgressSignals): DerivedGoalProgress[] {
+    // Balance Safeguard: Enforce that total allocated across EF + all goals does not exceed user's current balance.
+    const maxGoalPoolFundable = signals.availableBalance;
+    const totalSeededGoalAmount = goals.reduce((sum, g) => sum + Math.max(0, Number(g.currentAmount || 0)), 0);
+
     const normalizedGoals = goals.map((goal) => {
         const monthsLeft = monthsUntil(goal.targetDate);
-        const seedAmount = Math.max(0, Number(goal.currentAmount || 0));
-        const requiredMonthly = estimateGoalMonthlyNeed(goal, monthsLeft);
+        const rawSeed = Math.max(0, Number(goal.currentAmount || 0));
+        let seedAmount = rawSeed;
+
+        if (totalSeededGoalAmount > 0) {
+            // Apply balance scale if total explicit goal seeds exceed available balance
+            const balanceScale = totalSeededGoalAmount > maxGoalPoolFundable
+                ? maxGoalPoolFundable / totalSeededGoalAmount
+                : 1.0;
+            seedAmount = Math.min(goal.targetAmount, Math.round(rawSeed * balanceScale));
+        } else if (maxGoalPoolFundable > 0 && goals.length > 0) {
+            // Distribute available balance pool across un-seeded goals by priority
+            const totalWeight = goals.reduce((wSum, g) => wSum + (6 - clamp(g.priority || 3, 1, 5)), 0);
+            const myWeight = 6 - clamp(goal.priority || 3, 1, 5);
+            const poolShare = totalWeight > 0 ? (maxGoalPoolFundable * myWeight) / totalWeight : maxGoalPoolFundable / goals.length;
+            seedAmount = Math.min(goal.targetAmount, Math.round(poolShare));
+        }
+
+        const requiredMonthly = estimateGoalMonthlyNeed({ ...goal, currentAmount: seedAmount }, monthsLeft);
         return {
             ...goal,
             monthsLeft,
@@ -149,33 +181,29 @@ export function deriveGoalProgress(goals: GoalProgressSeed[], signals: GoalProgr
             currentAmount: goal.seedAmount,
             progressPct: goal.targetAmount > 0 ? (goal.seedAmount / goal.targetAmount) * 100 : 0,
         })),
-        signals.monthlyCapacity,
+        signals.availableGoalCapacity,
         { strategy: "utility" },
     );
 
     const behaviorMultiplier = clamp(0.75 + signals.currentMonthSavingsRate / 100 + signals.savingsRateChange / 200, 0.5, 1.5);
 
     return normalizedGoals.map((goal) => {
-        // derivedCurrentAmount = only the confirmed amount the user has recorded
-        // in the DB. We no longer add phantom "provisional growth" from the
-        // available balance — that caused EF + goal amounts to exceed the real
-        // balance when EF was not yet funded.
         const derivedCurrentAmount = Math.min(goal.targetAmount, goal.seedAmount);
 
         const forecast = estimateForecast({
             currentAmount: derivedCurrentAmount,
             targetAmount: goal.targetAmount,
             monthsLeft: goal.monthsLeft,
-            currentSavingsVelocity: signals.monthlyCapacity,
+            currentSavingsVelocity: signals.availableGoalCapacity,
         });
-        const health = computeHealthStatus(forecast.requiredMonthly, signals.monthlyCapacity);
-        const confidence = computeConfidenceScore(forecast.requiredMonthly, signals.monthlyCapacity, Math.abs(1 - behaviorMultiplier));
+        const health = computeHealthStatus(forecast.requiredMonthly, signals.availableGoalCapacity);
+        const confidence = computeConfidenceScore(forecast.requiredMonthly, signals.availableGoalCapacity, Math.abs(1 - behaviorMultiplier));
         const currency = goal.currency || signals.currency || "INR";
 
         const remaining = Math.max(0, goal.targetAmount - derivedCurrentAmount);
         const recommendations: string[] = [];
-        if (forecast.requiredMonthly > signals.monthlyCapacity) {
-            const deficit = Math.round(forecast.requiredMonthly - signals.monthlyCapacity);
+        if (forecast.requiredMonthly > signals.availableGoalCapacity) {
+            const deficit = Math.round(forecast.requiredMonthly - signals.availableGoalCapacity);
             recommendations.push(`Increase monthly savings by ${formatCurrency(deficit, currency)} to stay on pace`);
         } else if (remaining > 0) {
             recommendations.push("Current savings behavior supports this goal. Keep allocations steady.");

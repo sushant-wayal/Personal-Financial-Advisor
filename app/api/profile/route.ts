@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "../../../src/lib/prisma";
 import { calculateAveragedMonthlyIncomeAndExpense } from "../../../src/services/analytics";
 
+const VALID_EF_STRATEGIES = ["BALANCED", "AGGRESSIVE_EF", "ACCELERATED_GOALS", "STRICT"];
+
 export async function GET() {
     try {
         const profile = await prisma.financialProfile.findFirst();
@@ -12,7 +14,16 @@ export async function GET() {
             profile.monthlyExpenses = averages.monthlyExpenses;
         }
         
-        return NextResponse.json({ ok: true, profile: profile || { ...averages, balance: 0, emergencyFundMonths: 6, currency: "INR" } });
+        return NextResponse.json({
+            ok: true,
+            profile: profile || {
+                ...averages,
+                balance: 0,
+                emergencyFundMonths: 6,
+                efStrategy: "BALANCED",
+                currency: "INR"
+            }
+        });
     } catch (e: any) {
         return NextResponse.json({ error: e.message || String(e) }, { status: 500 });
     }
@@ -28,6 +39,12 @@ export async function PUT(req: Request) {
             return NextResponse.json({ error: "emergencyFundMonths must be an integer >= 3" }, { status: 400 });
         }
 
+        // Validate efStrategy if provided
+        const incomingStrategy = typeof body.efStrategy === "string" ? body.efStrategy.toUpperCase() : null;
+        if (incomingStrategy && !VALID_EF_STRATEGIES.includes(incomingStrategy)) {
+            return NextResponse.json({ error: `efStrategy must be one of: ${VALID_EF_STRATEGIES.join(", ")}` }, { status: 400 });
+        }
+
         const existing = await prisma.financialProfile.findFirst();
         if (existing) {
             const updated = await prisma.financialProfile.update({
@@ -37,6 +54,7 @@ export async function PUT(req: Request) {
                     currency: body.currency ?? existing.currency,
                     balance: typeof body.balance === "number" ? body.balance : existing.balance,
                     emergencyFundMonths: incomingMonths !== null ? incomingMonths : existing.emergencyFundMonths,
+                    efStrategy: incomingStrategy || existing.efStrategy || "BALANCED",
                 },
             });
             const averages = await calculateAveragedMonthlyIncomeAndExpense();
@@ -51,6 +69,7 @@ export async function PUT(req: Request) {
                 currency: body.currency || "INR",
                 balance: typeof body.balance === "number" ? body.balance : 0,
                 emergencyFundMonths: incomingMonths !== null ? incomingMonths : 6,
+                efStrategy: incomingStrategy || "BALANCED",
             },
         });
         const averages = await calculateAveragedMonthlyIncomeAndExpense();
@@ -61,4 +80,3 @@ export async function PUT(req: Request) {
         return NextResponse.json({ error: e.message || String(e) }, { status: 500 });
     }
 }
-

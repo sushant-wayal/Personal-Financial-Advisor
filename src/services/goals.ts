@@ -233,33 +233,41 @@ async function loadDerivedGoals() {
 
 export async function listGoals() {
     const { goals, signals } = await loadDerivedGoals();
-    return analyzeGoalConflicts(goals as GoalRecord[], signals.monthlyCapacity, signals.currency).goals;
+    return analyzeGoalConflicts(goals as GoalRecord[], signals.availableGoalCapacity, signals.currency).goals;
 }
 
 export async function getGoalOverview() {
-    // Run in parallel. buildGoalProgressSignals() calls getEmergencyFundStatus()
-    // internally for availableBalance. We also fetch it here directly to get the
-    // richer payload fields (monthsToComplete, estimatedCompletionDate, etc.)
-    // that the UI needs to render the EF card.
     const [{ goals, signals }, efStatus] = await Promise.all([
         loadDerivedGoals(),
         getEmergencyFundStatus(),
     ]);
 
-    // efIsComplete in signals is derived from the same getEmergencyFundStatus()
-    // call inside buildGoalProgressSignals — use it as the authoritative flag.
-    const effectiveCapacity = signals.efIsComplete ? signals.monthlyCapacity : 0;
+    const effectiveCapacity = signals.availableGoalCapacity;
 
     const overview = analyzeGoalConflicts(goals as GoalRecord[], effectiveCapacity, signals.currency);
 
     if (!signals.efIsComplete) {
-        const shortfallLabel = new Intl.NumberFormat("en-IN", { style: "currency", currency: signals.currency || "INR", maximumFractionDigits: 0 }).format(efStatus.shortfall);
-        overview.conflicts.unshift({
-            type: "budget" as const,
-            severity: "high" as const,
-            message: `Emergency fund is not yet complete (${efStatus.progressPct.toFixed(1)}% funded, ${shortfallLabel} remaining). All goal allocations are paused until the emergency fund reaches its target.`,
-            affectedGoalIds: goals.map((g) => g.id),
-        });
+        const efDripLabel = new Intl.NumberFormat("en-IN", { style: "currency", currency: signals.currency || "INR", maximumFractionDigits: 0 }).format(efStatus.efMonthlyDrip);
+        const goalPoolLabel = new Intl.NumberFormat("en-IN", { style: "currency", currency: signals.currency || "INR", maximumFractionDigits: 0 }).format(efStatus.availableGoalCapacity);
+        const efPct = Math.round((efStatus.efRatio || 0) * 100);
+        const goalsPct = Math.round((efStatus.goalsRatio || 0) * 100);
+
+        if (efStatus.goalsRatio > 0) {
+            overview.conflicts.unshift({
+                type: "budget" as const,
+                severity: "low" as const,
+                message: `Dual-Track Allocation Active (${efStatus.efStrategy} - Tier ${efStatus.tier}): ${efPct}% (${efDripLabel}/mo) is directed to your Emergency Fund, while ${goalsPct}% (${goalPoolLabel}/mo) is allocated across active goals.`,
+                affectedGoalIds: goals.map((g) => g.id),
+            });
+        } else {
+            const shortfallLabel = new Intl.NumberFormat("en-IN", { style: "currency", currency: signals.currency || "INR", maximumFractionDigits: 0 }).format(efStatus.shortfall);
+            overview.conflicts.unshift({
+                type: "budget" as const,
+                severity: "high" as const,
+                message: `Strict Protection Strategy Active: Emergency fund is not yet complete (${efStatus.progressPct.toFixed(1)}% funded, ${shortfallLabel} remaining). All goal allocations are paused until EF reaches target.`,
+                affectedGoalIds: goals.map((g) => g.id),
+            });
+        }
     }
 
     return { ...overview, emergencyFund: efStatus };
