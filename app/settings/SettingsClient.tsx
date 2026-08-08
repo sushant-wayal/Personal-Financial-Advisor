@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Download, FileText, Check, Loader2 } from "lucide-react";
 
 function formatCurrency(amount: number, currency = "INR") {
     return new Intl.NumberFormat("en-IN", { style: "currency", currency, maximumFractionDigits: 0 }).format(amount || 0);
@@ -18,6 +19,57 @@ export default function SettingsClient() {
     const [profile, setProfile] = useState<any>(null);
     const [savingProfile, setSavingProfile] = useState(false);
     const [efStatus, setEfStatus] = useState<any>(null);
+    const [exportStatus, setExportStatus] = useState<"idle" | "exporting" | "done" | "error">("idle");
+    const [exportStepText, setExportStepText] = useState("Gathering profile & accounts...");
+
+    async function exportContext() {
+        setExportStatus("exporting");
+        const steps = [
+            "Gathering profile & accounts...",
+            "Analyzing 90-day transactions...",
+            "Calculating net worth & goals...",
+            "Structuring budgets & subscriptions...",
+            "Formatting Markdown export..."
+        ];
+        let stepIdx = 0;
+        setExportStepText(steps[0]);
+
+        const interval = setInterval(() => {
+            stepIdx = (stepIdx + 1) % steps.length;
+            setExportStepText(steps[stepIdx]);
+        }, 350);
+
+        try {
+            const res = await fetch("/api/export-context");
+            const data = await res.json();
+            clearInterval(interval);
+
+            if (!res.ok || !data.ok) {
+                setExportStatus("error");
+                setMessage(data?.error || "Failed to export context.");
+                return;
+            }
+
+            setExportStepText("Downloading file...");
+            const blob = new Blob([data.content], { type: "text/markdown;charset=utf-8" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = data.filename || "financial-context.md";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            setExportStatus("done");
+            setTimeout(() => setExportStatus("idle"), 3000);
+        } catch (e: any) {
+            clearInterval(interval);
+            setExportStatus("error");
+            setMessage(String(e));
+            setTimeout(() => setExportStatus("idle"), 4000);
+        }
+    }
+
 
     useEffect(() => {
         let cancelled = false;
@@ -350,6 +402,78 @@ export default function SettingsClient() {
                     </CardContent>
                 </Card>
             </div>
+
+            {/* Export Financial Context Card */}
+            <Card className="border-border bg-gradient-to-br from-[#1A1A1A] to-[#111] lg:col-span-2">
+                <CardHeader>
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500/20 via-fuchsia-500/15 to-cyan-400/20 text-violet-300">
+                            <FileText size={20} />
+                        </div>
+                        <div>
+                            <CardTitle>Export for External LLMs</CardTitle>
+                            <CardDescription>Download full financial context file for ChatGPT, Claude, Gemini, etc.</CardDescription>
+                        </div>
+                    </div>
+                </CardHeader>
+                <CardContent>
+                    <div className="space-y-5">
+                        <div className="rounded-xl border border-white/5 bg-black/30 p-4 space-y-3">
+                            <p className="text-sm text-muted-foreground leading-relaxed">
+                                Export all your financial data — profile, transactions, net worth assets & liabilities, goals, budgets,
+                                subscriptions, and analytics — as a structured Markdown file ready for external AI models.
+                            </p>
+                            <div className="border-t border-white/5 pt-3 space-y-2">
+                                <span className="text-xs font-semibold text-violet-400 uppercase tracking-wider block">
+                                    💡 Sample questions to ask your external LLM:
+                                </span>
+                                <ul className="text-xs text-muted-foreground space-y-1 pl-1">
+                                    <li className="flex items-center gap-2">
+                                        <span className="text-violet-400">•</span>
+                                        <span>&ldquo;Analyze my 90-day spending patterns and suggest 3 areas to optimize.&rdquo;</span>
+                                    </li>
+                                    <li className="flex items-center gap-2">
+                                        <span className="text-violet-400">•</span>
+                                        <span>&ldquo;Can I afford a major purchase right now based on my runway and emergency fund?&rdquo;</span>
+                                    </li>
+                                    <li className="flex items-center gap-2">
+                                        <span className="text-violet-400">•</span>
+                                        <span>&ldquo;Evaluate my net worth asset allocation vs liabilities.&rdquo;</span>
+                                    </li>
+                                    <li className="flex items-center gap-2">
+                                        <span className="text-violet-400">•</span>
+                                        <span>&ldquo;Create a 6-month budget plan aligned with my financial goals.&rdquo;</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                            <Button
+                                onClick={exportContext}
+                                disabled={exportStatus === "exporting"}
+                                className="min-w-[240px] gap-2 rounded-lg bg-gradient-to-r from-violet-600 via-fuchsia-600 to-cyan-600 hover:from-violet-500 hover:to-cyan-500 text-white border-0 transition-all duration-300 font-medium"
+                            >
+                                {exportStatus === "exporting" && <Loader2 size={16} className="animate-spin" />}
+                                {exportStatus === "done" && <Check size={16} />}
+                                {exportStatus === "idle" && <Download size={16} />}
+                                {exportStatus === "error" && <Download size={16} />}
+                                {exportStatus === "exporting"
+                                    ? exportStepText
+                                    : exportStatus === "done"
+                                        ? "Downloaded Markdown!"
+                                        : "Export Financial Context"}
+                            </Button>
+                            {exportStatus === "error" && (
+                                <span className="text-xs text-destructive">Export failed. Try again.</span>
+                            )}
+                        </div>
+                        <p className="text-[11px] text-muted-foreground/60">
+                            The exported file contains your complete financial profile and transactions. Handle it with care.
+                        </p>
+                    </div>
+                </CardContent>
+            </Card>
         </div>
     );
 }

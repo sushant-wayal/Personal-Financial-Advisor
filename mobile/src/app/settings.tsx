@@ -3,6 +3,7 @@ import {
   Modal,
   Pressable,
   RefreshControl,
+  Share,
   StatusBar,
   StyleSheet,
   Text,
@@ -17,6 +18,8 @@ import { SettingsSkeleton, Skeleton } from "../components/LoadingSkeleton";
 import { DEFAULT_CURRENCY_CODE, useCurrency } from "../providers/CurrencyProvider";
 import { useUserProfile } from "../providers/UserProfileProvider";
 import { API_BASE_URL } from "../lib/apiBaseUrl";
+import * as FileSystem from "expo-file-system/legacy";
+import * as Sharing from "expo-sharing";
 import { clearClientCache, fetchCachedValue } from "../lib/clientCache";
 
 type Profile = {
@@ -189,6 +192,73 @@ export default function SettingsScreen() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [efStatus, setEfStatus] = useState<EmergencyFundData | null>(null);
+  const [exportStatus, setExportStatus] = useState<"idle" | "exporting" | "done" | "error">("idle");
+  const [exportStepText, setExportStepText] = useState("Gathering accounts...");
+
+  async function exportContext() {
+    setExportStatus("exporting");
+    setError(null);
+    const steps = [
+      "Gathering accounts...",
+      "Analyzing transactions...",
+      "Calculating net worth...",
+      "Structuring goals & budgets...",
+      "Writing Markdown file..."
+    ];
+    let stepIdx = 0;
+    setExportStepText(steps[0]);
+
+    const interval = setInterval(() => {
+      stepIdx = (stepIdx + 1) % steps.length;
+      setExportStepText(steps[stepIdx]);
+    }, 350);
+
+    try {
+      const res = await fetch(apiUrl("/api/export-context"));
+      const data = await res.json();
+      clearInterval(interval);
+
+      if (!res.ok || !data.ok) {
+        setExportStatus("error");
+        setError(data?.error || "Failed to export context.");
+        return;
+      }
+
+      const fileName = data.filename || `financial-context-${Date.now()}.md`;
+      const fileUri = `${FileSystem.cacheDirectory}${fileName}`;
+
+      await FileSystem.writeAsStringAsync(fileUri, data.content, {
+        encoding: FileSystem.EncodingType.UTF8,
+      });
+
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(fileUri, {
+          mimeType: "text/markdown",
+          dialogTitle: "Export Financial Context",
+          UTI: "public.plain-text",
+        });
+      } else {
+        await Share.share({
+          url: fileUri,
+          title: fileName,
+          message: data.content,
+        });
+      }
+
+      setExportStatus("done");
+      setMessage("Context file exported");
+      setTimeout(() => setExportStatus("idle"), 3000);
+    } catch (e: unknown) {
+      clearInterval(interval);
+      if ((e as any)?.message === "User did not share") {
+        setExportStatus("idle");
+        return;
+      }
+      setExportStatus("error");
+      setError(e instanceof Error ? e.message : String(e));
+      setTimeout(() => setExportStatus("idle"), 4000);
+    }
+  }
 
   const senderText = useMemo(() => senders.join(", "), [senders]);
 
@@ -538,6 +608,52 @@ export default function SettingsScreen() {
               </View>
             </View>
           </View>
+
+          {/* Export for LLM Section */}
+          <View style={styles.exportSection}>
+            <View style={styles.exportHeading}>
+              <View style={styles.exportIconWrap}>
+                <MaterialIcons name="description" size={20} color="#c084fc" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.memoryTitle}>Export for External LLMs</Text>
+                <Text style={styles.sectionSubtext}>Download or share file with ChatGPT, Claude, Gemini, etc.</Text>
+              </View>
+            </View>
+            <View style={styles.exportCard}>
+              <Text style={styles.exportDescription}>
+                Export all your financial data — profile, transactions, net worth assets & liabilities, goals, budgets, subscriptions, and analytics — as a clean Markdown file.
+              </Text>
+              <View style={styles.exportPromptsBox}>
+                <Text style={styles.exportPromptsTitle}>💡 SAMPLE QUESTIONS TO ASK YOUR LLM:</Text>
+                <Text style={styles.exportPromptItem}>• &quot;Analyze my 90-day spending patterns and suggest 3 areas to optimize.&quot;</Text>
+                <Text style={styles.exportPromptItem}>• &quot;Can I afford a major purchase right now based on my runway?&quot;</Text>
+                <Text style={styles.exportPromptItem}>• &quot;Evaluate my net worth asset allocation vs liabilities.&quot;</Text>
+                <Text style={styles.exportPromptItem}>• &quot;Create a 6-month budget plan aligned with my goals.&quot;</Text>
+              </View>
+              <Pressable
+                style={[styles.exportButton, exportStatus === "exporting" && { opacity: 0.8 }]}
+                disabled={exportStatus === "exporting"}
+                onPress={() => void exportContext()}
+              >
+                <MaterialIcons
+                  name={exportStatus === "done" ? "check-circle" : exportStatus === "exporting" ? "hourglass-top" : "file-download"}
+                  size={18}
+                  color="#ffffff"
+                />
+                {exportStatus === "exporting" ? (
+                  <Text style={styles.exportButtonText}>{exportStepText}</Text>
+                ) : exportStatus === "done" ? (
+                  <Text style={styles.exportButtonText}>Exported File!</Text>
+                ) : (
+                  <Text style={styles.exportButtonText}>Export Financial Context</Text>
+                )}
+              </Pressable>
+              <Text style={styles.exportFootnote}>
+                The exported file contains your complete financial data. Handle it with care.
+              </Text>
+            </View>
+          </View>
         </KeyboardAwareScrollView>
       )}
 
@@ -702,4 +818,15 @@ const styles = StyleSheet.create({
   memoryModalFooter: { padding: 24, borderTopWidth: 1, borderTopColor: "#333333", backgroundColor: "#1A1A1A" },
   deleteMemoryButton: { height: 54, borderRadius: 12, borderWidth: 1, borderColor: "rgba(255,82,82,0.35)", backgroundColor: "rgba(255,82,82,0.08)", alignItems: "center", justifyContent: "center" },
   deleteMemoryText: { color: "#ffb4ab", fontFamily: "JetBrains Mono", fontSize: fs(13), letterSpacing: 1.4, textTransform: "uppercase", fontWeight: "700" },
+  exportSection: { gap: 18 },
+  exportHeading: { flexDirection: "row", alignItems: "center", gap: 14 },
+  exportIconWrap: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(192,132,252,0.12)", borderWidth: 1, borderColor: "rgba(192,132,252,0.2)" },
+  exportCard: { borderRadius: 12, borderWidth: 1, borderColor: "#333333", backgroundColor: "#1A1A1A", padding: 20, gap: 16 },
+  exportDescription: { color: "#c4c7c8", fontFamily: "Inter", fontSize: fs(13), lineHeight: 20 },
+  exportPromptsBox: { padding: 14, borderRadius: 10, backgroundColor: "#111111", borderWidth: 1, borderColor: "#262626", gap: 6 },
+  exportPromptsTitle: { color: "#c084fc", fontFamily: "JetBrains Mono", fontSize: fs(11), fontWeight: "700", letterSpacing: 0.8 },
+  exportPromptItem: { color: "#94a3b8", fontFamily: "Inter", fontSize: fs(12), lineHeight: 18 },
+  exportButton: { height: 54, borderRadius: 10, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, overflow: "hidden", backgroundColor: "#7c3aed" },
+  exportButtonText: { color: "#ffffff", fontFamily: "JetBrains Mono", fontSize: fs(13), letterSpacing: 1.4, textTransform: "uppercase", fontWeight: "700" },
+  exportFootnote: { color: "rgba(142,145,146,0.5)", fontFamily: "Inter", fontSize: fs(11), lineHeight: 16, textAlign: "center" },
 });
