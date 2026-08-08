@@ -1,5 +1,5 @@
 import { prisma } from "../lib/prisma";
-import { getTransactionImpact } from "./balance";
+import { getTransactionImpact, getLast30DaysNetImpact } from "./balance";
 
 const INVALID_ANALYTICS_CATEGORIES = new Set(["bank", "transfer", "upi", "vpa", "paytm", "phonepe", "google pay", "gpay", "hdfc", "icici"]);
 const INCOME_TYPES = ["CREDIT", "CREDITED", "SALARY", "INCOME", "BONUS", "REFUND"];
@@ -103,29 +103,20 @@ export async function calculateCurrentBalance() {
 export async function calculateMonthlySavingsRate() {
     const now = new Date();
 
-    // --- Trailing 3-month window (months T-1, T-2, T-3) ---
-    // We intentionally exclude the current in-progress month so the rate is
-    // always based on complete data, eliminating the "0% on the 1st" bug.
-    const trailing3Months = [1, 2, 3].map((offset) =>
-        monthRange(new Date(now.getFullYear(), now.getMonth() - offset, 1))
-    );
-    const trailing3Totals = await Promise.all(
-        trailing3Months.map(({ start, end }) => aggregateMonthlyTotals(start, end))
-    );
-    const t3Income = trailing3Totals.reduce((s, t) => s + t.income, 0);
-    const t3Expenses = trailing3Totals.reduce((s, t) => s + t.expenses, 0);
-    const trailingSavingsRate = t3Income > 0 ? ((t3Income - t3Expenses) / t3Income) * 100 : 0;
+    // --- Primary window: Past 90 days (now - 90d to now) ---
+    const last90Start = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+    const last90Totals = await aggregateMonthlyTotals(last90Start, now);
+    const last90Income = last90Totals.income;
+    const last90Expenses = last90Totals.expenses;
+    const trailingSavingsRate = last90Income > 0 ? ((last90Income - last90Expenses) / last90Income) * 100 : 0;
 
-    // --- Preceding 3-month window (months T-4, T-5, T-6) for change comparison ---
-    const preceding3Months = [4, 5, 6].map((offset) =>
-        monthRange(new Date(now.getFullYear(), now.getMonth() - offset, 1))
-    );
-    const preceding3Totals = await Promise.all(
-        preceding3Months.map(({ start, end }) => aggregateMonthlyTotals(start, end))
-    );
-    const p3Income = preceding3Totals.reduce((s, t) => s + t.income, 0);
-    const p3Expenses = preceding3Totals.reduce((s, t) => s + t.expenses, 0);
-    const precedingSavingsRate = p3Income > 0 ? ((p3Income - p3Expenses) / p3Income) * 100 : 0;
+    // --- Comparison window: 31 to 120 days ago (now - 120d to now - 30d) ---
+    const comparisonStart = new Date(now.getTime() - 120 * 24 * 60 * 60 * 1000);
+    const comparisonEnd = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const comparisonTotals = await aggregateMonthlyTotals(comparisonStart, comparisonEnd);
+    const comparisonIncome = comparisonTotals.income;
+    const comparisonExpenses = comparisonTotals.expenses;
+    const precedingSavingsRate = comparisonIncome > 0 ? ((comparisonIncome - comparisonExpenses) / comparisonIncome) * 100 : 0;
 
     // --- Current calendar month actuals (kept for goal capacity / AI context) ---
     const { start: currentStart, end: currentEnd } = monthRange(now);
@@ -134,13 +125,7 @@ export async function calculateMonthlySavingsRate() {
     const monthlyExpenses = currentTotals.expenses;
     const monthlySavings = monthlyIncome - monthlyExpenses;
 
-    // --- Previous single month (kept for previousMonthHasData flag) ---
-    const { start: previousStart, end: previousEnd } = monthRange(
-        new Date(now.getFullYear(), now.getMonth() - 1, 1)
-    );
-    const previousTotals = await aggregateMonthlyTotals(previousStart, previousEnd);
-    const previousMonthHasData = previousTotals.count > 0;
-
+    const previousMonthHasData = comparisonTotals.count > 0;
     const savingsRateChange = trailingSavingsRate - precedingSavingsRate;
     const savingsRateChangeDirection = savingsRateChange > 0
         ? "increase"
@@ -149,21 +134,20 @@ export async function calculateMonthlySavingsRate() {
             : "neutral";
 
     return {
-        // Current-month actuals — used by goal capacity & AI context; not changed
+        // Current-month actuals — used by goal capacity & AI context
         monthlyIncome,
         monthlyExpenses,
         monthlySavings,
-        // Trailing 3-month average is now the primary savings rate signal
+        // Past 90-day rate is now the primary savings rate signal
         savingsRate: trailingSavingsRate,
         savingsMessage: savingsMessage(trailingSavingsRate),
         currentMonthSavingsRate: trailingSavingsRate,
-        // Preceding 3-month average used as "previous" for the change indicator
+        // Preceding 90-day window (days 31 to 120 ago) used as baseline for change comparison
         previousMonthSavingsRate: precedingSavingsRate,
         savingsRateChange,
         savingsRateChangeDirection,
         previousMonthHasData,
-        // Informational: lets the UI label the window correctly
-        trailingMonths: 3,
+        trailingDays: 90,
     };
 }
 
@@ -195,11 +179,14 @@ export async function calculateBurnRate() {
 }
 
 export async function calculateRunway() {
-    const balance = await calculateCurrentBalance();
+    const currentBalance = await calculateCurrentBalance();
+    const last30DaysDelta = await getLast30DaysNetImpact();
+    const previousBalance = currentBalance - last30DaysDelta;
+
     const burnData = await calculateBurnRate();
 
-    const runwayMonths = burnData.burnRate > 0 ? balance / burnData.burnRate : null;
-    const previousRunwayMonths = burnData.previousBurnRate > 0 ? balance / burnData.previousBurnRate : null;
+    const runwayMonths = burnData.burnRate > 0 ? currentBalance / burnData.burnRate : null;
+    const previousRunwayMonths = burnData.previousBurnRate > 0 ? previousBalance / burnData.previousBurnRate : null;
 
     let runwayChange = 0;
     let runwayChangeDirection: "increase" | "decrease" | "neutral" = "neutral";
@@ -392,7 +379,7 @@ function weekdayLabel(index: number) {
     return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][index] || "Unknown";
 }
 
-export async function spendingAcceleration(weeks = 12) {
+export async function spendingAcceleration(weeks = 5) {
     const now = new Date();
     const start = new Date(now.getTime() - weeks * 7 * 24 * 60 * 60 * 1000);
     const txs = await prisma.transaction.findMany({
@@ -419,12 +406,13 @@ export async function spendingAcceleration(weeks = 12) {
         .sort((a, b) => a[0].localeCompare(b[0]))
         .map(([week, expense]) => ({ week, expense: Math.round(expense) }));
 
-    const recentWindow = weekly.slice(-4);
-    const previousWindow = weekly.slice(-8, -4);
-    const recentAverage = recentWindow.length ? recentWindow.reduce((sum, item) => sum + item.expense, 0) / recentWindow.length : 0;
-    const previousAverage = previousWindow.length ? previousWindow.reduce((sum, item) => sum + item.expense, 0) / previousWindow.length : 0;
-    const recentWindowHasData = recentWindow.some((item) => item.expense > 0);
-    const previousWindowHasData = previousWindow.some((item) => item.expense > 0);
+    const currentWeekItem = weekly[weekly.length - 1];
+    const prior4Weeks = weekly.slice(0, Math.max(0, weekly.length - 1));
+
+    const recentAverage = currentWeekItem ? currentWeekItem.expense : 0;
+    const previousAverage = prior4Weeks.length ? prior4Weeks.reduce((sum, item) => sum + item.expense, 0) / prior4Weeks.length : 0;
+    const recentWindowHasData = (currentWeekItem?.expense ?? 0) > 0;
+    const previousWindowHasData = prior4Weeks.some((item) => item.expense > 0);
     const acceleration = recentAverage - previousAverage;
     const accelerationPercent = previousAverage > 0 ? (acceleration / previousAverage) * 100 : 0;
     const direction = acceleration > 0 ? "increase" : acceleration < 0 ? "decrease" : "neutral";
@@ -442,46 +430,78 @@ export async function spendingAcceleration(weeks = 12) {
 }
 
 export async function seasonalPatterns(days = 365) {
-    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    const now = new Date();
+    const since = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
     const txs = await prisma.transaction.findMany({
         where: { timestamp: { gte: since } },
         select: { amount: true, timestamp: true, type: true, transactionType: true },
         orderBy: { timestamp: "asc" },
     });
 
-    const weekdayTotals = Array.from({ length: 7 }, (_, index) => ({
-        day: weekdayLabel(index),
-        value: 0,
-    }));
-    const monthTotals = Array.from({ length: 12 }, (_, index) => ({
-        month: new Date(2024, index, 1).toLocaleString("en-US", { month: "short" }),
-        value: 0,
-    }));
+    const weekdayCounts = Array(7).fill(0);
+    const cursor = new Date(since.getFullYear(), since.getMonth(), since.getDate());
+    const endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    while (cursor <= endDate) {
+        weekdayCounts[cursor.getDay()]++;
+        cursor.setDate(cursor.getDate() + 1);
+    }
+
+    const weekdaySums = Array(7).fill(0);
+    const monthlyKeySums = new Map<string, number>();
 
     for (const tx of txs as AnalyticsTransaction[]) {
         const impact = getTransactionImpact(tx.amount || 0, tx.type, tx.transactionType);
         if (impact >= 0) continue;
         const date = new Date((tx as any).timestamp);
-        weekdayTotals[date.getDay()].value += Math.abs(impact);
-        monthTotals[date.getMonth()].value += Math.abs(impact);
+        const amount = Math.abs(impact);
+
+        weekdaySums[date.getDay()] += amount;
+
+        const yyyymm = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+        monthlyKeySums.set(yyyymm, (monthlyKeySums.get(yyyymm) || 0) + amount);
     }
 
-    const sortedWeekdays = weekdayTotals
-        .map((entry) => ({ ...entry, value: Math.round(entry.value) }))
-        .sort((a, b) => b.value - a.value);
-    const sortedMonths = monthTotals
-        .map((entry) => ({ ...entry, value: Math.round(entry.value) }))
-        .sort((a, b) => b.value - a.value);
+    const weekdayTotals = Array.from({ length: 7 }, (_, index) => {
+        const count = weekdayCounts[index] || 1;
+        const avgValue = weekdaySums[index] / count;
+        return {
+            day: weekdayLabel(index),
+            value: Math.round(avgValue),
+        };
+    });
 
-    const weekendValue = weekdayTotals[0].value + weekdayTotals[6].value;
-    const weekdayValue = weekdayTotals.slice(1, 6).reduce((sum, entry) => sum + entry.value, 0);
+    const monthCounts = Array(12).fill(0);
+    const monthSums = Array(12).fill(0);
+
+    for (const [yyyymm, sum] of monthlyKeySums.entries()) {
+        const monthIdx = Number(yyyymm.split("-")[1]) - 1;
+        monthSums[monthIdx] += sum;
+        monthCounts[monthIdx]++;
+    }
+
+    const monthTotals = Array.from({ length: 12 }, (_, index) => {
+        const count = monthCounts[index] || 1;
+        const avgValue = monthSums[index] / count;
+        return {
+            month: new Date(2024, index, 1).toLocaleString("en-US", { month: "short" }),
+            value: Math.round(avgValue),
+        };
+    });
+
+    const sortedWeekdays = [...weekdayTotals].sort((a, b) => b.value - a.value);
+    const sortedMonths = [...monthTotals].sort((a, b) => b.value - a.value);
+
+    const weekendAvg = (weekdayTotals[0].value + weekdayTotals[6].value) / 2;
+    const weekdayAvg = weekdayTotals.slice(1, 6).reduce((sum, entry) => sum + entry.value, 0) / 5;
+    const weekendShare = weekendAvg + weekdayAvg > 0 ? Math.round((weekendAvg / (weekendAvg + weekdayAvg)) * 100) : 0;
 
     return {
-        weekdayTotals: weekdayTotals.map((entry) => ({ ...entry, value: Math.round(entry.value) })),
-        monthTotals: monthTotals.map((entry) => ({ ...entry, value: Math.round(entry.value) })),
+        weekdayTotals,
+        monthTotals,
         peakWeekday: sortedWeekdays[0] || null,
         peakMonth: sortedMonths[0] || null,
-        weekendShare: weekendValue + weekdayValue > 0 ? Math.round((weekendValue / (weekendValue + weekdayValue)) * 100) : 0,
+        weekendShare,
         topWeekdays: sortedWeekdays.slice(0, 3),
         topMonths: sortedMonths.slice(0, 3),
     };

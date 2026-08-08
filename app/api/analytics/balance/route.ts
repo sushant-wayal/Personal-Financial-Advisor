@@ -1,21 +1,23 @@
 import { NextResponse } from "next/server";
 import { calculateCurrentBalance } from "../../../../src/services/analytics";
-import { getCurrentMonthNetImpact } from "../../../../src/services/balance";
+import { getLast30DaysNetImpact } from "../../../../src/services/balance";
 
 export async function GET() {
     try {
         const balance = await calculateCurrentBalance();
-        const lastMonthDelta = await getCurrentMonthNetImpact();
-        const previousBalance = balance - lastMonthDelta;
-        const percentChange = previousBalance !== 0
-            ? (lastMonthDelta / previousBalance) * 100
+        const last30DaysDelta = await getLast30DaysNetImpact();
+        const previousBalance = balance - last30DaysDelta;
+        const rawPercent = previousBalance !== 0
+            ? (last30DaysDelta / previousBalance) * 100
             : 0;
+        const percentChange = Math.round(rawPercent);
 
         return NextResponse.json({
             ok: true,
             data: {
                 balance,
-                lastMonthDelta,
+                lastMonthDelta: last30DaysDelta,
+                last30DaysDelta,
                 percentChange,
             },
         });

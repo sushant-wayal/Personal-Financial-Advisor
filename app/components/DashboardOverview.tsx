@@ -128,8 +128,8 @@ export default function DashboardOverview() {
     });
 
     const percentFormatter = new Intl.NumberFormat("en-IN", {
-        minimumFractionDigits: 1,
-        maximumFractionDigits: 1,
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
     });
 
     const gridMotion = {
@@ -159,7 +159,7 @@ export default function DashboardOverview() {
                             ) : (
                                 <div className={`mt-1 text-sm ${isPositive ? "text-emerald-400" : "text-rose-400"}`}>
                                     {isPositive ? "▲" : "▼"} {balanceFormatter.format(Math.abs(lastMonthDelta))}
-                                    {` (${percentFormatter.format(Math.abs(percentChange))}%) vs last month`}
+                                    {` (${percentFormatter.format(Math.abs(percentChange))}%) vs 30 days ago`}
                                 </div>
                             )}
                         </CardContent>
@@ -168,7 +168,7 @@ export default function DashboardOverview() {
                 <motion.div variants={itemMotion}>
                     <Card>
                         <CardHeader>
-                            <CardTitle className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Savings Rate (This Month)</CardTitle>
+                            <CardTitle className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">Savings Rate (Past 90 Days)</CardTitle>
                         </CardHeader>
                         <CardContent>
                             <div className="mt-3 text-3xl font-semibold text-white">
@@ -379,11 +379,11 @@ export default function DashboardOverview() {
                         <CardContent>
                             <div className="grid gap-3 sm:grid-cols-2">
                                 <div className="rounded-lg bg-slate-900/60 p-3">
-                                    <div className="text-xs text-slate-400">Recent average</div>
+                                    <div className="text-xs text-slate-400">This week</div>
                                     <div className="text-lg font-semibold text-white">{loadingAcceleration ? "..." : balanceFormatter.format(accelerationData?.recentAverage ?? 0)}</div>
                                 </div>
                                 <div className="rounded-lg bg-slate-900/60 p-3">
-                                    <div className="text-xs text-slate-400">Previous average</div>
+                                    <div className="text-xs text-slate-400">Prior 4-week average</div>
                                     <div className="text-lg font-semibold text-white">
                                         {loadingAcceleration
                                             ? "..."

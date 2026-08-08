@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { getTransactionImpact, updateProfileBalanceBy, getTransactionsNetImpact } from './balance';
+import { getTransactionImpact, updateProfileBalanceBy, getTransactionsNetImpact, getLast30DaysNetImpact } from './balance';
 import { prisma } from '../lib/prisma';
 
 // Mock prisma client
@@ -66,6 +66,18 @@ describe('balance service', () => {
       // Credits = 500, Total = 1200, Debits = 1200 - 500 = 700
       // Net Impact = Credits - Debits = 500 - 700 = -200
       expect(netImpact).toBe(-200);
+    });
+  });
+
+  describe('getLast30DaysNetImpact', () => {
+    it('queries transactions over the last 30 days', async () => {
+      (prisma.transaction.aggregate as any)
+        .mockResolvedValueOnce({ _sum: { amount: 1000 } })
+        .mockResolvedValueOnce({ _sum: { amount: 1000 } });
+
+      const netImpact = await getLast30DaysNetImpact();
+      expect(netImpact).toBe(1000);
+      expect(prisma.transaction.aggregate).toHaveBeenCalledTimes(2);
     });
   });
 });

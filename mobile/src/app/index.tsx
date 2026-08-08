@@ -210,7 +210,7 @@ async function loadDashboard(force = false): Promise<DashboardData> {
           ? (() => {
             const prev = resolvedBalance.balance - resolvedBalance.lastMonthDelta;
             const pct = prev !== 0 ? (resolvedBalance.lastMonthDelta / prev) * 100 : 0;
-            return { ...resolvedBalance, percentChange: Number(pct.toFixed(1)) };
+            return { ...resolvedBalance, percentChange: Math.round(pct) };
           })()
           : resolvedBalance;
 
@@ -902,15 +902,15 @@ function PatternCarousel({ seasonality, acceleration }: { seasonality: Seasonali
     <View style={styles.patternCard}>
       <View>
         <Text style={styles.carouselEyebrow}>SPENDING ACCELERATION</Text>
-        <Text style={styles.cardSubcopy}>Weekly spend compared to the prior 4 weeks</Text>
+        <Text style={styles.cardSubcopy}>This week compared to the prior 4-week average</Text>
       </View>
       <View style={styles.patternGrid}>
         <View style={styles.patternStatBox}>
-          <Text style={styles.patternStatLabel}>Recent avg</Text>
+          <Text style={styles.patternStatLabel}>This week</Text>
           <Text style={styles.patternStatValue}>{formatCompactCurrency(recentAverage)}</Text>
         </View>
         <View style={styles.patternStatBox}>
-          <Text style={styles.patternStatLabel}>Previous avg</Text>
+          <Text style={styles.patternStatLabel}>Prior 4wk avg</Text>
           <Text style={styles.patternStatValue}>{previousAverage === null ? "N/A" : formatCompactCurrency(previousAverage)}</Text>
         </View>
       </View>
@@ -1192,7 +1192,7 @@ export default function Index() {
             <Text style={styles.balanceValue}>{formatCurrency(balance.balance, 0)}</Text>
             <View style={styles.percentPill}>
               <MaterialIcons name={toMaterialIconName(balance.lastMonthDelta >= 0 ? "trending_up" : "trending_down")} size={14} color={balance.lastMonthDelta >= 0 ? "#7dffa2" : "#ffb4ab"} />
-              <Text style={[styles.percentText, balanceChangeColor]}>{`${Math.abs(balance.percentChange).toFixed(1)}%`}</Text>
+              <Text style={[styles.percentText, balanceChangeColor]}>{`${Math.round(Math.abs(balance.percentChange))}%`}</Text>
             </View>
           </View>
           {dashboard.networth && (

@@ -88,3 +88,15 @@ export async function getCurrentMonthNetImpact() {
         },
     });
 }
+
+export async function getLast30DaysNetImpact() {
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    return getTransactionsNetImpact({
+        timestamp: {
+            gte: thirtyDaysAgo,
+            lt: now,
+        },
+    });
+}
