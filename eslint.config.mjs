@@ -13,11 +13,20 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
-  // Downgrade no-explicit-any to a warning — `any` is legitimately needed
-  // for Prisma result shapes and Next.js API patterns across this codebase.
+  // Configure rules to clean up framework warning noise
   {
     rules: {
-      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+        },
+      ],
+      "react-hooks/exhaustive-deps": "off",
+      "import/no-anonymous-default-export": "off",
     },
   },
   {

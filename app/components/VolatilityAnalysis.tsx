@@ -56,7 +56,7 @@ export function VolatilityAnalysis({ isLoading = false }: VolatilityAnalysisProp
     useEffect(() => {
         // eslint-disable-next-line react-hooks/set-state-in-effect
         fetchRiskAnalysis();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
     }, []);
 
     const fetchCategorySensitivity = async (category: string) => {

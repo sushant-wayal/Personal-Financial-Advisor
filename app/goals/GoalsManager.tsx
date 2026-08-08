@@ -390,7 +390,7 @@ export default function GoalsManager() {
                     setAiLastRun(new Date().toISOString());
                     setAiLoading(false);
                 }
-            } catch (e) {
+            } catch {
                 // ignore status errors silently
             } finally {
                 if (mounted) setAiLoading(false);

@@ -24,7 +24,7 @@ export default function LoginPage() {
       } else {
         setError(result.error || 'Invalid password');
       }
-    } catch (err) {
+    } catch {
       setError('An error occurred. Please try again.');
     } finally {
       setLoading(false);

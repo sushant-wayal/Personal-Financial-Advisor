@@ -26,7 +26,7 @@ export async function adviseGoals({ persist = true } = {}) {
             if (meta?.goalId && !lastByGoal.has(meta.goalId)) {
                 lastByGoal.set(meta.goalId, { eta: meta.currentEta || meta.eta || null, createdAt: r.createdAt });
             }
-        } catch (e) {
+        } catch {
             // ignore
         }
     }

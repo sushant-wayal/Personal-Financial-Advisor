@@ -66,7 +66,7 @@ function monthsUntil(targetDate?: string | Date | null) {
     return Math.max(0, (target.getFullYear() - now.getFullYear()) * 12 + (target.getMonth() - now.getMonth()));
 }
 
-function monthsSince(date?: string | Date | null) {
+export function monthsSince(date?: string | Date | null) {
     if (!date) return 1;
     const started = new Date(date);
     const now = new Date();
@@ -137,7 +137,7 @@ export function deriveGoalProgress(goals: GoalProgressSeed[], signals: GoalProgr
         };
     });
 
-    const allocationPlan = allocateMonthlyCapacity(
+    const _allocationPlan = allocateMonthlyCapacity(
         normalizedGoals.map((goal) => ({
             id: goal.id,
             title: goal.title,
@@ -155,7 +155,7 @@ export function deriveGoalProgress(goals: GoalProgressSeed[], signals: GoalProgr
 
     const behaviorMultiplier = clamp(0.75 + signals.currentMonthSavingsRate / 100 + signals.savingsRateChange / 200, 0.5, 1.5);
 
-    return normalizedGoals.map((goal, index) => {
+    return normalizedGoals.map((goal) => {
         // derivedCurrentAmount = only the confirmed amount the user has recorded
         // in the DB. We no longer add phantom "provisional growth" from the
         // available balance — that caused EF + goal amounts to exceed the real

@@ -2,13 +2,11 @@
 import React, { useEffect, useRef } from "react";
 import { MaterialIcons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, View, Animated, Easing } from "react-native";
-import { usePathname } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAdvisorContext } from "../providers/AdvisorProvider";
 
 export default function AdvisorFab() {
-    const { isAdvisorOpen, openAdvisor } = useAdvisorContext();
-    const pathname = usePathname();
+    const { openAdvisor } = useAdvisorContext();
     const insets = useSafeAreaInsets();
 
     const anim1 = useRef(new Animated.Value(0)).current;

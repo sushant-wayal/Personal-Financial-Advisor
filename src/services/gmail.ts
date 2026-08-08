@@ -69,7 +69,7 @@ export async function getStoredTokens() {
             return await storeTokens({ ...tokens, ...newTokens });
         }
         return tokens;
-    } catch (e) { return null; }
+    } catch { return null; }
 }
 
 export async function withGmailAuth<T>(callback: (accessToken: string) => Promise<T>): Promise<T> {
@@ -229,7 +229,7 @@ export async function fetchUnreadFinancialEmails(accessToken: string, senders: s
                 snippet: fullBody,
                 internalDate: r.data.internalDate,
             });
-        } catch (e) {
+        } catch {
             // skip
         }
     }

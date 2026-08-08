@@ -9,7 +9,7 @@ interface GanttChartProps {
     showLegend?: boolean;
 }
 
-export function GanttChart({ data, height = 300, showLegend = true }: GanttChartProps) {
+export function GanttChart({ data, height: _height = 300, showLegend = true }: GanttChartProps) {
     const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     const monthLabels: string[] = [];
     let current = new Date(data.startDate);
@@ -23,7 +23,7 @@ export function GanttChart({ data, height = 300, showLegend = true }: GanttChart
 
     const pixelsPerMonth = Math.max(20, 800 / Math.max(1, data.numMonths));
     const rowHeight = 40;
-    const chartHeight = data.segments.length * rowHeight + 60 + (showLegend ? 40 : 0);
+    const _chartHeight = data.segments.length * rowHeight + 60 + (showLegend ? 40 : 0);
 
     function getSegmentPosition(segment: any): { left: number; width: number } {
         const startMonths = Math.round(monthsBetween(data.startDate, segment.startDate));
@@ -64,7 +64,7 @@ export function GanttChart({ data, height = 300, showLegend = true }: GanttChart
                 </div>
 
                 {/* Segments */}
-                {data.segments.map((segment, idx) => {
+                {data.segments.map((segment, _idx) => {
                     const { left, width } = getSegmentPosition(segment);
                     const progress = getProgressIndicator(segment);
                     const isOverdue = segment.endDate && segment.endDate < data.today;

@@ -1,10 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Platform,
   Modal,
   Pressable,
   RefreshControl,
-  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
@@ -224,7 +222,7 @@ export default function SettingsScreen() {
         if (mounted && d.ok) {
           setEfStatus(d);
         }
-      } catch (e) {
+      } catch {
         // ignore
       }
     })();

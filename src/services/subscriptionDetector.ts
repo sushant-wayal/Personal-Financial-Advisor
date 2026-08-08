@@ -13,7 +13,7 @@ export async function detectSubscriptions(minOccurrences = 3, tolerance = 0.1) {
     }
 
     const detected: any[] = [];
-    for (const [merchantKey, arr] of Object.entries(groups)) {
+    for (const [_merchantKey, arr] of Object.entries(groups)) {
         if (arr.length < minOccurrences) continue;
         // compute median amount
         const amounts = arr.map(a => Math.abs(a.amount)).sort((a, b) => a - b);

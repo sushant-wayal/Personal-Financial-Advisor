@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import prisma from "@/src/lib/prisma";
 import { getEnrichedBudgets } from "@/src/services/budgets";
 
-export async function GET(request: Request) {
+export async function GET(_request: Request) {
   try {
     const enrichedBudgets = await getEnrichedBudgets();
     return NextResponse.json({ ok: true, budgets: enrichedBudgets });

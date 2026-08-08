@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Animated,
-  Platform,
   Modal,
   Pressable,
   RefreshControl,
@@ -246,7 +245,7 @@ function parseDateKey(value?: string | null) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-function monthTitle(date: Date) {
+export function monthTitle(date: Date) {
   return new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" }).format(date);
 }
 
@@ -1103,7 +1102,7 @@ function GoalSheet({
     const date = selectedTargetDate && compareDateKeys(toDateKey(selectedTargetDate), todayKey) >= 0 ? selectedTargetDate : new Date();
     return new Date(date.getFullYear(), date.getMonth(), 1);
   });
-  const calendarDays = useMemo(() => buildCalendarDays(dateMonth), [dateMonth]);
+  const _calendarDays = useMemo(() => buildCalendarDays(dateMonth), [dateMonth]);
   const currencySymbol = getCurrencySymbol();
 
   function openDatePicker() {
@@ -1114,7 +1113,7 @@ function GoalSheet({
     setDatePickerVisible(true);
   }
 
-  function applyTargetDate() {
+  function _applyTargetDate() {
     update({ targetDate: compareDateKeys(dateDraft, todayKey) < 0 ? todayKey : dateDraft });
     setDatePickerVisible(false);
   }

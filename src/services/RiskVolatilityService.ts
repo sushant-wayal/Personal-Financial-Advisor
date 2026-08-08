@@ -512,7 +512,7 @@ export async function generateRiskPortfolioSummary(
 /**
  * Main orchestration function
  */
-export async function analyzeRiskAndVolatility(goals: any[] = []) {
+export async function analyzeRiskAndVolatility(_goals: any[] = []) {
     const patterns = await analyzeCategorySpendingPatterns(12);
     const profiles = await calculateCategoryRiskProfiles(patterns);
     const impacts = await analyzeCrossCategoryImpacts(patterns);

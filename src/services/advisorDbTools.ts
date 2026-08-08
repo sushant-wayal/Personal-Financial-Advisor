@@ -448,8 +448,8 @@ async function toolQueryTransactions(args: Record<string, unknown>): Promise<unk
     const category = safeString(args.category);
     const typeFilter = resolveTypeFilter(args.type);
     const dateBounds = resolveDateBounds(args);
-    const amountMin = Number.isFinite(Number(args.amountMin)) ? Number(args.amountMin) : undefined;
-    const amountMax = Number.isFinite(Number(args.amountMax)) ? Number(args.amountMax) : undefined;
+    const _amountMin = Number.isFinite(Number(args.amountMin)) ? Number(args.amountMin) : undefined;
+    const _amountMax = Number.isFinite(Number(args.amountMax)) ? Number(args.amountMax) : undefined;
 
     const sortBy = String(args.sortBy || "date");
     const sortDir = String(args.sortDir || "desc") === "asc" ? "asc" as const : "desc" as const;

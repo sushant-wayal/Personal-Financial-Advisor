@@ -180,7 +180,7 @@ function useStatusPoller(requestId: string | null, active: boolean): LiveStatus 
             return () => clearTimeout(timeout);
         }
 
-        serverStatusReceivedRef.current = false;
+        let cancelled = false;
 
         // Instant optimistic status for 0ms visual feedback
         const initialStatus: NonNullable<LiveStatus> = {
@@ -189,9 +189,11 @@ function useStatusPoller(requestId: string | null, active: boolean): LiveStatus 
             iteration: 0,
             toolCalls: [],
         };
-        setStatus(initialStatus);
-
-        let cancelled = false;
+        queueMicrotask(() => {
+            if (!cancelled) {
+                setStatus(initialStatus);
+            }
+        });
         let progressStep = 0;
         const progressSteps = [
             "Connecting & loading financial profile…",

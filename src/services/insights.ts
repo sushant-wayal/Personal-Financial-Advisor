@@ -152,7 +152,7 @@ export async function generateInsights(limit = 50) {
         try {
             const resp = await generateText(prompt, { temperature: 0.1, complexity: "simple" });
             await addInsight({ type: "ai_summary", message: resp.text, meta: resp.raw || null });
-        } catch (e) {
+        } catch {
             // ignore AI errors
         }
     }

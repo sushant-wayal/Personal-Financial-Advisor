@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   Animated,
   FlatList,
-  KeyboardAvoidingView,
   Platform,
   Modal,
   Pressable,
@@ -511,15 +510,15 @@ export default function TransactionsScreen() {
   const timeLabel = TIME_OPTIONS.find((option) => option.id === timeRange)?.label ?? "All Time";
   const customRangeLabel = timeRange === "custom" ? `${compactDateLabel(customFrom)} - ${compactDateLabel(customTo)}` : timeLabel;
   const calendarDays = useMemo(() => buildCalendarDays(visibleMonth), [visibleMonth]);
-  const addCalendarDays = useMemo(() => buildCalendarDays(addDateMonth), [addDateMonth]);
+  const _addCalendarDays = useMemo(() => buildCalendarDays(addDateMonth), [addDateMonth]);
   const todayKey = toDateKey(new Date());
   const nowHour = new Date().getHours();
   const nowMinute = new Date().getMinutes();
-  const addHourOptions = useMemo(() => {
+  const _addHourOptions = useMemo(() => {
     const maxHour = addDateKey === todayKey ? nowHour : 23;
     return Array.from({ length: maxHour + 1 }, (_, index) => String(index).padStart(2, "0"));
   }, [addDateKey, nowHour, todayKey]);
-  const addMinuteOptions = useMemo(() => {
+  const _addMinuteOptions = useMemo(() => {
     const maxMinute = addDateKey === todayKey && Number(addHour) === nowHour ? nowMinute : 59;
     return Array.from({ length: maxMinute + 1 }, (_, index) => String(index).padStart(2, "0"));
   }, [addDateKey, addHour, nowHour, nowMinute, todayKey]);

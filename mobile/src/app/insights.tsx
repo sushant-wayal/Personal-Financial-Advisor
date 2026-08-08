@@ -66,7 +66,7 @@ export default function InsightsScreen() {
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [metricIndex, setMetricIndex] = useState(0);
-    const [activeTab, setActiveTab] = useState<"INSIGHTS" | "BUDGETS">("INSIGHTS");
+    const [_activeTab, _setActiveTab] = useState<"INSIGHTS" | "BUDGETS">("INSIGHTS");
 
     const cardWidth = Math.max(280, width - 48);
     const metricInsights = useMemo(() => insights.filter((item) => item.type !== "ai_summary"), [insights]);

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { decrypt } from './src/lib/session';
 
-const protectedRoutes = ['/']; // We will actually protect everything by default
+const _protectedRoutes = ['/']; // We will actually protect everything by default
 const publicRoutes = ['/login'];
 
 export async function middleware(request: NextRequest) {

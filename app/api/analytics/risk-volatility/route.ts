@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
         if (category) {
             // Specific category sensitivity analysis
             const patterns = await analyzeCategorySpendingPatterns(months);
-            const profiles = await calculateCategoryRiskProfiles(patterns);
+            const _profiles = await calculateCategoryRiskProfiles(patterns);
 
             if (!patterns.has(category)) {
                 return NextResponse.json(

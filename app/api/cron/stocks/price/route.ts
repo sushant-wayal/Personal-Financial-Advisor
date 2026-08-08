@@ -11,7 +11,7 @@ function getYahooFinanceSymbol(symbol: string, exchange: string): string {
     return symbol;
 }
 
-export async function GET(req: Request) {
+export async function GET(_req: Request) {
     try {
         console.info("[cron] Starting daily Stock price update");
 

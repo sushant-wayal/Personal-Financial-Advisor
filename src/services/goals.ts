@@ -2,7 +2,6 @@ import { prisma } from "../lib/prisma";
 import { estimateForecast } from "./GoalForecastService";
 import { computeHealthStatus, computeConfidenceScore } from "./GoalFeasibilityService";
 import { allocateMonthlyCapacity, simulateCapacityShift } from "./GoalAllocationService";
-import { impactMessageForChange } from "./GoalInsightService";
 import { buildGoalProgressSignals, deriveGoalProgress } from "./goalProgress";
 import { getEmergencyFundStatus } from "./emergencyFund";
 
@@ -96,7 +95,6 @@ export function analyzeGoalConflicts(goals: GoalRecord[], monthlyCapacity: numbe
     const goalSummaries = goals.map((goal) => {
         const currency = resolvedCurrency(goal, fallbackCurrency);
         const monthsLeft = monthsUntil(goal.targetDate) ?? null;
-        const remaining = Math.max(0, goal.targetAmount - goal.currentAmount);
 
         // estimate forecast using observed monthly capacity as a proxy for savings velocity
         const forecast = estimateForecast({

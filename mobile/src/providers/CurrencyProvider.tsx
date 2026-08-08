@@ -45,7 +45,7 @@ export function formatIndianNumber(value: number, digits = 0): string {
     const absValue = Math.abs(value);
     const fixedStr = absValue.toFixed(digits);
     const parts = fixedStr.split(".");
-    let intPart = parts[0];
+    const intPart = parts[0];
     const decPart = parts[1];
 
     let result = intPart;

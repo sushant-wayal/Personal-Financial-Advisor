@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from "react";
-import { Platform, View, Text, StyleSheet, Pressable, TextInput, ActivityIndicator, Alert, Animated, Modal, StatusBar } from "react-native";
+import React, { useState, useEffect } from "react";
+import { View, Text, StyleSheet, Pressable, TextInput, ActivityIndicator, Alert, Animated, Modal, StatusBar } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
@@ -63,7 +63,7 @@ export default function NetWorthFormScreen() {
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [datePickerField, setDatePickerField] = useState<string | null>(null);
   
-  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const [pulseAnim] = useState(() => new Animated.Value(1));
 
   useEffect(() => {
     if (loading) {

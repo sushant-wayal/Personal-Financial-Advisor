@@ -662,10 +662,10 @@ export default function TransactionsClient() {
                 </DropdownMenu>
             ),
             enableSorting: false,
-            enableHiding: false,
         },
     ], [handleEditOpen, handleDeleteOpen]);
 
+    // eslint-disable-next-line react-hooks/incompatible-library
     const table = useReactTable({
         data: transactions,
         columns,

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/src/lib/prisma";
 
-export async function GET(req: Request) {
+export async function GET(_req: Request) {
     try {
         console.info("[cron] Starting daily Mutual Fund NAV update");
 

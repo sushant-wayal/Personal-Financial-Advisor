@@ -24,7 +24,7 @@ export const SPENDING_CATEGORIES = [
     "Miscellaneous",
 ] as const;
 
-type SpendingCategory = typeof SPENDING_CATEGORIES[number];
+export type SpendingCategory = typeof SPENDING_CATEGORIES[number];
 
 type CategoryResult = {
     category: string;

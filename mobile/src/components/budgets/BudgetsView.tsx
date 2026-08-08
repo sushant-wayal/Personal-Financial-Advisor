@@ -5,14 +5,12 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
-  ActivityIndicator,
   RefreshControl,
   TextInput,
   Alert,
   Animated,
   TouchableWithoutFeedback,
   Modal,
-  Platform,
 } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -128,18 +126,28 @@ export function BudgetsView() {
     }
   }, []);
 
-  const initData = useCallback(async () => {
+  const loadData = useCallback(async () => {
     await Promise.all([fetchBudgets(), fetchCategories()]);
-    setLoading(false);
   }, [fetchBudgets, fetchCategories]);
 
   useEffect(() => {
-    void initData();
-  }, [initData]);
+    let isMounted = true;
+    const timer = setTimeout(() => {
+      void loadData().finally(() => {
+        if (isMounted) {
+          setLoading(false);
+        }
+      });
+    }, 0);
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
+  }, [loadData]);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await initData();
+    await loadData();
     setRefreshing(false);
   };
 

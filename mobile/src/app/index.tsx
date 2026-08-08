@@ -12,14 +12,13 @@ import {
   NativeSyntheticEvent,
   useWindowDimensions,
   View,
-  LayoutAnimation,
   Easing,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import Svg, { Circle, Defs, G, Line, LinearGradient, Path, Rect, Stop } from "react-native-svg";
-import { DashboardSkeleton, BudgetWidgetSkeleton } from "../components/LoadingSkeleton";
+import { DashboardSkeleton } from "../components/LoadingSkeleton";
 import { formatCurrencyAmount, getGlobalCurrencyCode, useCurrency } from "../providers/CurrencyProvider";
 import { useUserProfile } from "../providers/UserProfileProvider";
 import { API_BASE_URL } from "../lib/apiBaseUrl";
@@ -716,7 +715,6 @@ function describeArc(cx: number, cy: number, r: number, startAngle: number, endA
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
-const AnimatedG = Animated.createAnimatedComponent(G);
 
 function CategoryRing({
   categories,
@@ -733,21 +731,26 @@ function CategoryRing({
   const colors = ["#7dffa2", "#38bdf8", "#fbbf24", "#f43f5e", "#a855f7", "#34d399", "#f97316", "#6366f1"];
   const center = 95;
   const normalRadius = 66;
-  const normalStrokeWidth = 14;
 
   const segmentCategories = categories.filter((category) => category.value > 0);
 
-  let currentAngle = 0;
-  const slices = segmentCategories.map((category, index) => {
+  const slices = segmentCategories.reduce<Array<{
+    category: CategoryPoint;
+    color: string;
+    fraction: number;
+    startAngle: number;
+    endAngle: number;
+    sweep: number;
+    index: number;
+  }>>((acc, category, index) => {
     const fraction = total > 0 ? category.value / total : 0;
     const sweep = fraction * 360;
-    const startAngle = currentAngle;
-    const endAngle = currentAngle + sweep;
-    currentAngle = endAngle;
-
+    const prevEndAngle = acc.length > 0 ? acc[acc.length - 1].endAngle : 0;
+    const startAngle = prevEndAngle;
+    const endAngle = prevEndAngle + sweep;
     const color = colors[index % colors.length];
 
-    return {
+    acc.push({
       category,
       color,
       fraction,
@@ -755,8 +758,9 @@ function CategoryRing({
       endAngle,
       sweep,
       index,
-    };
-  });
+    });
+    return acc;
+  }, []);
 
   const selectedIndex = selectedCategory ? categories.findIndex((category) => category.name === selectedCategory.name) : -1;
 
@@ -919,9 +923,6 @@ function PatternCarousel({ seasonality, acceleration }: { seasonality: Seasonali
     );
   }
 
-  const peakWeekday = seasonality?.peakWeekday?.day ?? "Wed";
-  const peakMonth = seasonality?.peakMonth?.month ?? "May";
-  const weekendShare = seasonality?.weekendShare ?? 3;
   const recentAverage = acceleration.recentAverage;
   const previousAverage = acceleration.previousWindowHasData ? acceleration.previousAverage : null;
   const accelerationDirectionLabel = acceleration.direction === "increase" ? "rising" : acceleration.direction === "decrease" ? "cooling" : "stable";

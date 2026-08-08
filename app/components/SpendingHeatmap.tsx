@@ -25,7 +25,7 @@ export default function SpendingHeatmap() {
                 const res = await fetch('/api/analytics/heatmap');
                 const d = await res.json();
                 if (!cancelled) setData(d.data || []);
-            } catch (e) {
+            } catch {
                 // ignore
             } finally {
                 if (!cancelled) setLoading(false);

@@ -26,8 +26,7 @@ export default function SubscriptionsClient() {
     async function runDetect() {
         setLoading(true);
         try {
-            const res = await fetch(`/api/subscriptions/detect`, { method: "POST" });
-            const data = await res.json();
+            await fetch(`/api/subscriptions/detect`, { method: "POST" });
             // detection endpoint both creates/updates subscriptions; reload list
             await load();
         } catch (e: any) {
@@ -59,7 +58,7 @@ export default function SubscriptionsClient() {
     useEffect(() => {
         // eslint-disable-next-line react-hooks/set-state-in-effect
         load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
     }, []);
 
     return (
