@@ -698,6 +698,26 @@ function Heatmap({
   );
 }
 
+function getCoordinatesForAngle(angleInDegrees: number, cx: number, cy: number, r: number) {
+  const angleInRadians = ((angleInDegrees - 90) * Math.PI) / 180.0;
+  return {
+    x: cx + r * Math.cos(angleInRadians),
+    y: cy + r * Math.sin(angleInRadians),
+  };
+}
+
+function describeArc(cx: number, cy: number, r: number, startAngle: number, endAngle: number) {
+  const start = getCoordinatesForAngle(endAngle, cx, cy, r);
+  const end = getCoordinatesForAngle(startAngle, cx, cy, r);
+  const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
+
+  return ["M", start.x, start.y, "A", r, r, 0, largeArcFlag, 0, end.x, end.y].join(" ");
+}
+
+const AnimatedPath = Animated.createAnimatedComponent(Path);
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+const AnimatedG = Animated.createAnimatedComponent(G);
+
 function CategoryRing({
   categories,
   selectedCategory,
@@ -709,36 +729,34 @@ function CategoryRing({
   onSelectCategory: (category: CategoryPoint | null) => void;
   onBoundsChange?: (bounds: { x: number; y: number; width: number; height: number }) => void;
 }) {
-  // Tooltip removed: keep the chart and list only.
   const total = categories.reduce((sum, category) => sum + category.value, 0);
-  const colors = ["#7dffa2", "#00e475", "#c4c7c8", "#ffffff", "#2979ff"];
-  const radius = 68;
-  const strokeWidth = 14;
+  const colors = ["#7dffa2", "#38bdf8", "#fbbf24", "#f43f5e", "#a855f7", "#34d399", "#f97316", "#6366f1"];
   const center = 95;
-  const circumference = 2 * Math.PI * radius;
+  const normalRadius = 66;
+  const normalStrokeWidth = 14;
+
   const segmentCategories = categories.filter((category) => category.value > 0);
-  const donutSegments = segmentCategories.reduce(
-    (segments, category, index) => {
-      const percentage = total > 0 ? category.value / total : 0;
-      const segmentLength = Math.max(percentage * circumference, circumference * 0.04);
-      const color = colors[index % colors.length];
-      const currentOffset = segments.offset;
 
-      segments.nodes.push({
-        key: category.name,
-        color,
-        segmentLength,
-        offset: currentOffset,
-        opacity: 0.78 + index * 0.06,
-      });
-      segments.offset += segmentLength;
+  let currentAngle = 0;
+  const slices = segmentCategories.map((category, index) => {
+    const fraction = total > 0 ? category.value / total : 0;
+    const sweep = fraction * 360;
+    const startAngle = currentAngle;
+    const endAngle = currentAngle + sweep;
+    currentAngle = endAngle;
 
-      return segments;
-    },
-    { offset: 0, nodes: [] as Array<{ key: string; color: string; segmentLength: number; offset: number; opacity: number }> },
-  ).nodes;
+    const color = colors[index % colors.length];
 
-  // No tooltip animation/effects — selection handled by parent state.
+    return {
+      category,
+      color,
+      fraction,
+      startAngle,
+      endAngle,
+      sweep,
+      index,
+    };
+  });
 
   const selectedIndex = selectedCategory ? categories.findIndex((category) => category.name === selectedCategory.name) : -1;
 
@@ -752,36 +770,20 @@ function CategoryRing({
     const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
     const normalizedAngle = (angle + 450) % 360;
 
-    let cumulative = 0;
-    let closestCategory = segmentCategories[0];
-
-    for (const category of segmentCategories) {
-      const percentage = total > 0 ? category.value / total : 0;
-      const span = Math.max(percentage * 360, 14);
-      const start = cumulative;
-      const end = cumulative + span;
-
-      if (normalizedAngle >= start && normalizedAngle < end) {
-        closestCategory = category;
-        break;
+    const hit = slices.find((slice) => normalizedAngle >= slice.startAngle && normalizedAngle < slice.endAngle);
+    if (hit) {
+      if (selectedCategory?.name === hit.category.name) {
+        onSelectCategory(null);
+      } else {
+        onSelectCategory(hit.category);
       }
-
-      cumulative += span;
-      closestCategory = category;
+    } else {
+      onSelectCategory(null);
     }
-
-    onSelectCategory(closestCategory);
   };
 
-  // Smoothly animate layout changes (padding/background) when selection changes
-  useEffect(() => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-  }, [selectedCategory]);
-
-  // Animated values per row for smooth transitions
   const animatedRowValuesRef = useRef<Animated.Value[]>([]);
 
-  // Ensure animated values exist for the current number of categories
   useEffect(() => {
     const values = animatedRowValuesRef.current;
     if (values.length !== categories.length) {
@@ -789,82 +791,109 @@ function CategoryRing({
     }
   }, [categories.length]);
 
-  // Animate when selectedIndex changes
   useEffect(() => {
     const toVals = animatedRowValuesRef.current.map((_, i) => (selectedIndex === i ? 1 : 0));
     const animations = toVals.map((toVal, i) =>
       Animated.timing(animatedRowValuesRef.current[i], {
         toValue: toVal,
-        duration: 260,
+        duration: 250,
         easing: Easing.out(Easing.cubic),
         useNativeDriver: false,
-      })
+      }),
     );
 
     Animated.parallel(animations).start();
   }, [selectedIndex]);
 
+  const cardRef = useRef<View>(null);
+
+  useEffect(() => {
+    if (!onBoundsChange) {
+      return;
+    }
+
+    const handle = requestAnimationFrame(() => {
+      cardRef.current?.measureInWindow((x, y, width, height) => {
+        onBoundsChange({ x, y, width, height });
+      });
+    });
+
+    return () => cancelAnimationFrame(handle);
+  }, [categories.length, onBoundsChange]);
+
   const activePercentage = selectedCategory && total > 0 ? Math.round((selectedCategory.value / total) * 100) : 0;
+  const activeColor = selectedIndex >= 0 ? colors[selectedIndex % colors.length] : "#7dffa2";
 
   return (
-    <View style={styles.categoryCard}>
-      <Text style={styles.carouselEyebrow}>CATEGORY BREAKDOWN</Text>
+    <View ref={cardRef} style={styles.categoryCard}>
+      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", height: 24 }}>
+        <Text style={styles.carouselEyebrow}>CATEGORY BREAKDOWN</Text>
+      </View>
+
       <View style={styles.ringWrap}>
         <Pressable style={styles.ringChart} onPress={(event) => handleRingPress(event.nativeEvent.locationX, event.nativeEvent.locationY)}>
           <Svg width={190} height={190} viewBox="0 0 190 190">
-            <Defs>
-              <LinearGradient id="categoryRingBase" x1="0" y1="0" x2="1" y2="1">
-                <Stop offset="0%" stopColor="#3a3939" />
-                <Stop offset="100%" stopColor="#2a2a2a" />
-              </LinearGradient>
-            </Defs>
+            {slices.map((slice) => {
+              const { category, color, startAngle, endAngle, sweep, index } = slice;
+              const anim = animatedRowValuesRef.current[index] ?? new Animated.Value(0);
 
-            <Circle cx={center} cy={center} r={radius} fill="none" stroke="url(#categoryRingBase)" strokeWidth={strokeWidth} />
-            <G rotation={-90} originX={center} originY={center}>
-              {donutSegments.map((segment) => (
-                <Circle
-                  key={segment.key}
-                  cx={center}
-                  cy={center}
-                  r={radius}
-                  fill="none"
-                  stroke={segment.color}
-                  strokeWidth={strokeWidth}
-                  strokeLinecap="round"
-                  strokeDasharray={`${segment.segmentLength} ${circumference - segment.segmentLength}`}
-                  strokeDashoffset={-segment.offset}
-                  opacity={segment.opacity}
-                />
-              ))}
-            </G>
+              const strokeW = anim.interpolate({ inputRange: [0, 1], outputRange: [14, 22] });
+              const opacity = selectedCategory ? anim.interpolate({ inputRange: [0, 1], outputRange: [0.35, 1.0] }) : 0.9;
 
-            <Circle cx={center} cy={center} r={52} fill="#131313" />
-            <Circle cx={center} cy={center} r={52} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={1} />
-            <Circle cx={center} cy={center} r={74} fill="none" stroke="rgba(125,255,162,0.06)" strokeWidth={1} />
+              if (sweep >= 359.9) {
+                return <AnimatedCircle key={category.name} cx={center} cy={center} r={normalRadius} fill="none" stroke={color} strokeWidth={strokeW} opacity={opacity} />;
+              }
+
+              if (sweep <= 0.5) return null;
+
+              const gap = sweep > 4 ? 2.5 : 0;
+              const pathD = describeArc(center, center, normalRadius, startAngle + gap / 2, endAngle - gap / 2);
+
+              return <AnimatedPath key={category.name} d={pathD} fill="none" stroke={color} strokeWidth={strokeW} strokeLinecap="butt" opacity={opacity} />;
+            })}
           </Svg>
-          <View style={styles.ringCenterOverlay}>
-            <Text style={styles.ringCenterText}>{formatCurrency(total, 0)}</Text>
-            <Text style={styles.ringCenterSubtext}>30 Days Spend</Text>
+
+          <View style={[styles.ringCenterOverlay, { height: 64, justifyContent: "center" }]} pointerEvents="none">
+            <Text style={{ color: selectedCategory ? activeColor : "#c4c7c8", fontSize: fs(10), fontWeight: "700", textTransform: "uppercase", letterSpacing: 1, textAlign: "center" }} numberOfLines={1}>
+              {selectedCategory ? selectedCategory.name : "30 DAYS SPEND"}
+            </Text>
+            <Text style={[styles.ringCenterText, { textAlign: "center", marginVertical: 1 }]}>
+              {formatCurrency(selectedCategory ? selectedCategory.value : total, 0)}
+            </Text>
+            {selectedCategory ? (
+              <Text style={{ color: activeColor, fontSize: fs(10), fontWeight: "700", textAlign: "center" }}>
+                {`${activePercentage}% OF TOTAL`}
+              </Text>
+            ) : null}
           </View>
         </Pressable>
       </View>
-      {/* tooltip removed */}
+
       <View style={styles.categoryList}>
         {categories.map((category, index) => {
-          const anim = animatedRowValuesRef.current[index] ?? new Animated.Value(0);
-          const scale = anim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.02] });
-          const bg = anim.interpolate({ inputRange: [0, 1], outputRange: ["transparent", "rgba(125,255,162,0.12)"] });
-          const dotScale = anim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.18] });
+          const isSelected = selectedCategory?.name === category.name;
+          const color = colors[index % colors.length];
+          const pct = total > 0 ? Math.round((category.value / total) * 100) : 0;
 
           return (
-            <Pressable key={category.name} onPress={() => onSelectCategory(category)} android_ripple={{ color: "rgba(255,255,255,0.02)" }}>
-              <Animated.View style={[styles.categoryRow, { transform: [{ scale }], backgroundColor: bg }]}>
-                <View style={styles.categoryLabelWrap}>
-                  <Animated.View style={[styles.categoryDot, { backgroundColor: colors[index % colors.length], transform: [{ scale: dotScale }] }]} />
-                  <Text style={styles.categoryLabel}>{category.name}</Text>
-                </View>
-                <Text style={styles.categoryPercent}>{`${total > 0 ? Math.round((category.value / total) * 100) : 0}% • ${formatCurrency(category.value, 0)}`}</Text>
-              </Animated.View>
+            <Pressable
+              key={category.name}
+              onPress={() => onSelectCategory(isSelected ? null : category)}
+              android_ripple={{ color: "rgba(255,255,255,0.05)" }}
+              style={[
+                styles.categoryRow,
+                {
+                  backgroundColor: isSelected ? `${color}22` : "rgba(255,255,255,0.02)",
+                  borderColor: isSelected ? color : "rgba(255,255,255,0.05)",
+                  borderWidth: 1,
+                },
+              ]}
+            >
+              <View style={styles.categoryLabelWrap}>
+                <View style={[styles.categoryDot, { backgroundColor: color }]} />
+                <Text style={[styles.categoryLabel, isSelected && { fontWeight: "700", color }]}>{category.name}</Text>
+              </View>
+              <Text style={[styles.categoryPercent, isSelected && { color: "#ffffff", fontWeight: "700" }]}>{`${pct}% • ${formatCurrency(category.value, 0)}`}</Text>
             </Pressable>
           );
         })}
