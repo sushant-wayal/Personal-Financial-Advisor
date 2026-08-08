@@ -604,9 +604,10 @@ function Heatmap({
   // Tooltip removed: keep the chart and list only.
   const visibleCells = cells.slice(-30);
   const max = Math.max(...visibleCells.map((item) => item.amount), 1);
-  const weekCount = Math.max(1, Math.ceil(visibleCells.length / 7));
-  const weekMatrix = Array.from({ length: weekCount }, () => Array.from({ length: 7 }, () => null as HeatmapPoint | null));
   const firstWeekday = visibleCells[0]?.weekday ?? 0;
+  const totalSlots = firstWeekday + visibleCells.length;
+  const weekCount = Math.max(1, Math.ceil(totalSlots / 7));
+  const weekMatrix = Array.from({ length: weekCount }, () => Array.from({ length: 7 }, () => null as HeatmapPoint | null));
 
   visibleCells.forEach((cell, index) => {
     const slot = firstWeekday + index;
@@ -618,7 +619,7 @@ function Heatmap({
     }
   });
 
-  const dayLabels = ["M", "T", "W", "T", "F", "S", "S"];
+  const dayLabels = ["S", "M", "T", "W", "T", "F", "S"];
 
   useEffect(() => {
     if (!onBoundsChange) {

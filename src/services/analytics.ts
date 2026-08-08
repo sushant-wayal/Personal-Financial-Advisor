@@ -337,6 +337,13 @@ export async function categoryTrends(months = 6) {
     });
 }
 
+function formatDateKey(date: Date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+}
+
 export async function spendingHeatmap(days = 90) {
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
     const txs = await prisma.transaction.findMany({
@@ -350,7 +357,7 @@ export async function spendingHeatmap(days = 90) {
         const impact = getTransactionImpact(tx.amount || 0, tx.type, tx.transactionType);
         if (impact >= 0) continue;
         const date = new Date(tx.timestamp as any);
-        const key = date.toISOString().slice(0, 10);
+        const key = formatDateKey(date);
         map.set(key, (map.get(key) || 0) + Math.abs(impact));
     }
 
@@ -358,7 +365,7 @@ export async function spendingHeatmap(days = 90) {
     const now = new Date();
     for (let i = days - 1; i >= 0; i--) {
         const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
-        const key = date.toISOString().slice(0, 10);
+        const key = formatDateKey(date);
         daysOut.push({
             date: key,
             amount: map.get(key) || 0,

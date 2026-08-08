@@ -37,10 +37,22 @@ export default function SpendingHeatmap() {
 
     const amounts = data.map((d) => d.amount);
     const max = Math.max(0, ...amounts);
-    const totalWeeks = Math.max(1, Math.ceil(data.length / 7));
-    const weekMatrix = Array.from({ length: totalWeeks }, (_, weekIndex) =>
-        Array.from({ length: 7 }, (_, weekday) => data.find((d) => d.weekIndex === weekIndex && d.weekday === weekday) || null)
+    const firstWeekday = data[0]?.weekday ?? 0;
+    const totalSlots = firstWeekday + data.length;
+    const totalWeeks = Math.max(1, Math.ceil(totalSlots / 7));
+    const weekMatrix = Array.from({ length: totalWeeks }, () =>
+        Array.from({ length: 7 }, () => null as (typeof data)[0] | null)
     );
+
+    data.forEach((cell, index) => {
+        const slot = firstWeekday + index;
+        const weekIndex = Math.floor(slot / 7);
+        const weekday = slot % 7;
+        if (weekMatrix[weekIndex]) {
+            weekMatrix[weekIndex][weekday] = cell;
+        }
+    });
+
     const dayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
     return (

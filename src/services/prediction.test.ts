@@ -10,6 +10,8 @@ vi.mock('../lib/prisma', () => ({
     },
     transaction: {
       findMany: vi.fn(),
+      aggregate: vi.fn().mockResolvedValue({ _sum: { amount: 0 } }),
+      count: vi.fn().mockResolvedValue(0),
     },
   },
 }));
@@ -28,6 +30,9 @@ describe('prediction service', () => {
       });
 
       (prisma.transaction.findMany as any).mockResolvedValue([]);
+      (prisma.transaction.aggregate as any)
+        .mockResolvedValueOnce({ _sum: { amount: 15000 } })
+        .mockResolvedValueOnce({ _sum: { amount: 9000 } });
 
       const result = await predictMonthEndBalance();
 
