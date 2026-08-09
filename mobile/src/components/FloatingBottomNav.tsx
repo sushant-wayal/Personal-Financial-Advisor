@@ -16,13 +16,13 @@ const DOCK_ITEMS: DockItem[] = [
     { route: "/", icon: "dashboard", label: "Dashboard" },
     { route: "/transactions", icon: "receipt-long", label: "Transactions" },
     { route: "/goals", icon: "track-changes", label: "Goals" },
-    { route: "/settings", icon: "settings", label: "Settings" },
+    { route: "/settings", icon: "person", label: "Profile" },
 ];
 
 function activeRouteForPath(pathname: string): DockRoute | null {
     if (pathname === "/" || pathname.startsWith("/networth") || pathname.startsWith("/budgets")) return "/";
     if (pathname.startsWith("/transactions") || pathname.startsWith("/subscriptions") || pathname.startsWith("/insights")) return "/transactions";
-    if (pathname.startsWith("/goals") || pathname.startsWith("/simulation")) return "/goals";
+    if (pathname.startsWith("/goals") || pathname.startsWith("/simulation") || pathname.startsWith("/investments") || pathname.startsWith("/investment-history")) return "/goals";
     if (pathname.startsWith("/settings")) return "/settings";
     return null;
 }

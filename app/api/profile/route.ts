@@ -45,6 +45,26 @@ export async function PUT(req: Request) {
             return NextResponse.json({ error: `efStrategy must be one of: ${VALID_EF_STRATEGIES.join(", ")}` }, { status: 400 });
         }
 
+        const numOr = (val: any, fallback: number) => (val != null && !isNaN(Number(val)) ? Number(val) : fallback);
+        const boolOr = (val: any, fallback: boolean) => (typeof val === "boolean" ? val : fallback);
+
+        const investmentData = {
+            salaryCycleDays: Math.max(30, Math.min(33, numOr(body.salaryCycleDays, 33))),
+            autoSalaryCycle: boolOr(body.autoSalaryCycle, true),
+            crisisInvestableRate: numOr(body.crisisInvestableRate, 0),
+            efBuildingInvestableRate: numOr(body.efBuildingInvestableRate, 15),
+            wealthBuildingInvestableRate: numOr(body.wealthBuildingInvestableRate, 100),
+            goalSprintInvestableRate: numOr(body.goalSprintInvestableRate, 40),
+            stdEquityPct: numOr(body.stdEquityPct, 50),
+            stdDebtPct: numOr(body.stdDebtPct, 25),
+            stdGoldPct: numOr(body.stdGoldPct, 15),
+            stdCashPct: numOr(body.stdCashPct, 10),
+            consEquityPct: numOr(body.consEquityPct, 20),
+            consDebtPct: numOr(body.consDebtPct, 50),
+            consGoldPct: numOr(body.consGoldPct, 10),
+            consCashPct: numOr(body.consCashPct, 20),
+        };
+
         const existing = await prisma.financialProfile.findFirst();
         if (existing) {
             const updated = await prisma.financialProfile.update({
@@ -55,6 +75,7 @@ export async function PUT(req: Request) {
                     balance: typeof body.balance === "number" ? body.balance : existing.balance,
                     emergencyFundMonths: incomingMonths !== null ? incomingMonths : existing.emergencyFundMonths,
                     efStrategy: incomingStrategy || existing.efStrategy || "BALANCED",
+                    ...investmentData,
                 },
             });
             const averages = await calculateAveragedMonthlyIncomeAndExpense();
@@ -70,6 +91,7 @@ export async function PUT(req: Request) {
                 balance: typeof body.balance === "number" ? body.balance : 0,
                 emergencyFundMonths: incomingMonths !== null ? incomingMonths : 6,
                 efStrategy: incomingStrategy || "BALANCED",
+                ...investmentData,
             },
         });
         const averages = await calculateAveragedMonthlyIncomeAndExpense();

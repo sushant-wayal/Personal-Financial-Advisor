@@ -9,6 +9,7 @@ import { Input as BaseInput } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { GanttChart } from "@/app/components/GanttChart";
 import { buildGanttData, buildTimelineInsight, computeTimelineDeltas, formatTimelineInsight, normalizeGoalForTimeline } from "@/src/services/GoalTimelineService";
+import { InvestmentCard } from "@/app/components/InvestmentCard";
 
 type AIRecommendation = {
     text: string;
@@ -525,6 +526,9 @@ export default function GoalsManager() {
         <div className="space-y-8">
             {/* ═══════ EMERGENCY FUND — always top, highest priority ═══════ */}
             <EmergencyFundWidget ef={ef} />
+
+            {/* ═══════ MONTHLY INVESTMENT SUGGESTION CARD ═══════ */}
+            <InvestmentCard />
 
             <Card className="overflow-hidden border-white/10 bg-slate-950/55 shadow-2xl shadow-black/10 backdrop-blur">
                 <div className="border-b border-white/5 px-4 py-4 sm:px-6 sm:py-6 lg:px-8">

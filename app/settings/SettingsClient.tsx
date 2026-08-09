@@ -377,6 +377,196 @@ export default function SettingsClient() {
                                 )}
                             </div>
 
+                            {/* Monthly Investment Configuration Section */}
+                            <div className="rounded-xl border border-indigo-500/20 bg-indigo-950/20 p-6 space-y-6">
+                                <div className="space-y-1">
+                                    <div className="text-xs font-mono tracking-widest text-indigo-400 uppercase font-bold">
+                                        Investment Strategy Configuration
+                                    </div>
+                                    <p className="text-xs text-slate-400">
+                                        Customize salary pay cycle length and phase/asset-allocation percentages.
+                                    </p>
+                                </div>
+
+                                {/* Salary Cycle Days */}
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-white/5">
+                                    <div>
+                                        <Label htmlFor="salary-cycle" className="text-xs font-medium text-slate-200">
+                                            Pay Cycle Length
+                                        </Label>
+                                        <div className="text-[11px] text-slate-500">Clamped between 30 and 33 days</div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <Input
+                                            id="salary-cycle"
+                                            type="number"
+                                            min={30}
+                                            max={33}
+                                            value={profile?.salaryCycleDays ?? 33}
+                                            onChange={(e) => {
+                                                const v = Math.max(30, Math.min(33, Number(e.target.value)));
+                                                setProfile({ ...profile, salaryCycleDays: v });
+                                            }}
+                                            className="w-20 h-9 text-right font-mono text-xs border-white/10 bg-black/40 text-slate-100"
+                                        />
+                                        <span className="text-xs text-slate-400 font-mono">days</span>
+                                    </div>
+                                </div>
+
+                                 {/* Phase Rates */}
+                                <div className="space-y-3 pt-3 border-t border-white/5">
+                                    <div className="text-xs font-medium text-slate-200">Phase Investable Rates (%)</div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <Label className="text-[11px] text-slate-400">EF Building Phase %</Label>
+                                            <Input
+                                                type="number"
+                                                min={0}
+                                                max={100}
+                                                value={profile?.efBuildingInvestableRate ?? 15}
+                                                onChange={(e) => setProfile({ ...profile, efBuildingInvestableRate: Number(e.target.value) })}
+                                                className="h-8 text-xs font-mono bg-black/40 border-white/10 mt-1"
+                                            />
+                                        </div>
+                                        <div>
+                                            <Label className="text-[11px] text-slate-400">Goal Sprint Phase %</Label>
+                                            <Input
+                                                type="number"
+                                                min={0}
+                                                max={100}
+                                                value={profile?.goalSprintInvestableRate ?? 40}
+                                                onChange={(e) => setProfile({ ...profile, goalSprintInvestableRate: Number(e.target.value) })}
+                                                className="h-8 text-xs font-mono bg-black/40 border-white/10 mt-1"
+                                            />
+                                        </div>
+                                        <div>
+                                            <Label className="text-[11px] text-slate-400">Wealth Building Phase %</Label>
+                                            <Input
+                                                type="number"
+                                                min={0}
+                                                max={100}
+                                                value={profile?.wealthBuildingInvestableRate ?? 60}
+                                                onChange={(e) => setProfile({ ...profile, wealthBuildingInvestableRate: Number(e.target.value) })}
+                                                className="h-8 text-xs font-mono bg-black/40 border-white/10 mt-1"
+                                            />
+                                        </div>
+                                        <div>
+                                            <Label className="text-[11px] text-slate-400">Crisis Phase %</Label>
+                                            <Input
+                                                type="number"
+                                                min={0}
+                                                max={100}
+                                                value={profile?.crisisInvestableRate ?? 0}
+                                                onChange={(e) => setProfile({ ...profile, crisisInvestableRate: Number(e.target.value) })}
+                                                className="h-8 text-xs font-mono bg-black/40 border-white/10 mt-1"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Standard Sub-Allocations */}
+                                <div className="space-y-3 pt-3 border-t border-white/5">
+                                    <div className="text-xs font-medium text-slate-200">Standard Asset Sub-Allocations (%)</div>
+                                    <div className="grid grid-cols-4 gap-2">
+                                        <div>
+                                            <Label className="text-[11px] text-indigo-400">Equity %</Label>
+                                            <Input
+                                                type="number"
+                                                min={0}
+                                                max={100}
+                                                value={profile?.stdEquityPct ?? 50}
+                                                onChange={(e) => setProfile({ ...profile, stdEquityPct: Number(e.target.value) })}
+                                                className="h-8 text-xs font-mono bg-black/40 border-white/10 mt-1"
+                                            />
+                                        </div>
+                                        <div>
+                                            <Label className="text-[11px] text-emerald-400">Debt %</Label>
+                                            <Input
+                                                type="number"
+                                                min={0}
+                                                max={100}
+                                                value={profile?.stdDebtPct ?? 25}
+                                                onChange={(e) => setProfile({ ...profile, stdDebtPct: Number(e.target.value) })}
+                                                className="h-8 text-xs font-mono bg-black/40 border-white/10 mt-1"
+                                            />
+                                        </div>
+                                        <div>
+                                            <Label className="text-[11px] text-amber-400">Gold %</Label>
+                                            <Input
+                                                type="number"
+                                                min={0}
+                                                max={100}
+                                                value={profile?.stdGoldPct ?? 15}
+                                                onChange={(e) => setProfile({ ...profile, stdGoldPct: Number(e.target.value) })}
+                                                className="h-8 text-xs font-mono bg-black/40 border-white/10 mt-1"
+                                            />
+                                        </div>
+                                        <div>
+                                            <Label className="text-[11px] text-slate-400">Cash %</Label>
+                                            <Input
+                                                type="number"
+                                                min={0}
+                                                max={100}
+                                                value={profile?.stdCashPct ?? 10}
+                                                onChange={(e) => setProfile({ ...profile, stdCashPct: Number(e.target.value) })}
+                                                className="h-8 text-xs font-mono bg-black/40 border-white/10 mt-1"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Conservative Sub-Allocations */}
+                                <div className="space-y-3 pt-3 border-t border-white/5">
+                                    <div className="text-xs font-medium text-slate-200">Conservative (EF-Building) Sub-Allocations (%)</div>
+                                    <div className="grid grid-cols-4 gap-2">
+                                        <div>
+                                            <Label className="text-[11px] text-indigo-400">Equity %</Label>
+                                            <Input
+                                                type="number"
+                                                min={0}
+                                                max={100}
+                                                value={profile?.consEquityPct ?? 20}
+                                                onChange={(e) => setProfile({ ...profile, consEquityPct: Number(e.target.value) })}
+                                                className="h-8 text-xs font-mono bg-black/40 border-white/10 mt-1"
+                                            />
+                                        </div>
+                                        <div>
+                                            <Label className="text-[11px] text-emerald-400">Debt %</Label>
+                                            <Input
+                                                type="number"
+                                                min={0}
+                                                max={100}
+                                                value={profile?.consDebtPct ?? 50}
+                                                onChange={(e) => setProfile({ ...profile, consDebtPct: Number(e.target.value) })}
+                                                className="h-8 text-xs font-mono bg-black/40 border-white/10 mt-1"
+                                            />
+                                        </div>
+                                        <div>
+                                            <Label className="text-[11px] text-amber-400">Gold %</Label>
+                                            <Input
+                                                type="number"
+                                                min={0}
+                                                max={100}
+                                                value={profile?.consGoldPct ?? 10}
+                                                onChange={(e) => setProfile({ ...profile, consGoldPct: Number(e.target.value) })}
+                                                className="h-8 text-xs font-mono bg-black/40 border-white/10 mt-1"
+                                            />
+                                        </div>
+                                        <div>
+                                            <Label className="text-[11px] text-slate-400">Cash %</Label>
+                                            <Input
+                                                type="number"
+                                                min={0}
+                                                max={100}
+                                                value={profile?.consCashPct ?? 20}
+                                                onChange={(e) => setProfile({ ...profile, consCashPct: Number(e.target.value) })}
+                                                className="h-8 text-xs font-mono bg-black/40 border-white/10 mt-1"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div className="flex gap-2 pt-2">
                                 <Button onClick={saveProfile} disabled={savingProfile} className="flex-1 rounded-lg">
                                     {savingProfile ? "Saving..." : "Save"}

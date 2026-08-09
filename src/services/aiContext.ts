@@ -3,6 +3,7 @@ import { calculateBurnRate, calculateMonthlySavingsRate, calculateRunway, catego
 import { generateText } from "./gemini";
 import { listGoals, predictETA, recommendMonthlyContribution } from "./goals";
 import { getEnrichedBudgets } from "./budgets";
+import { getOrGenerateInvestmentSuggestion } from "./investmentEngine";
 
 function formatCurrency(amount: number, currency = "INR") {
     return new Intl.NumberFormat("en-IN", {
@@ -75,6 +76,7 @@ function summarizeSubscription(sub: any, currency: string) {
 }
 
 export async function buildFinancialContext(limit = 24) {
+    const investmentData = await getOrGenerateInvestmentSuggestion().catch(() => null);
     const [transactions, goals, profile, subscriptions, memories, monthly, categoryData, savings, burn, runway, averages, budgets] = await Promise.all([
         prisma.transaction.findMany({ orderBy: { timestamp: "desc" }, take: Math.max(12, Math.min(limit, 30)), include: { category: true } }),
         listGoals(),
@@ -299,6 +301,7 @@ export async function buildFinancialContext(limit = 24) {
             savingsRate,
             status,
         },
+        investmentSuggestion: investmentData?.suggestion || null,
         decisionFrame: [
             "Prioritize deterministic financial analysis over generic advice.",
             "Assess affordability against emergency fund, runway, savings rate, and goal delays.",
@@ -356,6 +359,13 @@ export function buildAdvisorSystemPrompt(options?: { structured?: boolean }) {
         "When recommending an action, explain why it is beneficial and what outcome it is expected to improve.",
 
         "When the user's financial situation is weak, prioritize financial stability and emergency preparedness over discretionary spending.",
+
+        "INVESTMENT STRATEGY GUIDANCE: The system features an automated Monthly Percentage-of-Surplus Investment Strategy framework. " +
+        "1. Active Investment Suggestions are calculated based on pay cycles (30-33 days) and financial phases: CRISIS, EF_BUILDING, WEALTH_BUILDING, and GOAL_SPRINT. " +
+        "2. Carveout Protection: Active investment capital is carved out before emergency fund drips or goal splits run. " +
+        "3. Asset Sub-Allocations: Equity, Debt, Gold, Cash amounts are calculated based on phase rules and user settings. " +
+        "4. Available Tools: Use `getInvestmentSuggestion` to fetch active suggestions, `getInvestmentHistory` for past logs & streak stats, `updateInvestmentAllocations` to modify amounts, and `markInvestmentCompleted` to mark investments completed on behalf of the user. " +
+        "5. Guidance Rule: When asked about investment recommendations, state values in both local currency (₹) and percentages of surplus. Never recommend specific stock tickers or mutual fund schemes; focus on broad asset classes, safety margins, and financial discipline.",
 
         "When the user's financial situation is strong, acknowledge opportunities while still discussing tradeoffs.",
 

@@ -96,8 +96,76 @@ model FinancialProfile {
   monthlyIncome       Float    @default(0)
   monthlyExpenses     Float    @default(0)
   efStrategy          String   @default("BALANCED")
+
+  // Investment Configuration Fields
+  salaryCycleDays     Int      @default(33)
+  autoSalaryCycle     Boolean  @default(true)
+
+  // Phase Investable Rates (0-100)
+  crisisInvestableRate         Float    @default(0)
+  efBuildingInvestableRate     Float    @default(15)
+  wealthBuildingInvestableRate Float    @default(100)
+  goalSprintInvestableRate     Float    @default(40)
+
+  // Standard Sub-Allocations (0-100)
+  stdEquityPct        Float    @default(50)
+  stdDebtPct          Float    @default(25)
+  stdGoldPct          Float    @default(15)
+  stdCashPct          Float    @default(10)
+
+  // Conservative (EF Building) Sub-Allocations (0-100)
+  consEquityPct       Float    @default(20)
+  consDebtPct         Float    @default(50)
+  consGoldPct         Float    @default(10)
+  consCashPct         Float    @default(20)
+
+  investmentStreak    Int      @default(0)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
+}
+
+model InvestmentSuggestion {
+  id                String    @id @default(cuid())
+  status            String    @default("ACTIVE") // ACTIVE, INVESTED, EXPIRED
+  phase             String    // CRISIS, EF_BUILDING, WEALTH_BUILDING, GOAL_SPRINT
+  cycleDays         Int       @default(33)
+  rawSurplus        Float     @default(0)
+  smoothedSurplus   Float     @default(0)
+  investableRate    Float     @default(0)
+  baseInvestable    Float     @default(0)
+  spillover         Float     @default(0)
+  totalInvestable   Float     @default(0)
+
+  // Suggested values
+  suggestedEquity   Float     @default(0)
+  suggestedDebt     Float     @default(0)
+  suggestedGold     Float     @default(0)
+  suggestedCash     Float     @default(0)
+
+  // User edited values (null if unedited)
+  editedEquity      Float?
+  editedDebt        Float?
+  editedGold        Float?
+  editedCash        Float?
+  isManuallyEdited  Boolean   @default(false)
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  investedAt        DateTime?
+}
+
+model InvestmentHistory {
+  id             String   @id @default(cuid())
+  suggestionId   String
+  phase          String
+  rawSurplus     Float    @default(0)
+  totalInvested  Float
+  equity         Float    @default(0)
+  debt           Float    @default(0)
+  gold           Float    @default(0)
+  cash           Float    @default(0)
+  investedAt     DateTime @default(now())
+  notes          String?
 }
 
 model AIMemory {

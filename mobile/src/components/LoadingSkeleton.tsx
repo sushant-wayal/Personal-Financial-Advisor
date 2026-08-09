@@ -599,3 +599,103 @@ export function NetWorthSkeleton() {
         </View>
     );
 }
+
+export function InvestmentsSkeleton() {
+    return (
+        <View style={styles.screen}>
+            {/* Header Block */}
+            <View style={{ gap: 8, marginBottom: 16 }}>
+                <Skeleton width={160} height={12} radius={6} />
+                <Skeleton width={220} height={28} radius={8} />
+                <Skeleton width="88%" height={14} radius={6} />
+            </View>
+
+            {/* Hero Card Skeleton */}
+            <View style={[styles.sectionCard, { gap: 16, marginBottom: 20 }]}>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                    <Skeleton width={140} height={18} radius={6} />
+                    <Skeleton width={90} height={22} radius={11} />
+                </View>
+                <View style={{ gap: 6, marginVertical: 8 }}>
+                    <Skeleton width={120} height={12} radius={6} />
+                    <Skeleton width={180} height={32} radius={8} />
+                </View>
+                <Skeleton width="100%" height={8} radius={4} />
+                <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                    <Skeleton width={60} height={12} radius={4} />
+                    <Skeleton width={60} height={12} radius={4} />
+                    <Skeleton width={60} height={12} radius={4} />
+                    <Skeleton width={60} height={12} radius={4} />
+                </View>
+            </View>
+
+            {/* Sub-allocation Cards Skeleton */}
+            <View style={[styles.sectionCard, { gap: 14 }]}>
+                <Skeleton width={180} height={20} radius={6} />
+                <Skeleton width="75%" height={14} radius={6} />
+                {[1, 2, 3, 4].map((i) => (
+                    <View key={`bucket-skel-${i}`} style={{ borderRadius: 12, borderWidth: 1, borderColor: "rgba(68,71,72,0.35)", padding: 14, gap: 10, backgroundColor: "#131313" }}>
+                        <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                            <Skeleton width={110} height={16} radius={6} />
+                            <Skeleton width={36} height={14} radius={6} />
+                        </View>
+                        <Skeleton width="100%" height={48} radius={8} />
+                    </View>
+                ))}
+            </View>
+        </View>
+    );
+}
+
+export function InvestmentHistorySkeleton() {
+    return (
+        <View style={styles.screen}>
+            {/* Header Block */}
+            <View style={{ gap: 8, marginBottom: 16 }}>
+                <Skeleton width={140} height={12} radius={6} />
+                <Skeleton width={200} height={28} radius={8} />
+                <Skeleton width="85%" height={14} radius={6} />
+            </View>
+
+            {/* Stats Grid Skeleton */}
+            <View style={{ flexDirection: "row", gap: 12, marginBottom: 20 }}>
+                <View style={[styles.sectionCard, { flex: 1, gap: 8 }]}>
+                    <Skeleton width="60%" height={10} radius={4} />
+                    <Skeleton width="80%" height={24} radius={6} />
+                    <Skeleton width="70%" height={12} radius={4} />
+                </View>
+                <View style={[styles.sectionCard, { flex: 1, gap: 8 }]}>
+                    <Skeleton width="60%" height={10} radius={4} />
+                    <Skeleton width="50%" height={24} radius={6} />
+                    <Skeleton width="70%" height={12} radius={4} />
+                </View>
+            </View>
+
+            {/* History Timeline Items */}
+            <View style={[styles.sectionCard, { gap: 16 }]}>
+                <Skeleton width={150} height={20} radius={6} />
+                {[1, 2, 3].map((i) => (
+                    <InvestmentHistoryCardSkeleton key={`hist-skel-${i}`} />
+                ))}
+            </View>
+        </View>
+    );
+}
+
+export function InvestmentHistoryCardSkeleton() {
+    return (
+        <View style={{ borderRadius: 12, borderWidth: 1, borderColor: "rgba(68,71,72,0.35)", padding: 16, gap: 12, backgroundColor: "#131313", marginTop: 12 }}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                <Skeleton width={100} height={16} radius={6} />
+                <Skeleton width={80} height={18} radius={9} />
+            </View>
+            <Skeleton width={140} height={26} radius={6} />
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                <Skeleton width="47%" height={38} radius={8} />
+                <Skeleton width="47%" height={38} radius={8} />
+                <Skeleton width="47%" height={38} radius={8} />
+                <Skeleton width="47%" height={38} radius={8} />
+            </View>
+        </View>
+    );
+}

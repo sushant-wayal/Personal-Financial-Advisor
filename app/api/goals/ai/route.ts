@@ -27,7 +27,7 @@ export async function GET(req: Request) {
         if (!force && mem && cachedPayload) {
             const age = Date.now() - mem.updatedAt.getTime();
             if (age < 24 * HOUR) {
-                return NextResponse.json({ ok: true, ...cachedPayload });
+                return NextResponse.json({ ok: true, ...cachedPayload, lastRun: mem.updatedAt, cached: true });
             }
         }
 
@@ -35,13 +35,14 @@ export async function GET(req: Request) {
         const result = await generateAIRecommendations();
 
         const payload = JSON.stringify(result);
+        const now = new Date();
         if (mem) {
             await prisma.aIMemory.update({ where: { id: mem.id }, data: { value: payload } });
         } else {
             await prisma.aIMemory.create({ data: { key: MEMORY_KEY, value: payload, tags: JSON.stringify(["ai"]) } });
         }
 
-        return NextResponse.json({ ok: true, ...result });
+        return NextResponse.json({ ok: true, ...result, lastRun: now });
     } catch (e: any) {
         console.error("AI recommendation error (route):", e);
         if (cachedPayload) {

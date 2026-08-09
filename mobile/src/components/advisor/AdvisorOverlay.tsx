@@ -415,6 +415,8 @@ export default function AdvisorOverlay() {
     const [suggestionsLoading, setSuggestionsLoading] = useState(true);
 
     useEffect(() => {
+        if (!isAdvisorOpen) return;
+
         let cancelled = false;
 
         async function loadSuggestions() {
@@ -458,7 +460,7 @@ export default function AdvisorOverlay() {
 
         void loadSuggestions();
         return () => { cancelled = true; };
-    }, []);
+    }, [isAdvisorOpen]);
 
     // ── Morphing Animation ────────────────────────────────────────────────────
     const [animValue] = useState(() => new Animated.Value(0));

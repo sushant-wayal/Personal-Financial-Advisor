@@ -15,6 +15,7 @@
 import { prisma } from "../lib/prisma";
 import { Prisma } from "@prisma/client";
 import { getEnrichedBudgets } from "./budgets";
+import { getOrGenerateInvestmentSuggestion } from "./investmentEngine";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -44,7 +45,11 @@ export type ToolName =
     | "queryBudgets"
     | "addBudget"
     | "updateBudget"
-    | "deleteBudget";
+    | "deleteBudget"
+    | "getInvestmentSuggestion"
+    | "getInvestmentHistory"
+    | "updateInvestmentAllocations"
+    | "markInvestmentCompleted";
 
 export type ToolCallRequest = {
     name: ToolName;
@@ -356,6 +361,49 @@ export const ADVISOR_TOOL_DECLARATIONS = [
                 id: { type: "string", description: "ID of the budget to delete." }
             },
             required: ["id"],
+        }
+    },
+    {
+        name: "getInvestmentSuggestion",
+        description: "Fetch the active monthly investment suggestion, including phase, surplus, streak, and asset sub-allocation breakdown.",
+        parameters: {
+            type: "object",
+            properties: {},
+            required: [],
+        }
+    },
+    {
+        name: "getInvestmentHistory",
+        description: "Fetch historical recorded investment cycles, total lifetime invested capital, and streak metrics.",
+        parameters: {
+            type: "object",
+            properties: {},
+            required: [],
+        }
+    },
+    {
+        name: "updateInvestmentAllocations",
+        description: "Update sub-allocation amounts (equity, debt, gold, cash) for the active monthly investment strategy.",
+        parameters: {
+            type: "object",
+            properties: {
+                equity: { type: "number", description: "Equity allocation amount" },
+                debt: { type: "number", description: "Debt allocation amount" },
+                gold: { type: "number", description: "Gold allocation amount" },
+                cash: { type: "number", description: "Cash allocation amount" },
+            },
+            required: [],
+        }
+    },
+    {
+        name: "markInvestmentCompleted",
+        description: "Mark the active monthly investment strategy as completed/invested, logging the cycle record and updating streak.",
+        parameters: {
+            type: "object",
+            properties: {
+                notes: { type: "string", description: "Optional notes for this investment cycle record" }
+            },
+            required: [],
         }
     }
 ];
@@ -1162,6 +1210,18 @@ export async function executeAdvisorTool(call: ToolCallRequest): Promise<ToolCal
             case "deleteBudget":
                 data = await toolDeleteBudget(call.args);
                 break;
+            case "getInvestmentSuggestion":
+                data = await getOrGenerateInvestmentSuggestion();
+                break;
+            case "getInvestmentHistory":
+                data = await toolGetInvestmentHistory();
+                break;
+            case "updateInvestmentAllocations":
+                data = await toolUpdateInvestmentAllocations(call.args);
+                break;
+            case "markInvestmentCompleted":
+                data = await toolMarkInvestmentCompleted(call.args);
+                break;
             default:
                 return { name: call.name, data: null, error: `Unknown tool: ${call.name}` };
         }
@@ -1172,4 +1232,95 @@ export async function executeAdvisorTool(call: ToolCallRequest): Promise<ToolCal
         console.error(`[advisorDbTools] Tool "${call.name}" failed:`, message);
         return { name: call.name, data: null, error: message };
     }
+}
+
+async function toolGetInvestmentHistory() {
+    const history = await prisma.investmentHistory.findMany({
+        orderBy: { investedAt: "desc" },
+    });
+    const profile = await prisma.financialProfile.findFirst({ select: { investmentStreak: true } });
+    const totalLifetimeInvested = history.reduce((sum, h) => sum + h.totalInvested, 0);
+    return {
+        history,
+        totalLifetimeInvested,
+        completedCycles: history.length,
+        streak: profile?.investmentStreak ?? 0,
+    };
+}
+
+async function toolUpdateInvestmentAllocations(args: Record<string, unknown>) {
+    const active = await prisma.investmentSuggestion.findFirst({
+        where: { status: "ACTIVE" },
+        orderBy: { createdAt: "desc" },
+    });
+    if (!active) throw new Error("No active investment suggestion found");
+
+    const eq = args.equity != null ? Number(args.equity) : active.suggestedEquity;
+    const db = args.debt != null ? Number(args.debt) : active.suggestedDebt;
+    const gd = args.gold != null ? Number(args.gold) : active.suggestedGold;
+    const cs = args.cash != null ? Number(args.cash) : active.suggestedCash;
+
+    const updated = await prisma.investmentSuggestion.update({
+        where: { id: active.id },
+        data: {
+            isManuallyEdited: true,
+            editedEquity: eq,
+            editedDebt: db,
+            editedGold: gd,
+            editedCash: cs,
+        },
+    });
+    return { ok: true, updated };
+}
+
+async function toolMarkInvestmentCompleted(args: Record<string, unknown>) {
+    const active = await prisma.investmentSuggestion.findFirst({
+        where: { status: "ACTIVE" },
+        orderBy: { createdAt: "desc" },
+    });
+    if (!active) throw new Error("No active investment suggestion found");
+
+    const notes = typeof args.notes === "string" ? args.notes : null;
+    const now = new Date();
+    const isEdited = active.isManuallyEdited;
+    const eq = isEdited ? (active.editedEquity ?? 0) : active.suggestedEquity;
+    const db = isEdited ? (active.editedDebt ?? 0) : active.suggestedDebt;
+    const gd = isEdited ? (active.editedGold ?? 0) : active.suggestedGold;
+    const cs = isEdited ? (active.editedCash ?? 0) : active.suggestedCash;
+    const totalInvested = eq + db + gd + cs;
+
+    const historyRecord = await prisma.investmentHistory.create({
+        data: {
+            suggestionId: active.id,
+            phase: active.phase,
+            rawSurplus: active.rawSurplus,
+            totalInvested,
+            equity: eq,
+            debt: db,
+            gold: gd,
+            cash: cs,
+            investedAt: now,
+            notes,
+        },
+    });
+
+    await prisma.investmentSuggestion.update({
+        where: { id: active.id },
+        data: {
+            status: "INVESTED",
+            investedAt: now,
+        },
+    });
+
+    const profile = await prisma.financialProfile.findFirst();
+    let newStreak = 1;
+    if (profile) {
+        newStreak = (profile.investmentStreak || 0) + 1;
+        await prisma.financialProfile.update({
+            where: { id: profile.id },
+            data: { investmentStreak: newStreak },
+        });
+    }
+
+    return { ok: true, historyRecord, streak: newStreak };
 }

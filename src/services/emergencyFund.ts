@@ -1,6 +1,7 @@
 import { prisma } from "../lib/prisma";
 import { calculateBurnRate } from "./analytics";
 import { computeSavingsCapacity } from "./savings";
+import { getActiveInvestableCarveout, getOrGenerateInvestmentSuggestion } from "./investmentEngine";
 
 export type EfStrategy = "BALANCED" | "AGGRESSIVE_EF" | "ACCELERATED_GOALS" | "STRICT";
 
@@ -79,7 +80,7 @@ export function getEfStrategyRatios(
 }
 
 export async function getEmergencyFundStatus(): Promise<EmergencyFundStatus> {
-    const [profile, burnData, savingsCapacity, goals] = await Promise.all([
+    const [profile, burnData, savingsCapacity, goals, investableCarveout, investableSuggestion] = await Promise.all([
         prisma.financialProfile.findFirst({
             select: {
                 emergencyFundMonths: true,
@@ -92,10 +93,13 @@ export async function getEmergencyFundStatus(): Promise<EmergencyFundStatus> {
         calculateBurnRate(),
         computeSavingsCapacity(3),
         prisma.goal.findMany({ select: { targetAmount: true, currentAmount: true } }),
+        getActiveInvestableCarveout(),
+        getOrGenerateInvestmentSuggestion().catch(() => null),
     ]);
 
     const targetMonths = Math.max(3, profile?.emergencyFundMonths ?? 6);
-    const currentBalance = Math.max(0, profile?.balance ?? 0);
+    const rawBalance = Math.max(0, profile?.balance ?? 0);
+    const currentBalance = Math.max(0, rawBalance - investableCarveout);
     const rawStrategy = profile?.efStrategy || "BALANCED";
     const efStrategy: EfStrategy = ["BALANCED", "AGGRESSIVE_EF", "ACCELERATED_GOALS", "STRICT"].includes(rawStrategy)
         ? (rawStrategy as EfStrategy)
@@ -145,7 +149,7 @@ export async function getEmergencyFundStatus(): Promise<EmergencyFundStatus> {
     const progressPct = targetAmount > 0 ? Math.min(100, (savedAmount / targetAmount) * 100) : 100;
     const isComplete = shortfall === 0 && targetAmount > 0;
 
-    // Monthly capacity = income - expenses (or detected from transactions)
+    // Monthly capacity = gross surplus (income - expenses or detected from transactions)
     const profileCapacity = Math.max(
         0,
         Number(profile?.monthlyIncome ?? 0) - Number(profile?.monthlyExpenses ?? 0),
@@ -161,13 +165,17 @@ export async function getEmergencyFundStatus(): Promise<EmergencyFundStatus> {
         isComplete
     );
 
+    // Deduct configured phase investable percentage (e.g., 15% for EF_BUILDING, 40% for GOAL_SPRINT, 60% for WEALTH_BUILDING, 0% for CRISIS)
+    const phaseInvestableRate = investableSuggestion?.suggestion?.investableRate ?? (isComplete ? 60 : 15);
+    const efAndGoalsAvailableCapacity = Math.max(0, monthlyCapacity * ((100 - phaseInvestableRate) / 100));
+
     const efMonthlyDrip = isComplete
         ? 0
-        : Math.min(shortfall, Math.round(monthlyCapacity * efRatio));
+        : Math.min(shortfall, Math.round(efAndGoalsAvailableCapacity * efRatio));
 
     const availableGoalCapacity = isComplete
-        ? Math.round(monthlyCapacity)
-        : Math.max(0, Math.round(monthlyCapacity - efMonthlyDrip));
+        ? Math.round(efAndGoalsAvailableCapacity)
+        : Math.max(0, Math.round(efAndGoalsAvailableCapacity - efMonthlyDrip));
 
     let monthsToComplete: number | null = null;
     let estimatedCompletionDate: Date | null = null;

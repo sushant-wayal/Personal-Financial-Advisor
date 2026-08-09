@@ -4,6 +4,7 @@ import { calculateCurrentBalance, calculateBurnRate, calculateMonthlySavingsRate
 import { listGoals, predictETA, recommendMonthlyContribution } from "@/src/services/goals";
 import { getEnrichedBudgets } from "@/src/services/budgets";
 import { getEmergencyFundStatus } from "@/src/services/emergencyFund";
+import { getOrGenerateInvestmentSuggestion } from "@/src/services/investmentEngine";
 
 function fmt(amount: number, currency = "INR") {
     return new Intl.NumberFormat("en-IN", { style: "currency", currency, maximumFractionDigits: 0 }).format(amount || 0);
@@ -60,6 +61,8 @@ export async function GET() {
             runway,
             averages,
             efStatus,
+            investmentData,
+            investmentHistory,
         ] = await Promise.all([
             prisma.financialProfile.findFirst(),
             prisma.transaction.findMany({
@@ -98,6 +101,8 @@ export async function GET() {
             calculateRunway(),
             calculateAveragedMonthlyIncomeAndExpense(),
             getEmergencyFundStatus().catch(() => null),
+            getOrGenerateInvestmentSuggestion().catch(() => null),
+            prisma.investmentHistory.findMany({ orderBy: { investedAt: "desc" } }),
         ]);
 
         if (profile && averages) {
@@ -381,11 +386,15 @@ export async function GET() {
                 const eta = monthlyContrib > 0 ? predictETA(currentAmt, monthlyContrib, targetAmt) : null;
 
                 sections.push(`### ${goal.title} (Priority: ${goal.priority ?? "—"})`);
-                sections.push(`- **Target:** ${fmt(targetAmt, goal.currency || currency)}`);
-                sections.push(`- **Saved:** ${fmt(currentAmt, goal.currency || currency)} (${progress.toFixed(1)}%)`);
-                sections.push(`- **Monthly Target:** ${fmt(monthlyContrib, goal.currency || currency)}`);
+                sections.push(`- **Target Amount:** ${fmt(targetAmt, goal.currency || currency)}`);
+                sections.push(`- **Current Saved:** ${fmt(currentAmt, goal.currency || currency)} (${progress.toFixed(1)}%)`);
+                sections.push(`- **Remaining Shortfall:** ${fmt(Math.max(0, targetAmt - currentAmt), goal.currency || currency)}`);
+                sections.push(`- **Recommended Monthly Contribution:** ${fmt(monthlyContrib, goal.currency || currency)}`);
                 if (goal.targetDate) sections.push(`- **Target Date:** ${fmtDate(goal.targetDate)}`);
-                if (eta) sections.push(`- **Estimated Completion:** ${fmtDate(eta.eta)}`);
+                if (eta) {
+                    sections.push(`- **Months to Target Completion (ETA):** ${eta.months} months`);
+                    sections.push(`- **Estimated Completion Date (ETA):** ${fmtDate(eta.eta)}`);
+                }
                 if (goal.notes) sections.push(`- **Notes:** ${goal.notes}`);
                 sections.push("");
             }
@@ -421,19 +430,67 @@ export async function GET() {
             ));
         }
 
+        // ── Monthly Investment Strategy ──
+        sections.push("\n---\n\n## 📈 Monthly Investment Strategy & History\n");
+        const suggestion = investmentData?.suggestion;
+        if (suggestion) {
+            sections.push(`- **Current Financial Phase:** ${suggestion.phaseLabel} (${suggestion.phase})`);
+            sections.push(`- **Pay Cycle Length:** ${suggestion.cycleDays} days`);
+            sections.push(`- **Raw Surplus (Current Cycle):** ${fmt(suggestion.rawSurplus, currency)}`);
+            sections.push(`- **Smoothed Surplus:** ${fmt(suggestion.smoothedSurplus, currency)}`);
+            sections.push(`- **Investable Rate (% of Surplus):** ${suggestion.investableRate}%`);
+            sections.push(`- **Total Investable Capital:** ${fmt(suggestion.totalInvestable, currency)}`);
+            sections.push(`- **Cycle Streak:** 🔥 ${suggestion.streak} cycles`);
+            sections.push(`- **Status:** ${suggestion.status === "INVESTED" ? "Invested ✅" : "Active / Recommended"}\n`);
+
+            sections.push("**Active Asset Sub-Allocation Breakdown:**");
+            const buckets = suggestion.buckets;
+            if (buckets) {
+                sections.push(mdTable(
+                    ["Asset Class", "Target %", "Suggested Amount", "Custom Amount"],
+                    [
+                        ["Equity", `${buckets.equity.pct}%`, fmt(buckets.equity.suggested, currency), fmt(buckets.equity.final, currency)],
+                        ["Debt", `${buckets.debt.pct}%`, fmt(buckets.debt.suggested, currency), fmt(buckets.debt.final, currency)],
+                        ["Gold", `${buckets.gold.pct}%`, fmt(buckets.gold.suggested, currency), fmt(buckets.gold.final, currency)],
+                        ["Cash", `${buckets.cash.pct}%`, fmt(buckets.cash.suggested, currency), fmt(buckets.cash.final, currency)],
+                    ]
+                ));
+            }
+        } else {
+            sections.push("_No active investment suggestion available._\n");
+        }
+
+        if (investmentHistory && investmentHistory.length > 0) {
+            const totalHistoryInvested = investmentHistory.reduce((sum: number, h: any) => sum + Number(h.totalInvested || 0), 0);
+            sections.push(`\n**Recorded Investment History (${investmentHistory.length} cycles, Total: ${fmt(totalHistoryInvested, currency)}):**\n`);
+            sections.push(mdTable(
+                ["Date", "Phase", "Total Invested", "Equity", "Debt", "Gold", "Cash"],
+                investmentHistory.map((h: any) => [
+                    fmtDate(h.investedAt),
+                    h.phase,
+                    fmt(h.totalInvested, currency),
+                    fmt(h.equity, currency),
+                    fmt(h.debt, currency),
+                    fmt(h.gold, currency),
+                    fmt(h.cash, currency),
+                ])
+            ));
+        }
+
         // ── Emergency Fund ──
         sections.push("\n---\n\n## 🛡️ Emergency Fund\n");
         if (efStatus) {
             sections.push(`- **Strategy:** ${efStatus.efStrategy}`);
             sections.push(`- **Coverage Target:** ${efStatus.targetMonths} months`);
             sections.push(`- **Target Amount:** ${fmt(efStatus.targetAmount, currency)}`);
-            sections.push(`- **Currently Reserved:** ${fmt(efStatus.savedAmount, currency)}`);
+            sections.push(`- **Currently Reserved Cash:** ${fmt(efStatus.savedAmount, currency)}`);
+            sections.push(`- **Remaining Shortfall:** ${fmt(efStatus.shortfall, currency)}`);
             sections.push(`- **Progress:** ${efStatus.progressPct.toFixed(1)}% (Tier ${efStatus.tier})`);
-            sections.push(`- **Shortfall:** ${fmt(efStatus.shortfall, currency)}`);
-            sections.push(`- **Monthly EF Drip:** ${fmt(efStatus.efMonthlyDrip, currency)}`);
-            sections.push(`- **Goals Pool Available:** ${fmt(efStatus.availableBalance, currency)}`);
-            sections.push(`- **Fully Funded:** ${efStatus.isComplete ? "Yes ✅" : "No"}`);
-            if (efStatus.estimatedCompletionDate) sections.push(`- **Estimated Completion:** ${fmtDate(efStatus.estimatedCompletionDate)}`);
+            sections.push(`- **Monthly EF Drip Contribution:** ${fmt(efStatus.efMonthlyDrip, currency)}`);
+            sections.push(`- **Monthly Goals Pool Drip:** ${fmt(efStatus.availableGoalCapacity, currency)}`);
+            sections.push(`- **Months to Target Completion (ETA):** ${efStatus.monthsToComplete != null ? `${efStatus.monthsToComplete} months` : "Fully Funded 🎉"}`);
+            sections.push(`- **Estimated Target Completion Date (ETA):** ${efStatus.estimatedCompletionDate ? fmtDate(efStatus.estimatedCompletionDate) : "Fully Funded 🎉"}`);
+            sections.push(`- **Fully Funded Status:** ${efStatus.isComplete ? "Yes ✅" : "No"}`);
         } else {
             sections.push("_Emergency fund status unavailable._\n");
         }
