@@ -366,15 +366,7 @@ export default function GoalsScreen() {
     let currentSaved = goals.reduce((sum, goal) => sum + Number(goal.currentAmount ?? 0), 0);
     let targetTotal = goals.reduce((sum, goal) => sum + Number(goal.targetAmount ?? 0), 0);
     let fullyFunded = goals.filter((goal) => progressOf(goal) >= 100).length;
-    let required = 0;
-
-    if (overview?.emergencyFund && !overview.emergencyFund.isComplete) {
-      // EF is blocking all other goals. The only recommended contribution this month is for the EF.
-      required = Math.min(overview.emergencyFund.monthlyCapacity, overview.emergencyFund.shortfall);
-    } else {
-      // EF is complete (or missing), so sum the recommended contributions for regular goals.
-      required = overview?.totalRecommendedMonthlyContribution ?? goals.reduce((sum, goal) => sum + Number(goal.requiredMonthly ?? 0), 0);
-    }
+    const required = overview?.totalRecommendedMonthlyContribution ?? goals.reduce((sum, goal) => sum + Number(goal.requiredMonthly ?? 0), 0);
 
     if (overview?.emergencyFund) {
       currentSaved += overview.emergencyFund.savedAmount;
