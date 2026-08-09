@@ -1,6 +1,7 @@
 import { prisma } from "../lib/prisma";
 import { INVESTMENT_DEFAULTS, FinancialPhase } from "../config/investmentDefaults";
 import { calculateBurnRate, calculateRunway } from "./analytics";
+import { CREDIT_TYPES, DEBIT_TYPES } from "./balance";
 
 export type SalaryCycleInfo = {
     cycleDays: number;
@@ -117,23 +118,33 @@ export async function computeSurplus(cycleDays: number): Promise<SurplusComputat
     const prevStart = new Date(now.getTime() - cycleDays * 2 * 24 * 60 * 60 * 1000);
     const threeCyclesStart = new Date(now.getTime() - cycleDays * 3 * 24 * 60 * 60 * 1000);
 
-    const [currentTxs, prevTxs, threeCycleTxs] = await Promise.all([
-        prisma.transaction.findMany({ where: { timestamp: { gte: currentStart } } }),
-        prisma.transaction.findMany({ where: { timestamp: { gte: prevStart, lt: currentStart } } }),
-        prisma.transaction.findMany({ where: { timestamp: { gte: threeCyclesStart } } }),
+    const [currentTxs, prevTxs, threeCycleTxs, profile] = await Promise.all([
+        prisma.transaction.findMany({ where: { timestamp: { gte: currentStart } }, include: { category: true } }),
+        prisma.transaction.findMany({ where: { timestamp: { gte: prevStart, lt: currentStart } }, include: { category: true } }),
+        prisma.transaction.findMany({ where: { timestamp: { gte: threeCyclesStart } }, include: { category: true } }),
+        prisma.financialProfile.findFirst({ select: { balance: true } }),
     ]);
 
-    const isIncome = (t: any) => {
+    const currentBalance = Math.max(0, profile?.balance ?? 0);
+
+    const isCreditTx = (t: any) => {
         const type = String(t.transactionType || t.type || "").toUpperCase();
-        return type === "CREDIT" || type === "CREDITED" || type === "SALARY" || t.amount > 0;
+        return CREDIT_TYPES.has(type);
+    };
+
+    const isSelfTransfer = (t: any) => {
+        const categoryName = String(t.category?.name || "").toLowerCase();
+        const type = String(t.transactionType || t.type || "").toUpperCase();
+        return categoryName === "transfer" || categoryName === "bank" || type === "TRANSFER";
     };
 
     const calcSurplus = (txs: any[]) => {
         let inc = 0;
         let exp = 0;
         for (const t of txs) {
-            const amt = Math.abs(t.amount);
-            if (isIncome(t)) inc += amt;
+            if (isSelfTransfer(t)) continue;
+            const amt = Math.abs(t.amount || 0);
+            if (isCreditTx(t)) inc += amt;
             else exp += amt;
         }
         return { inc, exp, surplus: inc - exp };
@@ -141,15 +152,21 @@ export async function computeSurplus(cycleDays: number): Promise<SurplusComputat
 
     const currentData = calcSurplus(currentTxs);
     const prevData = calcSurplus(prevTxs);
-    const rawSurplus = currentData.surplus;
-    const previousSurplus = prevData.surplus;
 
-    // Weighted Smoothed Surplus: 0.7 * current + 0.3 * previous
-    const smoothedSurplus = Math.round(0.7 * rawSurplus + 0.3 * previousSurplus);
+    // Surplus cannot exceed available liquid balance
+    const rawSurplus = Math.min(currentData.surplus, currentBalance);
+    const previousSurplus = Math.min(prevData.surplus, currentBalance);
+
+    // Weighted Smoothed Surplus: 0.7 * current + 0.3 * previous, capped by current liquid balance
+    const smoothedSurplus = Math.min(
+        Math.max(0, Math.round(0.7 * rawSurplus + 0.3 * previousSurplus)),
+        currentBalance
+    );
 
     // 3-cycle average calculation for trend
-    const total3CycleIncome = threeCycleTxs.filter(isIncome).reduce((sum, t) => sum + Math.abs(t.amount), 0);
-    const total3CycleExpenses = threeCycleTxs.filter((t) => !isIncome(t)).reduce((sum, t) => sum + Math.abs(t.amount), 0);
+    const valid3CycleTxs = threeCycleTxs.filter((t) => !isSelfTransfer(t));
+    const total3CycleIncome = valid3CycleTxs.filter(isCreditTx).reduce((sum, t) => sum + Math.abs(t.amount || 0), 0);
+    const total3CycleExpenses = valid3CycleTxs.filter((t) => !isCreditTx(t)).reduce((sum, t) => sum + Math.abs(t.amount || 0), 0);
     const avg3CycleSurplus = Math.round((total3CycleIncome - total3CycleExpenses) / 3);
 
     let surplusTrend: SurplusComputation["surplusTrend"] = "stable";
@@ -262,44 +279,9 @@ export async function getOrGenerateInvestmentSuggestion(): Promise<InvestmentSug
     const cycleInfo = await detectSalaryCycle();
     const cycleDays = cycleInfo.cycleDays;
     const config = await getEffectiveProfileConfig();
-
-    // Check for existing active suggestion
-    const active = await prisma.investmentSuggestion.findFirst({
-        where: { status: "ACTIVE" },
-        orderBy: { createdAt: "desc" },
-    });
-
     const now = new Date();
 
-    if (active) {
-        const ageDays = daysBetween(now, new Date(active.createdAt));
-        if (ageDays > cycleDays + INVESTMENT_DEFAULTS.staleSuggestionDays) {
-            // Auto-expire stale suggestion
-            await prisma.investmentSuggestion.update({
-                where: { id: active.id },
-                data: { status: "EXPIRED" },
-            });
-        } else {
-            // Return existing active suggestion
-            return buildSuggestionResult(active, config, cycleDays);
-        }
-    }
-
-    // Check if last suggestion was INVESTED and cycle has NOT completed yet
-    const lastInvested = await prisma.investmentSuggestion.findFirst({
-        where: { status: "INVESTED" },
-        orderBy: { investedAt: "desc" },
-    });
-
-    if (lastInvested && lastInvested.investedAt) {
-        const daysSinceInvested = daysBetween(now, new Date(lastInvested.investedAt));
-        if (daysSinceInvested < cycleDays) {
-            // Still in invested cool-down period
-            return buildSuggestionResult(lastInvested, config, cycleDays, cycleDays - daysSinceInvested);
-        }
-    }
-
-    // Generate NEW Suggestion
+    // Always compute live dynamic cycle data
     const surplusComp = await computeSurplus(cycleDays);
     const runway = await calculateRunway();
     const efTargetMonths = Math.max(3, config.profile?.emergencyFundMonths ?? 6);
@@ -320,13 +302,64 @@ export async function getOrGenerateInvestmentSuggestion(): Promise<InvestmentSug
     const phaseRate = config.phaseRates[phase];
     const baseInvestable = Math.max(0, Math.round(surplusComp.smoothedSurplus * (phaseRate / 100)));
 
-    // Calculate sub-allocations
     const subConfig = phase === "EF_BUILDING" ? config.subAllocations.conservative : config.subAllocations.standard;
     const suggestedEquity = Math.round(baseInvestable * (subConfig.equity / 100));
     const suggestedDebt = Math.round(baseInvestable * (subConfig.debt / 100));
     const suggestedGold = Math.round(baseInvestable * (subConfig.gold / 100));
     const suggestedCash = Math.round(baseInvestable * (subConfig.cash / 100));
 
+    // Check for existing active suggestion
+    const active = await prisma.investmentSuggestion.findFirst({
+        where: { status: "ACTIVE" },
+        orderBy: { createdAt: "desc" },
+    });
+
+    if (active) {
+        const ageDays = daysBetween(now, new Date(active.createdAt));
+        if (ageDays > cycleDays + INVESTMENT_DEFAULTS.staleSuggestionDays) {
+            // Auto-expire stale suggestion
+            await prisma.investmentSuggestion.update({
+                where: { id: active.id },
+                data: { status: "EXPIRED" },
+            });
+        } else {
+            // Update active suggestion with live derived surplus and recommendations
+            const updatedActive = await prisma.investmentSuggestion.update({
+                where: { id: active.id },
+                data: {
+                    phase,
+                    cycleDays,
+                    rawSurplus: surplusComp.rawSurplus,
+                    smoothedSurplus: surplusComp.smoothedSurplus,
+                    investableRate: phaseRate,
+                    baseInvestable,
+                    totalInvestable: active.isManuallyEdited ? active.totalInvestable : baseInvestable,
+                    suggestedEquity,
+                    suggestedDebt,
+                    suggestedGold,
+                    suggestedCash,
+                },
+            });
+
+            return buildSuggestionResult(updatedActive, config, cycleDays, null, surplusComp);
+        }
+    }
+
+    // Check if last suggestion was INVESTED and cycle has NOT completed yet
+    const lastInvested = await prisma.investmentSuggestion.findFirst({
+        where: { status: "INVESTED" },
+        orderBy: { investedAt: "desc" },
+    });
+
+    if (lastInvested && lastInvested.investedAt) {
+        const daysSinceInvested = daysBetween(now, new Date(lastInvested.investedAt));
+        if (daysSinceInvested < cycleDays) {
+            // Still in invested cool-down period
+            return buildSuggestionResult(lastInvested, config, cycleDays, cycleDays - daysSinceInvested, surplusComp);
+        }
+    }
+
+    // Generate NEW Suggestion
     const created = await prisma.investmentSuggestion.create({
         data: {
             status: "ACTIVE",
@@ -346,14 +379,15 @@ export async function getOrGenerateInvestmentSuggestion(): Promise<InvestmentSug
         },
     });
 
-    return buildSuggestionResult(created, config, cycleDays);
+    return buildSuggestionResult(created, config, cycleDays, null, surplusComp);
 }
 
 function buildSuggestionResult(
     record: any,
     config: any,
     cycleDays: number,
-    nextSuggestionIn: number | null = null
+    nextSuggestionIn: number | null = null,
+    surplusComp: SurplusComputation | null = null
 ): InvestmentSuggestionResult {
     const isEdited = record.isManuallyEdited;
     const eq = isEdited ? (record.editedEquity ?? 0) : record.suggestedEquity;
@@ -392,16 +426,16 @@ function buildSuggestionResult(
             createdAt: new Date(record.createdAt),
             nextSuggestionIn,
             streak: config.streak,
-            surplusTrend: "stable", // populated by caller if needed
+            surplusTrend: surplusComp?.surplusTrend ?? "stable",
             belowMinThreshold: record.smoothedSurplus < INVESTMENT_DEFAULTS.minInvestableThreshold,
         },
         computation: {
-            rawSurplus: record.rawSurplus,
-            previousSurplus: 0,
-            smoothedSurplus: record.smoothedSurplus,
-            grossIncome: 0,
-            totalExpenses: 0,
-            surplusTrend: "stable",
+            rawSurplus: surplusComp?.rawSurplus ?? record.rawSurplus,
+            previousSurplus: surplusComp?.previousSurplus ?? 0,
+            smoothedSurplus: surplusComp?.smoothedSurplus ?? record.smoothedSurplus,
+            grossIncome: surplusComp?.grossIncome ?? 0,
+            totalExpenses: surplusComp?.totalExpenses ?? 0,
+            surplusTrend: surplusComp?.surplusTrend ?? "stable",
             phaseInvestableRate: record.investableRate,
             baseInvestable: record.baseInvestable,
             spillover: record.spillover,
