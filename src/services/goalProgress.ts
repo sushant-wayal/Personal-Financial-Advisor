@@ -113,12 +113,13 @@ export async function buildGoalProgressSignals(): Promise<GoalProgressSignals> {
     // Available balance = unreserved balance after deducting EF saved amount
     const availableBalance = efStatus.availableBalance;
 
-    const monthlyCapacity = Math.max(
+    const profileCapacity = Math.max(
         0,
         Number(profile?.monthlyIncome || 0) - Number(profile?.monthlyExpenses || 0),
-        savingsRate.monthlySavings,
-        savingsCapacity,
     );
+    const monthlyCapacity = profileCapacity > 0
+        ? profileCapacity
+        : Math.max(0, savingsRate.monthlySavings, savingsCapacity);
 
     return {
         currency: profile?.currency || "INR",

@@ -149,21 +149,30 @@ export async function getEmergencyFundStatus(): Promise<EmergencyFundStatus> {
     const progressPct = targetAmount > 0 ? Math.min(100, (savedAmount / targetAmount) * 100) : 100;
     const isComplete = shortfall === 0 && targetAmount > 0;
 
-    // Monthly capacity = gross surplus (income - expenses or detected from transactions)
+    // Monthly capacity = explicit profile budget surplus (income - expenses), falling back to transaction heuristics if missing
     const profileCapacity = Math.max(
         0,
         Number(profile?.monthlyIncome ?? 0) - Number(profile?.monthlyExpenses ?? 0),
     );
-    const monthlyCapacity = Math.max(profileCapacity, savingsCapacity);
+    const monthlyCapacity = profileCapacity > 0 ? profileCapacity : Math.max(0, savingsCapacity);
 
-    // Step 3: Calculate dynamic strategy ratios across safety tiers for monthly flow
-    const { efRatio, goalsRatio, tier } = getEfStrategyRatios(
+    const strategyRatios = getEfStrategyRatios(
         efStrategy,
         progressPct,
         avgMonthlyExpenses,
         savedAmount,
         isComplete
     );
+    let efRatio = strategyRatios.efRatio;
+    let goalsRatio = strategyRatios.goalsRatio;
+    const tier = strategyRatios.tier;
+
+    // If EF is incomplete but no active goals need monthly funding (all goals fully funded or no goals exist),
+    // redirect 100% of non-investment monthly capacity into EF drip.
+    if (!isComplete && totalGoalsNeeded === 0) {
+        efRatio = 1.0;
+        goalsRatio = 0.0;
+    }
 
     // Deduct configured phase investable percentage (e.g., 15% for EF_BUILDING, 40% for GOAL_SPRINT, 60% for WEALTH_BUILDING, 0% for CRISIS)
     const phaseInvestableRate = investableSuggestion?.suggestion?.investableRate ?? (isComplete ? 60 : 15);

@@ -246,6 +246,17 @@ export async function getGoalOverview() {
 
     const overview = analyzeGoalConflicts(goals as GoalRecord[], effectiveCapacity, signals.currency);
 
+    const uncompletedGoalsSum = overview.goals
+        .filter((g) => g.progressPct < 100)
+        .reduce((sum, g) => sum + (g.recommendedMonthlyContribution || 0), 0);
+    const efDripComponent = !efStatus.isComplete ? efStatus.efMonthlyDrip : 0;
+    const combinedTotalRecommended = Math.round(uncompletedGoalsSum + efDripComponent);
+
+    overview.totalRecommendedMonthlyContribution = combinedTotalRecommended;
+    overview.totalRecommendedMonthlyContributionLabel = formatCurrency(combinedTotalRecommended, signals.currency);
+    overview.monthlyCapacity = efStatus.monthlyCapacity;
+    overview.monthlyCapacityLabel = formatCurrency(efStatus.monthlyCapacity, signals.currency);
+
     if (!signals.efIsComplete) {
         const efDripLabel = new Intl.NumberFormat("en-IN", { style: "currency", currency: signals.currency || "INR", maximumFractionDigits: 0 }).format(efStatus.efMonthlyDrip);
         const goalPoolLabel = new Intl.NumberFormat("en-IN", { style: "currency", currency: signals.currency || "INR", maximumFractionDigits: 0 }).format(efStatus.availableGoalCapacity);

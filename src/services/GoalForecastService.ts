@@ -36,9 +36,8 @@ export function estimateForecast({
         requiredMonthly = Math.max(0, remaining);
     }
 
-    // use observed velocity to predict ETA; prefer velocity but fall back to requiredMonthly
-    const monthlyContributionForEta = Math.max(currentSavingsVelocity, requiredMonthly);
-    const eta = predictETA(currentAmount, monthlyContributionForEta, targetAmount);
+    // Use actual allocated monthly savings velocity to predict realistic ETA based on true financial capacity
+    const eta = predictETA(currentAmount, currentSavingsVelocity, targetAmount);
 
     return {
         requiredMonthly: Math.round(requiredMonthly),
