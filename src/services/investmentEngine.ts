@@ -244,12 +244,6 @@ export async function getActiveInvestableCarveout(): Promise<number> {
     });
     if (!active) return 0;
 
-    // Check if auto-expired (> cycleDays + 7 days)
-    const ageDays = daysBetween(new Date(), new Date(active.createdAt));
-    if (ageDays > active.cycleDays + INVESTMENT_DEFAULTS.staleSuggestionDays) {
-        return 0;
-    }
-
     if (active.isManuallyEdited) {
         return (active.editedEquity ?? 0) + (active.editedDebt ?? 0) + (active.editedGold ?? 0) + (active.editedCash ?? 0);
     }
@@ -315,34 +309,25 @@ export async function getOrGenerateInvestmentSuggestion(): Promise<InvestmentSug
     });
 
     if (active) {
-        const ageDays = daysBetween(now, new Date(active.createdAt));
-        if (ageDays > cycleDays + INVESTMENT_DEFAULTS.staleSuggestionDays) {
-            // Auto-expire stale suggestion
-            await prisma.investmentSuggestion.update({
-                where: { id: active.id },
-                data: { status: "EXPIRED" },
-            });
-        } else {
-            // Update active suggestion with live derived surplus and recommendations
-            const updatedActive = await prisma.investmentSuggestion.update({
-                where: { id: active.id },
-                data: {
-                    phase,
-                    cycleDays,
-                    rawSurplus: surplusComp.rawSurplus,
-                    smoothedSurplus: surplusComp.smoothedSurplus,
-                    investableRate: phaseRate,
-                    baseInvestable,
-                    totalInvestable: active.isManuallyEdited ? active.totalInvestable : baseInvestable,
-                    suggestedEquity,
-                    suggestedDebt,
-                    suggestedGold,
-                    suggestedCash,
-                },
-            });
+        // Update active suggestion with live derived surplus and recommendations
+        const updatedActive = await prisma.investmentSuggestion.update({
+            where: { id: active.id },
+            data: {
+                phase,
+                cycleDays,
+                rawSurplus: surplusComp.rawSurplus,
+                smoothedSurplus: surplusComp.smoothedSurplus,
+                investableRate: phaseRate,
+                baseInvestable,
+                totalInvestable: active.isManuallyEdited ? active.totalInvestable : baseInvestable,
+                suggestedEquity,
+                suggestedDebt,
+                suggestedGold,
+                suggestedCash,
+            },
+        });
 
-            return buildSuggestionResult(updatedActive, config, cycleDays, null, surplusComp);
-        }
+        return buildSuggestionResult(updatedActive, config, cycleDays, null, surplusComp);
     }
 
     // Check if last suggestion was INVESTED and cycle has NOT completed yet
