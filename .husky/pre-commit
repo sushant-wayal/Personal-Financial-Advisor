@@ -1,0 +1,8 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+# run linter and fail commit if lint errors exist
+npm run lint --silent
+
+# then verify API_BASE_URL is production
+node scripts/check-api-base-url.js

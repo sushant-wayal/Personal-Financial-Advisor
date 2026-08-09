@@ -17,6 +17,8 @@
     "prisma:studio": "prisma studio",
     "db:migrate:sqlite-to-postgres": "node scripts/migrate-sqlite-to-postgres.js",
     "db:verify-postgres-migration": "node scripts/verify-postgres-migration.js"
+    ,"prepare": "husky install",
+    "check-api-base-url": "node scripts/check-api-base-url.js"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.1",
@@ -61,6 +63,7 @@
     "prisma": "^5.10.0",
     "tailwindcss": "^4",
     "typescript": "^5",
-    "vitest": "^1.4.3"
+    "vitest": "^1.4.3",
+    "husky": "^8.0.3"
   }
 }
