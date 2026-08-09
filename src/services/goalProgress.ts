@@ -3,7 +3,6 @@ import { calculateMonthlySavingsRate } from "./analytics";
 import { computeHealthStatus, computeConfidenceScore } from "./GoalFeasibilityService";
 import { estimateForecast } from "./GoalForecastService";
 import { allocateMonthlyCapacity } from "./GoalAllocationService";
-import { computeSavingsCapacity } from "./savings";
 import { getEmergencyFundStatus } from "./emergencyFund";
 import { getActiveInvestableCarveout } from "./investmentEngine";
 
@@ -97,12 +96,11 @@ function estimateGoalMonthlyNeed(goal: GoalProgressSeed, monthsLeft: number | nu
 }
 
 export async function buildGoalProgressSignals(): Promise<GoalProgressSignals> {
-    const [profile, savingsRate, savingsCapacity, efStatus, _investableCarveout] = await Promise.all([
+    const [profile, savingsRate, efStatus, _investableCarveout] = await Promise.all([
         prisma.financialProfile.findFirst({
             select: { currency: true, balance: true, monthlyIncome: true, monthlyExpenses: true },
         }),
         calculateMonthlySavingsRate(),
-        computeSavingsCapacity(3),
         // Single source of truth for EF — same data the Goals screen displays
         getEmergencyFundStatus(),
         getActiveInvestableCarveout(),
@@ -113,13 +111,10 @@ export async function buildGoalProgressSignals(): Promise<GoalProgressSignals> {
     // Available balance = unreserved balance after deducting EF saved amount
     const availableBalance = efStatus.availableBalance;
 
-    const profileCapacity = Math.max(
+    const monthlyCapacity = Math.max(
         0,
         Number(profile?.monthlyIncome || 0) - Number(profile?.monthlyExpenses || 0),
     );
-    const monthlyCapacity = profileCapacity > 0
-        ? profileCapacity
-        : Math.max(0, savingsRate.monthlySavings, savingsCapacity);
 
     return {
         currency: profile?.currency || "INR",

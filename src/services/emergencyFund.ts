@@ -1,6 +1,5 @@
 import { prisma } from "../lib/prisma";
 import { calculateBurnRate } from "./analytics";
-import { computeSavingsCapacity } from "./savings";
 import { getActiveInvestableCarveout, getOrGenerateInvestmentSuggestion } from "./investmentEngine";
 
 export type EfStrategy = "BALANCED" | "AGGRESSIVE_EF" | "ACCELERATED_GOALS" | "STRICT";
@@ -80,7 +79,7 @@ export function getEfStrategyRatios(
 }
 
 export async function getEmergencyFundStatus(): Promise<EmergencyFundStatus> {
-    const [profile, burnData, savingsCapacity, goals, investableCarveout, investableSuggestion] = await Promise.all([
+    const [profile, burnData, goals, investableCarveout, investableSuggestion] = await Promise.all([
         prisma.financialProfile.findFirst({
             select: {
                 emergencyFundMonths: true,
@@ -88,10 +87,10 @@ export async function getEmergencyFundStatus(): Promise<EmergencyFundStatus> {
                 monthlyIncome: true,
                 monthlyExpenses: true,
                 efStrategy: true,
+                salaryCycleDays: true,
             },
         }),
         calculateBurnRate(),
-        computeSavingsCapacity(3),
         prisma.goal.findMany({ select: { targetAmount: true, currentAmount: true } }),
         getActiveInvestableCarveout(),
         getOrGenerateInvestmentSuggestion().catch(() => null),
@@ -149,12 +148,11 @@ export async function getEmergencyFundStatus(): Promise<EmergencyFundStatus> {
     const progressPct = targetAmount > 0 ? Math.min(100, (savedAmount / targetAmount) * 100) : 100;
     const isComplete = shortfall === 0 && targetAmount > 0;
 
-    // Monthly capacity = explicit profile budget surplus (income - expenses), falling back to transaction heuristics if missing
-    const profileCapacity = Math.max(
+    // Monthly capacity = strict profile budget surplus (profile.monthlyIncome - profile.monthlyExpenses)
+    const monthlyCapacity = Math.max(
         0,
         Number(profile?.monthlyIncome ?? 0) - Number(profile?.monthlyExpenses ?? 0),
     );
-    const monthlyCapacity = profileCapacity > 0 ? profileCapacity : Math.max(0, savingsCapacity);
 
     const strategyRatios = getEfStrategyRatios(
         efStrategy,

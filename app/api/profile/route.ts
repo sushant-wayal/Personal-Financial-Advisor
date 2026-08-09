@@ -10,8 +10,12 @@ export async function GET() {
         const averages = await calculateAveragedMonthlyIncomeAndExpense();
         
         if (profile) {
-            profile.monthlyIncome = averages.monthlyIncome;
-            profile.monthlyExpenses = averages.monthlyExpenses;
+            if (!profile.monthlyIncome || profile.monthlyIncome === 0) {
+                profile.monthlyIncome = averages.monthlyIncome;
+            }
+            if (!profile.monthlyExpenses || profile.monthlyExpenses === 0) {
+                profile.monthlyExpenses = averages.monthlyExpenses;
+            }
         }
         
         return NextResponse.json({
@@ -66,6 +70,8 @@ export async function PUT(req: Request) {
         };
 
         const existing = await prisma.financialProfile.findFirst();
+        const averages = await calculateAveragedMonthlyIncomeAndExpense();
+
         if (existing) {
             const updated = await prisma.financialProfile.update({
                 where: { id: existing.id },
@@ -73,14 +79,15 @@ export async function PUT(req: Request) {
                     ownerName: body.ownerName ?? existing.ownerName,
                     currency: body.currency ?? existing.currency,
                     balance: typeof body.balance === "number" ? body.balance : existing.balance,
+                    monthlyIncome: typeof body.monthlyIncome === "number" ? body.monthlyIncome : existing.monthlyIncome,
+                    monthlyExpenses: typeof body.monthlyExpenses === "number" ? body.monthlyExpenses : existing.monthlyExpenses,
                     emergencyFundMonths: incomingMonths !== null ? incomingMonths : existing.emergencyFundMonths,
                     efStrategy: incomingStrategy || existing.efStrategy || "BALANCED",
                     ...investmentData,
                 },
             });
-            const averages = await calculateAveragedMonthlyIncomeAndExpense();
-            updated.monthlyIncome = averages.monthlyIncome;
-            updated.monthlyExpenses = averages.monthlyExpenses;
+            if (!updated.monthlyIncome) updated.monthlyIncome = averages.monthlyIncome;
+            if (!updated.monthlyExpenses) updated.monthlyExpenses = averages.monthlyExpenses;
             return NextResponse.json({ ok: true, profile: updated });
         }
 
@@ -89,14 +96,13 @@ export async function PUT(req: Request) {
                 ownerName: body.ownerName || null,
                 currency: body.currency || "INR",
                 balance: typeof body.balance === "number" ? body.balance : 0,
+                monthlyIncome: typeof body.monthlyIncome === "number" ? body.monthlyIncome : averages.monthlyIncome,
+                monthlyExpenses: typeof body.monthlyExpenses === "number" ? body.monthlyExpenses : averages.monthlyExpenses,
                 emergencyFundMonths: incomingMonths !== null ? incomingMonths : 6,
                 efStrategy: incomingStrategy || "BALANCED",
                 ...investmentData,
             },
         });
-        const averages = await calculateAveragedMonthlyIncomeAndExpense();
-        created.monthlyIncome = averages.monthlyIncome;
-        created.monthlyExpenses = averages.monthlyExpenses;
         return NextResponse.json({ ok: true, profile: created });
     } catch (e: any) {
         return NextResponse.json({ error: e.message || String(e) }, { status: 500 });
