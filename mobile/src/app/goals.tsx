@@ -771,7 +771,7 @@ function InvestmentWidget() {
                         <Text style={[styles.efCleanSubtitle, { color: phaseColor }]} numberOfLines={1}>{suggestion.phaseLabel}</Text>
                     </View>
                 </View>
-                {suggestion.streak > 0 && (
+                {suggestion.streak > 1 && (
                     <View style={[styles.efWarningBadge, { backgroundColor: "rgba(245, 158, 11, 0.15)", borderColor: "rgba(245, 158, 11, 0.4)", borderWidth: 1, marginTop: 0, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, flexShrink: 0, alignSelf: "center" }]}>
                         <Text style={[styles.efWarningBadgeText, { color: "#fbbf24", fontSize: fs(10), fontWeight: "700" }]}>🔥 {suggestion.streak}</Text>
                     </View>
@@ -798,18 +798,16 @@ function InvestmentWidget() {
             {total > 0 && buckets && (
                 <View style={{ gap: 8, marginTop: 4 }}>
                     <View style={styles.efProgressBg}>
-                        <View style={{ flexDirection: "row", height: "100%", width: "100%" }}>
-                            {buckets.equity?.pct > 0 && <View style={{ width: `${buckets.equity.pct}%`, backgroundColor: "#818cf8" }} />}
-                            {buckets.debt?.pct > 0 && <View style={{ width: `${buckets.debt.pct}%`, backgroundColor: "#34d399" }} />}
-                            {buckets.gold?.pct > 0 && <View style={{ width: `${buckets.gold.pct}%`, backgroundColor: "#fbbf24" }} />}
-                            {buckets.cash?.pct > 0 && <View style={{ width: `${buckets.cash.pct}%`, backgroundColor: "#c4c7c8" }} />}
+                        <View style={{ flexDirection: "row", height: "100%", width: "100%", overflow: "hidden", borderRadius: 999 }}>
+                            {(buckets.equity?.final ?? 0) > 0 && <View style={{ flex: buckets.equity.final, backgroundColor: "#818cf8" }} />}
+                            {(buckets.debt?.final ?? 0) > 0 && <View style={{ flex: buckets.debt.final, backgroundColor: "#34d399" }} />}
+                            {(buckets.gold?.final ?? 0) > 0 && <View style={{ flex: buckets.gold.final, backgroundColor: "#fbbf24" }} />}
                         </View>
                     </View>
                     <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
                         <LegendDot color="#818cf8" label={`Eq ${buckets.equity?.pct}%`} />
                         <LegendDot color="#34d399" label={`Debt ${buckets.debt?.pct}%`} />
                         <LegendDot color="#fbbf24" label={`Gold ${buckets.gold?.pct}%`} />
-                        <LegendDot color="#c4c7c8" label={`Cash ${buckets.cash?.pct}%`} />
                     </View>
                 </View>
             )}

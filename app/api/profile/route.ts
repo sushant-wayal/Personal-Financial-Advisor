@@ -16,6 +16,21 @@ export async function GET() {
             if (!profile.monthlyExpenses || profile.monthlyExpenses === 0) {
                 profile.monthlyExpenses = averages.monthlyExpenses;
             }
+            // Auto-migrate legacy 50/25/15/10 profile sub-allocations to 70/20/10 and 30/60/10
+            if (profile.stdEquityPct === 50 || profile.consEquityPct === 20) {
+                const updatedProfile = await prisma.financialProfile.update({
+                    where: { id: profile.id },
+                    data: {
+                        stdEquityPct: 70,
+                        stdDebtPct: 20,
+                        stdGoldPct: 10,
+                        consEquityPct: 30,
+                        consDebtPct: 60,
+                        consGoldPct: 10,
+                    },
+                });
+                Object.assign(profile, updatedProfile);
+            }
         }
         
         return NextResponse.json({
@@ -59,14 +74,15 @@ export async function PUT(req: Request) {
             efBuildingInvestableRate: numOr(body.efBuildingInvestableRate, 15),
             wealthBuildingInvestableRate: numOr(body.wealthBuildingInvestableRate, 100),
             goalSprintInvestableRate: numOr(body.goalSprintInvestableRate, 40),
-            stdEquityPct: numOr(body.stdEquityPct, 50),
-            stdDebtPct: numOr(body.stdDebtPct, 25),
-            stdGoldPct: numOr(body.stdGoldPct, 15),
-            stdCashPct: numOr(body.stdCashPct, 10),
-            consEquityPct: numOr(body.consEquityPct, 20),
-            consDebtPct: numOr(body.consDebtPct, 50),
+            stdEquityPct: numOr(body.stdEquityPct, 70),
+            stdDebtPct: numOr(body.stdDebtPct, 20),
+            stdGoldPct: numOr(body.stdGoldPct, 10),
+            consEquityPct: numOr(body.consEquityPct, 30),
+            consDebtPct: numOr(body.consDebtPct, 60),
             consGoldPct: numOr(body.consGoldPct, 10),
-            consCashPct: numOr(body.consCashPct, 20),
+            equityNifty50Pct: numOr(body.equityNifty50Pct, 60),
+            equityNiftyNext50Pct: numOr(body.equityNiftyNext50Pct, 20),
+            equityMidcapPct: numOr(body.equityMidcapPct, 20),
         };
 
         const existing = await prisma.financialProfile.findFirst();

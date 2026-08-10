@@ -36,7 +36,6 @@ export default function InvestmentsScreen() {
   const [equity, setEquity] = useState<number>(0);
   const [debt, setDebt] = useState<number>(0);
   const [gold, setGold] = useState<number>(0);
-  const [cash, setCash] = useState<number>(0);
 
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -57,7 +56,6 @@ export default function InvestmentsScreen() {
           setEquity(buckets.equity?.final ?? 0);
           setDebt(buckets.debt?.final ?? 0);
           setGold(buckets.gold?.final ?? 0);
-          setCash(buckets.cash?.final ?? 0);
         }
       }
 
@@ -89,9 +87,19 @@ export default function InvestmentsScreen() {
   const isInvested = suggestion?.status === "INVESTED";
   const isCrisis = suggestion?.phase === "CRISIS";
 
-  const totalAllocated = equity + debt + gold + cash;
+  const totalAllocated = equity + debt + gold;
   const maxAllowed = suggestion?.maxInvestable ?? 0;
   const isOverCap = totalAllocated > maxAllowed;
+
+  // Dynamic Equity sub-allocation ratios from server suggestion
+  const eqBreakdown = suggestion?.buckets?.equity?.breakdown;
+  const n50Pct = eqBreakdown?.nifty50?.pctOfEquity ?? 60;
+  const nn50Pct = eqBreakdown?.niftyNext50?.pctOfEquity ?? 20;
+  const mcPct = eqBreakdown?.midcap?.pctOfEquity ?? 20;
+
+  const nifty50 = Math.round(equity * (n50Pct / 100));
+  const niftyNext50 = Math.round(equity * (nn50Pct / 100));
+  const midcap = Math.max(0, equity - nifty50 - niftyNext50);
 
   const phaseColor = isCrisis ? "#ffb4ab" : isInvested ? "#6ee7b7" : suggestion?.phase === "WEALTH_BUILDING" ? "#05e777" : suggestion?.phase === "EF_BUILDING" ? "#ffd54f" : "#b0c6ff";
 
@@ -107,7 +115,7 @@ export default function InvestmentsScreen() {
       const res = await fetch(apiUrl("/api/investments"), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ equity, debt, gold, cash }),
+        body: JSON.stringify({ equity, debt, gold }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Save failed");
@@ -132,7 +140,7 @@ export default function InvestmentsScreen() {
       await fetch(apiUrl("/api/investments"), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ equity, debt, gold, cash }),
+        body: JSON.stringify({ equity, debt, gold }),
       });
 
       const res = await fetch(apiUrl("/api/investments/invest"), { method: "POST" });
@@ -192,7 +200,7 @@ export default function InvestmentsScreen() {
             <Text style={styles.topHistoryPillText}>History</Text>
           </Pressable>
 
-          {suggestion?.streak > 0 && (
+          {suggestion?.streak > 1 && (
             <View style={styles.streakBadge}>
               <Text style={styles.streakBadgeText}>🔥 {suggestion.streak}</Text>
             </View>
@@ -250,11 +258,10 @@ export default function InvestmentsScreen() {
           {totalAllocated > 0 && (
             <View style={{ gap: 8 }}>
               <View style={styles.progressTrack}>
-                <View style={{ flexDirection: "row", height: "100%", width: "100%" }}>
-                  {equity > 0 && <View style={{ width: `${(equity / totalAllocated) * 100}%`, backgroundColor: "#818cf8" }} />}
-                  {debt > 0 && <View style={{ width: `${(debt / totalAllocated) * 100}%`, backgroundColor: "#34d399" }} />}
-                  {gold > 0 && <View style={{ width: `${(gold / totalAllocated) * 100}%`, backgroundColor: "#fbbf24" }} />}
-                  {cash > 0 && <View style={{ width: `${(cash / totalAllocated) * 100}%`, backgroundColor: "#c4c7c8" }} />}
+                <View style={{ flexDirection: "row", height: "100%", width: "100%", overflow: "hidden", borderRadius: 999 }}>
+                  {equity > 0 && <View style={{ flex: equity, backgroundColor: "#818cf8" }} />}
+                  {debt > 0 && <View style={{ flex: debt, backgroundColor: "#34d399" }} />}
+                  {gold > 0 && <View style={{ flex: gold, backgroundColor: "#fbbf24" }} />}
                 </View>
               </View>
               <View style={styles.legendRow}>
@@ -270,10 +277,6 @@ export default function InvestmentsScreen() {
                   <View style={[styles.legendDot, { backgroundColor: "#fbbf24" }]} />
                   <Text style={styles.legendLabel}>Gold {Math.round((gold / totalAllocated) * 100)}%</Text>
                 </View>
-                <View style={styles.legendItem}>
-                  <View style={[styles.legendDot, { backgroundColor: "#c4c7c8" }]} />
-                  <Text style={styles.legendLabel}>Cash {Math.round((cash / totalAllocated) * 100)}%</Text>
-                </View>
               </View>
             </View>
           )}
@@ -285,7 +288,7 @@ export default function InvestmentsScreen() {
             <View style={styles.cardHeadingRow}>
               <View style={styles.cardHeadingCopy}>
                 <Text style={styles.sectionTitle}>Asset Sub-Allocations</Text>
-                <Text style={styles.sectionSubtext}>Adjust bucket amounts. Total is capped by available liquid balance.</Text>
+                <Text style={styles.sectionSubtext}>Adjust bucket amounts (Equity 70%, Debt 20%, Gold 10% default). Total is capped by liquid balance.</Text>
               </View>
             </View>
 
@@ -310,6 +313,27 @@ export default function InvestmentsScreen() {
                   />
                 </View>
                 <Text style={styles.suggestedNote}>Suggested: {formatCurrencyAmount(suggestion?.buckets?.equity?.suggested ?? 0, "INR")}</Text>
+
+                {/* Equity Category Distribution */}
+                <View style={{ marginTop: 10, padding: 10, borderRadius: 8, backgroundColor: "rgba(0,0,0,0.4)", borderWidth: 1, borderColor: "rgba(129,140,248,0.25)" }}>
+                  <Text style={{ color: "#818cf8", fontFamily: "Inter", fontSize: fs(11), fontWeight: "700", textTransform: "uppercase", marginBottom: 6 }}>
+                    Equity Sub-Category Breakdown
+                  </Text>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 4 }}>
+                    <View style={{ flex: 1, padding: 6, borderRadius: 6, backgroundColor: "rgba(129,140,248,0.1)", alignItems: "center" }}>
+                      <Text style={{ color: "#c4c7c8", fontSize: fs(10) }}>Nifty 50 ({n50Pct}%)</Text>
+                      <Text style={{ color: "#ffffff", fontWeight: "700", fontSize: fs(11), marginTop: 2 }}>{formatCurrencyAmount(nifty50, "INR")}</Text>
+                    </View>
+                    <View style={{ flex: 1, padding: 6, borderRadius: 6, backgroundColor: "rgba(129,140,248,0.1)", alignItems: "center" }}>
+                      <Text style={{ color: "#c4c7c8", fontSize: fs(10) }}>Nifty Next 50 ({nn50Pct}%)</Text>
+                      <Text style={{ color: "#ffffff", fontWeight: "700", fontSize: fs(11), marginTop: 2 }}>{formatCurrencyAmount(niftyNext50, "INR")}</Text>
+                    </View>
+                    <View style={{ flex: 1, padding: 6, borderRadius: 6, backgroundColor: "rgba(129,140,248,0.1)", alignItems: "center" }}>
+                      <Text style={{ color: "#c4c7c8", fontSize: fs(10) }}>Midcap ({mcPct}%)</Text>
+                      <Text style={{ color: "#ffffff", fontWeight: "700", fontSize: fs(11), marginTop: 2 }}>{formatCurrencyAmount(midcap, "INR")}</Text>
+                    </View>
+                  </View>
+                </View>
               </View>
 
               {/* Debt */}
@@ -354,28 +378,6 @@ export default function InvestmentsScreen() {
                   />
                 </View>
                 <Text style={styles.suggestedNote}>Suggested: {formatCurrencyAmount(suggestion?.buckets?.gold?.suggested ?? 0, "INR")}</Text>
-              </View>
-
-              {/* Cash */}
-              <View style={styles.inputBox}>
-                <View style={styles.inputLabelRow}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                    <View style={[styles.bucketDot, { backgroundColor: "#c4c7c8" }]} />
-                    <Text style={[styles.bucketTitle, { color: "#c4c7c8" }]}>Cash (Liquid)</Text>
-                  </View>
-                  <Text style={styles.pctBadge}>{totalAllocated > 0 ? Math.round((cash / totalAllocated) * 100) : 0}%</Text>
-                </View>
-                <View style={styles.inputWrap}>
-                  <Text style={styles.inputPrefix}>₹</Text>
-                  <TextInput
-                    keyboardType="numeric"
-                    value={String(cash)}
-                    onChangeText={(val) => setCash(Math.max(0, Number(val) || 0))}
-                    style={styles.textInput}
-                    placeholderTextColor="rgba(196,199,200,0.4)"
-                  />
-                </View>
-                <Text style={styles.suggestedNote}>Suggested: {formatCurrencyAmount(suggestion?.buckets?.cash?.suggested ?? 0, "INR")}</Text>
               </View>
             </View>
 
@@ -468,9 +470,6 @@ export default function InvestmentsScreen() {
               </View>
               <View style={styles.chip}>
                 <Text style={styles.chipText}>Gold: {formatCurrencyAmount(suggestion?.buckets?.gold?.final ?? 0, "INR")}</Text>
-              </View>
-              <View style={styles.chip}>
-                <Text style={styles.chipText}>Cash: {formatCurrencyAmount(suggestion?.buckets?.cash?.final ?? 0, "INR")}</Text>
               </View>
             </View>
           </View>

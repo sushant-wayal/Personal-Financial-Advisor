@@ -112,7 +112,7 @@ export default function InvestmentHistoryScreen() {
           <MaterialIcons name="chevron-left" size={24} color="#ffffff" />
           <Text style={styles.backButtonText}>INVESTMENTS</Text>
         </Pressable>
-        {streak > 0 && (
+        {streak > 1 && (
           <View style={styles.streakBadge}>
             <Text style={styles.streakBadgeText}>🔥 {streak} STREAK</Text>
           </View>
@@ -147,7 +147,7 @@ export default function InvestmentHistoryScreen() {
           <View style={styles.statCard}>
             <Text style={styles.statLabel}>Completed Cycles</Text>
             <Text style={styles.statValue}>{historyData.length}</Text>
-            <Text style={styles.statNote}>{streak > 0 ? `🔥 ${streak} cycle streak active` : "Track monthly growth"}</Text>
+            <Text style={styles.statNote}>{streak > 1 ? `🔥 ${streak} cycle streak active` : "Track monthly growth"}</Text>
           </View>
         </View>
 
@@ -213,10 +213,6 @@ export default function InvestmentHistoryScreen() {
                       <View style={[styles.bucketChip, { borderColor: "rgba(251,191,36,0.3)" }]}>
                         <Text style={[styles.bucketChipLabel, { color: "#fbbf24" }]}>Gold</Text>
                         <Text style={styles.bucketChipVal}>{formatCurrencyAmount(item.gold, "INR")}</Text>
-                      </View>
-                      <View style={[styles.bucketChip, { borderColor: "rgba(196,199,200,0.3)" }]}>
-                        <Text style={[styles.bucketChipLabel, { color: "#c4c7c8" }]}>Cash</Text>
-                        <Text style={styles.bucketChipVal}>{formatCurrencyAmount(item.cash, "INR")}</Text>
                       </View>
                     </View>
 

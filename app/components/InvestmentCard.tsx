@@ -113,7 +113,7 @@ export function InvestmentCard() {
 
                     {/* Streak & Status Badges */}
                     <div className="flex items-center gap-2">
-                        {suggestion.streak > 0 && (
+                        {suggestion.streak > 1 && (
                             <div className="flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-300 shadow-sm">
                                 <Flame className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
                                 <span>{suggestion.streak} Cycle Streak</span>
@@ -168,7 +168,7 @@ export function InvestmentCard() {
 
                 {/* Sub-Allocation Visual Bar */}
                 {total > 0 && (
-                    <div className="space-y-2 pt-1">
+                    <div className="space-y-2.5 pt-1">
                         <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-slate-900 border border-white/5 p-0.5">
                             {buckets.equity.pct > 0 && (
                                 <div style={{ width: `${buckets.equity.pct}%` }} className="h-full bg-indigo-500 rounded-l-full transition-all duration-500" title={`Equity: ${formatCurrency(buckets.equity.final)} (${buckets.equity.pct}%)`} />
@@ -177,10 +177,7 @@ export function InvestmentCard() {
                                 <div style={{ width: `${buckets.debt.pct}%` }} className="h-full bg-emerald-500 transition-all duration-500" title={`Debt: ${formatCurrency(buckets.debt.final)} (${buckets.debt.pct}%)`} />
                             )}
                             {buckets.gold.pct > 0 && (
-                                <div style={{ width: `${buckets.gold.pct}%` }} className="h-full bg-amber-400 transition-all duration-500" title={`Gold: ${formatCurrency(buckets.gold.final)} (${buckets.gold.pct}%)`} />
-                            )}
-                            {buckets.cash.pct > 0 && (
-                                <div style={{ width: `${buckets.cash.pct}%` }} className="h-full bg-slate-400 rounded-r-full transition-all duration-500" title={`Cash: ${formatCurrency(buckets.cash.final)} (${buckets.cash.pct}%)`} />
+                                <div style={{ width: `${buckets.gold.pct}%` }} className="h-full bg-amber-400 rounded-r-full transition-all duration-500" title={`Gold: ${formatCurrency(buckets.gold.final)} (${buckets.gold.pct}%)`} />
                             )}
                         </div>
 
@@ -188,8 +185,19 @@ export function InvestmentCard() {
                             <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-indigo-500" />Equity: {formatCurrency(buckets.equity.final)} ({buckets.equity.pct}%)</span>
                             <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-emerald-500" />Debt: {formatCurrency(buckets.debt.final)} ({buckets.debt.pct}%)</span>
                             <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-amber-400" />Gold: {formatCurrency(buckets.gold.final)} ({buckets.gold.pct}%)</span>
-                            <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-slate-400" />Cash: {formatCurrency(buckets.cash.final)} ({buckets.cash.pct}%)</span>
                         </div>
+
+                        {/* Equity Category Breakdown Pill */}
+                        {buckets.equity.breakdown && buckets.equity.final > 0 && (
+                            <div className="rounded-lg border border-indigo-500/20 bg-indigo-950/30 p-2 text-[11px] font-mono text-indigo-300/90 flex flex-wrap items-center justify-between gap-2">
+                                <span className="text-[10px] font-semibold uppercase tracking-wider text-indigo-400">Equity Breakdown (60/20/20):</span>
+                                <div className="flex items-center gap-3 text-slate-300">
+                                    <span>Nifty 50: <strong className="text-white">{formatCurrency(buckets.equity.breakdown.nifty50.amount)}</strong></span>
+                                    <span>Nifty Next 50: <strong className="text-white">{formatCurrency(buckets.equity.breakdown.niftyNext50.amount)}</strong></span>
+                                    <span>Midcap: <strong className="text-white">{formatCurrency(buckets.equity.breakdown.midcap.amount)}</strong></span>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>

@@ -363,7 +363,7 @@ export function buildAdvisorSystemPrompt(options?: { structured?: boolean }) {
         "INVESTMENT STRATEGY GUIDANCE: The system features an automated Monthly Percentage-of-Surplus Investment Strategy framework. " +
         "1. Active Investment Suggestions are calculated based on pay cycles (30-33 days) and financial phases: CRISIS, EF_BUILDING, WEALTH_BUILDING, and GOAL_SPRINT. " +
         "2. Carveout Protection: Active investment capital is carved out before emergency fund drips or goal splits run. " +
-        "3. Asset Sub-Allocations: Equity, Debt, Gold, Cash amounts are calculated based on phase rules and user settings. " +
+        "3. Asset Sub-Allocations: Equity, Debt, Gold amounts are calculated based on phase rules and user settings (default 70/20/10 in Wealth Building and 30/60/10 in EF Building), with Equity further subdivided into Nifty 50 (60%), Nifty Next 50 (20%), and Midcap (20%). " +
         "4. Available Tools: Use `getInvestmentSuggestion` to fetch active suggestions, `getInvestmentHistory` for past logs & streak stats, `updateInvestmentAllocations` to modify amounts, and `markInvestmentCompleted` to mark investments completed on behalf of the user. " +
         "5. Guidance Rule: When asked about investment recommendations, state values in both local currency (₹) and percentages of surplus. Never recommend specific stock tickers or mutual fund schemes; focus on broad asset classes, safety margins, and financial discipline.",
 

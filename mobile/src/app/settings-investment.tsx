@@ -26,11 +26,12 @@ type Profile = {
   stdEquityPct?: number | null;
   stdDebtPct?: number | null;
   stdGoldPct?: number | null;
-  stdCashPct?: number | null;
   consEquityPct?: number | null;
   consDebtPct?: number | null;
   consGoldPct?: number | null;
-  consCashPct?: number | null;
+  equityNifty50Pct?: number | null;
+  equityNiftyNext50Pct?: number | null;
+  equityMidcapPct?: number | null;
 };
 
 function apiUrl(path: string) {
@@ -39,30 +40,40 @@ function apiUrl(path: string) {
 
 const fs = (size: number) => Math.round(size * 0.9 * 10) / 10;
 
-function SettingInput({
+function ConfigInput({
   label,
+  sublabel,
   value,
-  placeholder,
+  unit = "%",
   onChangeText,
-  keyboardType = "default",
+  accentColor = "#818cf8",
 }: {
   label: string;
+  sublabel?: string;
   value: string;
-  placeholder?: string;
+  unit?: string;
   onChangeText?: (text: string) => void;
-  keyboardType?: "default" | "numeric";
+  accentColor?: string;
 }) {
   return (
-    <View style={styles.inputGroup}>
-      <Text style={styles.inputLabel}>{label}</Text>
-      <TextInput
-        style={styles.input}
-        value={value}
-        placeholder={placeholder}
-        placeholderTextColor="#5f6368"
-        onChangeText={onChangeText}
-        keyboardType={keyboardType}
-      />
+    <View style={styles.fieldBlock}>
+      <View style={styles.fieldHeader}>
+        <Text style={styles.fieldLabel}>{label}</Text>
+        {sublabel ? <Text style={styles.fieldSublabel}>{sublabel}</Text> : null}
+      </View>
+      <View style={styles.fieldInputWrap}>
+        <TextInput
+          style={styles.fieldInput}
+          value={value}
+          placeholder="0"
+          placeholderTextColor="rgba(196,199,200,0.3)"
+          onChangeText={onChangeText}
+          keyboardType="numeric"
+        />
+        <View style={[styles.unitBadge, { backgroundColor: `${accentColor}20` }]}>
+          <Text style={[styles.unitBadgeText, { color: accentColor }]}>{unit}</Text>
+        </View>
+      </View>
     </View>
   );
 }
@@ -103,8 +114,23 @@ export default function InvestmentSettingsScreen() {
   };
 
   const updateProfile = (patch: Partial<Profile>) => {
-    setProfile((current) => ({ ...current, ...patch }));
+    setProfile((prev) => ({ ...prev, ...patch }));
   };
+
+  const stdEquity = profile.stdEquityPct ?? 70;
+  const stdDebt = profile.stdDebtPct ?? 20;
+  const stdGold = profile.stdGoldPct ?? 10;
+  const stdSum = stdEquity + stdDebt + stdGold;
+
+  const consEquity = profile.consEquityPct ?? 30;
+  const consDebt = profile.consDebtPct ?? 60;
+  const consGold = profile.consGoldPct ?? 10;
+  const consSum = consEquity + consDebt + consGold;
+
+  const nifty50 = profile.equityNifty50Pct ?? 60;
+  const niftyNext50 = profile.equityNiftyNext50Pct ?? 20;
+  const midcap = profile.equityMidcapPct ?? 20;
+  const eqSum = nifty50 + niftyNext50 + midcap;
 
   const handleSave = async () => {
     setSaving(true);
@@ -117,16 +143,17 @@ export default function InvestmentSettingsScreen() {
           salaryCycleDays: Math.max(30, Math.min(33, Number(profile.salaryCycleDays ?? 33))),
           efBuildingInvestableRate: Math.max(0, Math.min(100, Number(profile.efBuildingInvestableRate ?? 15))),
           goalSprintInvestableRate: Math.max(0, Math.min(100, Number(profile.goalSprintInvestableRate ?? 40))),
-          wealthBuildingInvestableRate: Math.max(0, Math.min(100, Number(profile.wealthBuildingInvestableRate ?? 60))),
+          wealthBuildingInvestableRate: Math.max(0, Math.min(100, Number(profile.wealthBuildingInvestableRate ?? 100))),
           crisisInvestableRate: Math.max(0, Math.min(100, Number(profile.crisisInvestableRate ?? 0))),
-          stdEquityPct: Math.max(0, Math.min(100, Number(profile.stdEquityPct ?? 50))),
-          stdDebtPct: Math.max(0, Math.min(100, Number(profile.stdDebtPct ?? 25))),
-          stdGoldPct: Math.max(0, Math.min(100, Number(profile.stdGoldPct ?? 15))),
-          stdCashPct: Math.max(0, Math.min(100, Number(profile.stdCashPct ?? 10))),
-          consEquityPct: Math.max(0, Math.min(100, Number(profile.consEquityPct ?? 20))),
-          consDebtPct: Math.max(0, Math.min(100, Number(profile.consDebtPct ?? 50))),
+          stdEquityPct: Math.max(0, Math.min(100, Number(profile.stdEquityPct ?? 70))),
+          stdDebtPct: Math.max(0, Math.min(100, Number(profile.stdDebtPct ?? 20))),
+          stdGoldPct: Math.max(0, Math.min(100, Number(profile.stdGoldPct ?? 10))),
+          consEquityPct: Math.max(0, Math.min(100, Number(profile.consEquityPct ?? 30))),
+          consDebtPct: Math.max(0, Math.min(100, Number(profile.consDebtPct ?? 60))),
           consGoldPct: Math.max(0, Math.min(100, Number(profile.consGoldPct ?? 10))),
-          consCashPct: Math.max(0, Math.min(100, Number(profile.consCashPct ?? 20))),
+          equityNifty50Pct: Math.max(0, Math.min(100, Number(profile.equityNifty50Pct ?? 60))),
+          equityNiftyNext50Pct: Math.max(0, Math.min(100, Number(profile.equityNiftyNext50Pct ?? 20))),
+          equityMidcapPct: Math.max(0, Math.min(100, Number(profile.equityMidcapPct ?? 20))),
         }),
       });
 
@@ -134,7 +161,7 @@ export default function InvestmentSettingsScreen() {
       if (!res.ok || payload.ok === false) throw new Error(payload.error || "Failed to save investment settings");
 
       clearClientCache();
-      Alert.alert("Investment Settings Saved", "Pay cycle timing and phase sub-allocation parameters updated.");
+      Alert.alert("Settings Saved", "Your investment strategy configuration has been updated!");
       loadData();
     } catch (e: any) {
       Alert.alert("Error", e.message || String(e));
@@ -167,128 +194,218 @@ export default function InvestmentSettingsScreen() {
           enableOnAndroid
           extraScrollHeight={24}
         >
+          {/* Header Description Block */}
           <View style={styles.headerBlock}>
-            <Text style={styles.eyebrow}>Strategy Parameters</Text>
+            <Text style={styles.eyebrow}>STRATEGY & ALLOCATIONS</Text>
             <Text style={styles.screenTitle}>Investment Settings</Text>
-            <Text style={styles.screenSub}>
-              Customize salary pay cycle length, phase investable rates, and target asset sub-allocation splits.
-            </Text>
           </View>
 
-          {/* Investment Strategy Configuration Section */}
-          <View style={styles.panelCard}>
-            <View style={styles.cardHeader}>
-              <Text style={styles.sectionKicker}>Pay Cycle & Phase Investable Rates</Text>
-              <Text style={styles.sectionSubtext}>Pay cycle timing and investable rates per financial phase.</Text>
+          {/* SECTION 1: Pay Cycle & Phase Surplus Rates */}
+          <View style={styles.card}>
+            <View style={styles.cardTitleRow}>
+              <View style={[styles.iconBox, { backgroundColor: "rgba(129,140,248,0.15)" }]}>
+                <MaterialIcons name="event-repeat" size={20} color="#818cf8" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.cardKicker}>PAY CYCLE & PHASE DEPLOYMENT</Text>
+                <Text style={styles.cardTitle}>Surplus Investment Rates</Text>
+              </View>
             </View>
 
-            <SettingInput
-              label="Salary Pay Cycle (Days: 30..33)"
-              value={String(profile.salaryCycleDays ?? 33)}
-              keyboardType="numeric"
-              onChangeText={(v) => updateProfile({ salaryCycleDays: Math.max(30, Math.min(33, Number(v || 33))) })}
-            />
-
-            <Text style={styles.smallLabel}>Phase Investable Rates (%)</Text>
-
-            <View style={styles.twoColumn}>
-              <SettingInput
-                label="EF Building Rate %"
-                value={String(profile.efBuildingInvestableRate ?? 15)}
-                keyboardType="numeric"
-                onChangeText={(v) => updateProfile({ efBuildingInvestableRate: Math.max(0, Math.min(100, Number(v || 0))) })}
+            <View style={styles.gridTwo}>
+              <ConfigInput
+                label="Salary Pay Cycle"
+                value={String(profile.salaryCycleDays ?? 33)}
+                unit="Days"
+                onChangeText={(v) => updateProfile({ salaryCycleDays: Math.max(30, Math.min(33, Number(v || 33))) })}
+                accentColor="#818cf8"
               />
-              <SettingInput
-                label="Goal Sprint Rate %"
-                value={String(profile.goalSprintInvestableRate ?? 40)}
-                keyboardType="numeric"
-                onChangeText={(v) => updateProfile({ goalSprintInvestableRate: Math.max(0, Math.min(100, Number(v || 0))) })}
-              />
-            </View>
-
-            <View style={styles.twoColumn}>
-              <SettingInput
-                label="Wealth Building Rate %"
-                value={String(profile.wealthBuildingInvestableRate ?? 60)}
-                keyboardType="numeric"
+              <ConfigInput
+                label="Wealth Building"
+                value={String(profile.wealthBuildingInvestableRate ?? 100)}
+                unit="%"
                 onChangeText={(v) => updateProfile({ wealthBuildingInvestableRate: Math.max(0, Math.min(100, Number(v || 0))) })}
-              />
-              <SettingInput
-                label="Crisis Phase Rate %"
-                value={String(profile.crisisInvestableRate ?? 0)}
-                keyboardType="numeric"
-                onChangeText={(v) => updateProfile({ crisisInvestableRate: Math.max(0, Math.min(100, Number(v || 0))) })}
+                accentColor="#34d399"
               />
             </View>
 
-            <Text style={[styles.smallLabel, { marginTop: 12 }]}>Standard Asset Sub-Allocations (%)</Text>
+            <View style={styles.gridTwo}>
+              <ConfigInput
+                label="Goal Sprint"
+                value={String(profile.goalSprintInvestableRate ?? 40)}
+                unit="%"
+                onChangeText={(v) => updateProfile({ goalSprintInvestableRate: Math.max(0, Math.min(100, Number(v || 0))) })}
+                accentColor="#fbbf24"
+              />
+              <ConfigInput
+                label="EF Building"
+                value={String(profile.efBuildingInvestableRate ?? 15)}
+                unit="%"
+                onChangeText={(v) => updateProfile({ efBuildingInvestableRate: Math.max(0, Math.min(100, Number(v || 0))) })}
+                accentColor="#c4c7c8"
+              />
+            </View>
 
-            <View style={styles.twoColumn}>
-              <SettingInput
-                label="Std Equity %"
-                value={String(profile.stdEquityPct ?? 50)}
-                keyboardType="numeric"
+            <ConfigInput
+              label="Crisis Phase"
+              value={String(profile.crisisInvestableRate ?? 0)}
+              unit="%"
+              onChangeText={(v) => updateProfile({ crisisInvestableRate: Math.max(0, Math.min(100, Number(v || 0))) })}
+              accentColor="#ffb4ab"
+            />
+          </View>
+
+          {/* SECTION 2: Standard Asset Allocation (Wealth Building) */}
+          <View style={styles.card}>
+            <View style={styles.cardTitleRow}>
+              <View style={[styles.iconBox, { backgroundColor: "rgba(52,211,153,0.15)" }]}>
+                <MaterialIcons name="pie-chart" size={20} color="#34d399" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.cardKicker, { color: "#34d399" }]}>WEALTH BUILDING PHASE</Text>
+                <Text style={styles.cardTitle}>Standard Allocation</Text>
+              </View>
+              <View style={[styles.sumBadge, stdSum === 100 ? styles.sumOk : styles.sumWarn]}>
+                <Text style={styles.sumBadgeText}>{stdSum}% Total</Text>
+              </View>
+            </View>
+
+            {/* Live Visual Allocation Bar */}
+            <View style={styles.barPreviewWrap}>
+              <View style={styles.barTrack}>
+                {stdEquity > 0 && <View style={{ flex: stdEquity, backgroundColor: "#818cf8" }} />}
+                {stdDebt > 0 && <View style={{ flex: stdDebt, backgroundColor: "#34d399" }} />}
+                {stdGold > 0 && <View style={{ flex: stdGold, backgroundColor: "#fbbf24" }} />}
+              </View>
+              <View style={styles.barLegendRow}>
+                <Text style={{ color: "#818cf8", fontSize: fs(11), fontWeight: "600" }}>Equity {stdEquity}%</Text>
+                <Text style={{ color: "#34d399", fontSize: fs(11), fontWeight: "600" }}>Debt {stdDebt}%</Text>
+                <Text style={{ color: "#fbbf24", fontSize: fs(11), fontWeight: "600" }}>Gold {stdGold}%</Text>
+              </View>
+            </View>
+
+            <View style={styles.gridThree}>
+              <ConfigInput
+                label="Equity"
+                value={String(stdEquity)}
+                unit="%"
                 onChangeText={(v) => updateProfile({ stdEquityPct: Math.max(0, Math.min(100, Number(v || 0))) })}
+                accentColor="#818cf8"
               />
-              <SettingInput
-                label="Std Debt %"
-                value={String(profile.stdDebtPct ?? 25)}
-                keyboardType="numeric"
+              <ConfigInput
+                label="Debt"
+                value={String(stdDebt)}
+                unit="%"
                 onChangeText={(v) => updateProfile({ stdDebtPct: Math.max(0, Math.min(100, Number(v || 0))) })}
+                accentColor="#34d399"
               />
-            </View>
-
-            <View style={styles.twoColumn}>
-              <SettingInput
-                label="Std Gold %"
-                value={String(profile.stdGoldPct ?? 15)}
-                keyboardType="numeric"
+              <ConfigInput
+                label="Gold"
+                value={String(stdGold)}
+                unit="%"
                 onChangeText={(v) => updateProfile({ stdGoldPct: Math.max(0, Math.min(100, Number(v || 0))) })}
-              />
-              <SettingInput
-                label="Std Cash %"
-                value={String(profile.stdCashPct ?? 10)}
-                keyboardType="numeric"
-                onChangeText={(v) => updateProfile({ stdCashPct: Math.max(0, Math.min(100, Number(v || 0))) })}
-              />
-            </View>
-
-            <Text style={[styles.smallLabel, { marginTop: 12 }]}>Conservative EF-Building Sub-Allocations (%)</Text>
-
-            <View style={styles.twoColumn}>
-              <SettingInput
-                label="Cons Equity %"
-                value={String(profile.consEquityPct ?? 20)}
-                keyboardType="numeric"
-                onChangeText={(v) => updateProfile({ consEquityPct: Math.max(0, Math.min(100, Number(v || 0))) })}
-              />
-              <SettingInput
-                label="Cons Debt %"
-                value={String(profile.consDebtPct ?? 50)}
-                keyboardType="numeric"
-                onChangeText={(v) => updateProfile({ consDebtPct: Math.max(0, Math.min(100, Number(v || 0))) })}
-              />
-            </View>
-
-            <View style={styles.twoColumn}>
-              <SettingInput
-                label="Cons Gold %"
-                value={String(profile.consGoldPct ?? 10)}
-                keyboardType="numeric"
-                onChangeText={(v) => updateProfile({ consGoldPct: Math.max(0, Math.min(100, Number(v || 0))) })}
-              />
-              <SettingInput
-                label="Cons Cash %"
-                value={String(profile.consCashPct ?? 20)}
-                keyboardType="numeric"
-                onChangeText={(v) => updateProfile({ consCashPct: Math.max(0, Math.min(100, Number(v || 0))) })}
+                accentColor="#fbbf24"
               />
             </View>
           </View>
 
-          {/* Save Action Button */}
+          {/* SECTION 3: Conservative Asset Allocation (EF Building) */}
+          <View style={styles.card}>
+            <View style={styles.cardTitleRow}>
+              <View style={[styles.iconBox, { backgroundColor: "rgba(251,191,36,0.15)" }]}>
+                <MaterialIcons name="security" size={20} color="#fbbf24" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.cardKicker, { color: "#fbbf24" }]}>EMERGENCY FUND BUILDING</Text>
+                <Text style={styles.cardTitle}>Conservative Allocation</Text>
+              </View>
+              <View style={[styles.sumBadge, consSum === 100 ? styles.sumOk : styles.sumWarn]}>
+                <Text style={styles.sumBadgeText}>{consSum}% Total</Text>
+              </View>
+            </View>
+
+            {/* Live Visual Allocation Bar */}
+            <View style={styles.barPreviewWrap}>
+              <View style={styles.barTrack}>
+                {consEquity > 0 && <View style={{ flex: consEquity, backgroundColor: "#818cf8" }} />}
+                {consDebt > 0 && <View style={{ flex: consDebt, backgroundColor: "#34d399" }} />}
+                {consGold > 0 && <View style={{ flex: consGold, backgroundColor: "#fbbf24" }} />}
+              </View>
+              <View style={styles.barLegendRow}>
+                <Text style={{ color: "#818cf8", fontSize: fs(11), fontWeight: "600" }}>Equity {consEquity}%</Text>
+                <Text style={{ color: "#34d399", fontSize: fs(11), fontWeight: "600" }}>Debt {consDebt}%</Text>
+                <Text style={{ color: "#fbbf24", fontSize: fs(11), fontWeight: "600" }}>Gold {consGold}%</Text>
+              </View>
+            </View>
+
+            <View style={styles.gridThree}>
+              <ConfigInput
+                label="Cons Equity"
+                value={String(consEquity)}
+                unit="%"
+                onChangeText={(v) => updateProfile({ consEquityPct: Math.max(0, Math.min(100, Number(v || 0))) })}
+                accentColor="#818cf8"
+              />
+              <ConfigInput
+                label="Cons Debt"
+                value={String(consDebt)}
+                unit="%"
+                onChangeText={(v) => updateProfile({ consDebtPct: Math.max(0, Math.min(100, Number(v || 0))) })}
+                accentColor="#34d399"
+              />
+              <ConfigInput
+                label="Cons Gold"
+                value={String(consGold)}
+                unit="%"
+                onChangeText={(v) => updateProfile({ consGoldPct: Math.max(0, Math.min(100, Number(v || 0))) })}
+                accentColor="#fbbf24"
+              />
+            </View>
+          </View>
+
+          {/* SECTION 4: Equity Sub-Category Market Cap Ratio */}
+          <View style={styles.card}>
+            <View style={styles.cardTitleRow}>
+              <View style={[styles.iconBox, { backgroundColor: "rgba(129,140,248,0.15)" }]}>
+                <MaterialIcons name="show-chart" size={20} color="#818cf8" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.cardKicker}>EQUITY MARKET CAP SPLIT</Text>
+                <Text style={styles.cardTitle}>Equity Breakdown</Text>
+              </View>
+              <View style={[styles.sumBadge, eqSum === 100 ? styles.sumOk : styles.sumWarn]}>
+                <Text style={styles.sumBadgeText}>{eqSum}% Total</Text>
+              </View>
+            </View>
+
+            <View style={styles.gridThree}>
+              <ConfigInput
+                label="Nifty 50"
+                value={String(nifty50)}
+                unit="%"
+                onChangeText={(v) => updateProfile({ equityNifty50Pct: Math.max(0, Math.min(100, Number(v || 0))) })}
+                accentColor="#818cf8"
+              />
+              <ConfigInput
+                label="Nifty Next 50"
+                value={String(niftyNext50)}
+                unit="%"
+                onChangeText={(v) => updateProfile({ equityNiftyNext50Pct: Math.max(0, Math.min(100, Number(v || 0))) })}
+                accentColor="#818cf8"
+              />
+              <ConfigInput
+                label="Midcap"
+                value={String(midcap)}
+                unit="%"
+                onChangeText={(v) => updateProfile({ equityMidcapPct: Math.max(0, Math.min(100, Number(v || 0))) })}
+                accentColor="#818cf8"
+              />
+            </View>
+          </View>
+
+          {/* Action Save Button */}
           <Pressable onPress={handleSave} disabled={saving} style={[styles.saveBtn, saving && styles.saveBtnDisabled]}>
-            <Text style={styles.saveBtnText}>{saving ? "Saving Changes..." : "Save Investment Settings"}</Text>
+            <Text style={styles.saveBtnText}>{saving ? "Saving..." : "Save"}</Text>
           </Pressable>
         </KeyboardAwareScrollView>
       )}
@@ -299,11 +416,11 @@ export default function InvestmentSettingsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#131313" },
   topBar: {
-    height: 80,
-    paddingHorizontal: 24,
+    height: 70,
+    paddingHorizontal: 20,
     borderBottomWidth: 1,
     borderBottomColor: "rgba(68,71,72,0.20)",
-    backgroundColor: "rgba(19,19,19,0.94)",
+    backgroundColor: "rgba(19,19,19,0.96)",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -311,37 +428,72 @@ const styles = StyleSheet.create({
   backButton: { flexDirection: "row", alignItems: "center", gap: 4 },
   backButtonText: { color: "#ffffff", fontFamily: "JetBrains Mono", fontSize: fs(11), letterSpacing: 1.4, fontWeight: "700" },
   scroll: { flex: 1 },
-  scrollContent: { padding: 24, paddingBottom: 160, gap: 24 },
-  headerBlock: { gap: 6 },
-  eyebrow: { color: "#c4c7c8", fontFamily: "JetBrains Mono", fontSize: fs(10), letterSpacing: 1.6, textTransform: "uppercase", fontWeight: "700" },
-  screenTitle: { color: "#ffffff", fontFamily: "Hanken Grotesk", fontSize: fs(30), lineHeight: 38, fontWeight: "700" },
-  screenSub: { color: "#8e9192", fontFamily: "Inter", fontSize: fs(13), lineHeight: 19 },
-  panelCard: { borderRadius: 16, borderWidth: 1, borderColor: "rgba(68,71,72,0.35)", backgroundColor: "#0e0e0e", padding: 22, gap: 16 },
-  cardHeader: { gap: 4 },
-  sectionKicker: { color: "#818cf8", fontFamily: "JetBrains Mono", fontSize: fs(11), letterSpacing: 1.6, textTransform: "uppercase", fontWeight: "700" },
-  sectionSubtext: { color: "#8e9192", fontFamily: "Inter", fontSize: fs(12) },
-  inputGroup: { gap: 6 },
-  inputLabel: { color: "#c4c7c8", fontFamily: "JetBrains Mono", fontSize: fs(11), fontWeight: "600" },
-  input: {
-    height: 46,
-    borderRadius: 12,
+  scrollContent: { padding: 20, paddingBottom: 120, gap: 20 },
+  headerBlock: { gap: 4 },
+  eyebrow: { color: "#818cf8", fontFamily: "JetBrains Mono", fontSize: fs(10), letterSpacing: 1.6, textTransform: "uppercase", fontWeight: "700" },
+  screenTitle: { color: "#ffffff", fontFamily: "Hanken Grotesk", fontSize: fs(26), lineHeight: 32, fontWeight: "700" },
+  screenSub: { color: "#8e9192", fontFamily: "Inter", fontSize: fs(13), lineHeight: 18 },
+  card: { borderRadius: 16, borderWidth: 1, borderColor: "rgba(68,71,72,0.35)", backgroundColor: "#0e0e0e", padding: 18, gap: 14 },
+  cardTitleRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  iconBox: { width: 38, height: 38, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  cardKicker: { color: "#818cf8", fontFamily: "JetBrains Mono", fontSize: fs(10), letterSpacing: 1.2, fontWeight: "700" },
+  cardTitle: { color: "#ffffff", fontFamily: "Hanken Grotesk", fontSize: fs(16), fontWeight: "700" },
+  cardDescription: { color: "#8e9192", fontFamily: "Inter", fontSize: fs(12), lineHeight: 17 },
+  sumBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, borderWidth: 1 },
+  sumOk: { backgroundColor: "rgba(52,211,153,0.15)", borderColor: "rgba(52,211,153,0.3)" },
+  sumWarn: { backgroundColor: "rgba(251,191,36,0.15)", borderColor: "rgba(251,191,36,0.3)" },
+  sumBadgeText: { color: "#ffffff", fontFamily: "JetBrains Mono", fontSize: fs(11), fontWeight: "700" },
+  gridTwo: { flexDirection: "row", gap: 10 },
+  gridThree: { flexDirection: "row", gap: 8 },
+  fieldBlock: { flex: 1, gap: 4 },
+  fieldHeader: { gap: 1 },
+  fieldLabel: { color: "#ffffff", fontFamily: "Inter", fontSize: fs(12), fontWeight: "600" },
+  fieldSublabel: { color: "#8e9192", fontFamily: "Inter", fontSize: fs(10) },
+  fieldInputWrap: {
+    height: 44,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: "rgba(68,71,72,0.40)",
     backgroundColor: "#171819",
-    color: "#ffffff",
-    fontFamily: "Inter",
-    fontSize: fs(14),
-    paddingHorizontal: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingLeft: 12,
+    paddingRight: 6,
+    overflow: "hidden",
   },
-  twoColumn: { flexDirection: "row", gap: 12 },
-  smallLabel: { color: "#c4c7c8", fontFamily: "JetBrains Mono", fontSize: fs(11), fontWeight: "700" },
+  fieldInput: {
+    flex: 1,
+    color: "#ffffff",
+    fontFamily: "JetBrains Mono",
+    fontSize: fs(14),
+    fontWeight: "700",
+    padding: 0,
+  },
+  unitBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  unitBadgeText: {
+    fontFamily: "JetBrains Mono",
+    fontSize: fs(11),
+    fontWeight: "700",
+  },
+  barPreviewWrap: { gap: 6, marginVertical: 2 },
+  barTrack: { height: 10, borderRadius: 999, flexDirection: "row", overflow: "hidden", backgroundColor: "rgba(0,0,0,0.5)" },
+  barLegendRow: { flexDirection: "row", justifyContent: "space-between" },
+  equityPreviewWrap: { marginVertical: 2 },
+  gridThreePreview: { flexDirection: "row", gap: 6 },
+  eqPill: { flex: 1, padding: 8, borderRadius: 8, borderWidth: 1, alignItems: "center", gap: 2 },
   saveBtn: {
     height: 52,
     borderRadius: 14,
     backgroundColor: "#818cf8",
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    marginTop: 6,
   },
   saveBtnDisabled: { opacity: 0.5 },
-  saveBtnText: { color: "#ffffff", fontFamily: "Hanken Grotesk", fontSize: fs(15), fontWeight: "700" },
+  saveBtnText: { color: "#ffffff", fontFamily: "Hanken Grotesk", fontSize: fs(16), fontWeight: "700" },
 });

@@ -452,7 +452,6 @@ export async function GET() {
                         ["Equity", `${buckets.equity.pct}%`, fmt(buckets.equity.suggested, currency), fmt(buckets.equity.final, currency)],
                         ["Debt", `${buckets.debt.pct}%`, fmt(buckets.debt.suggested, currency), fmt(buckets.debt.final, currency)],
                         ["Gold", `${buckets.gold.pct}%`, fmt(buckets.gold.suggested, currency), fmt(buckets.gold.final, currency)],
-                        ["Cash", `${buckets.cash.pct}%`, fmt(buckets.cash.suggested, currency), fmt(buckets.cash.final, currency)],
                     ]
                 ));
             }

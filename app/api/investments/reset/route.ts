@@ -17,7 +17,6 @@ export async function POST() {
                     editedEquity: null,
                     editedDebt: null,
                     editedGold: null,
-                    editedCash: null,
                 },
             });
         }

@@ -12,14 +12,17 @@ export type InvestmentDefaults = {
             equity: number;
             debt: number;
             gold: number;
-            cash: number;
         };
         conservative: {
             equity: number;
             debt: number;
             gold: number;
-            cash: number;
         };
+    };
+    equityBreakdown: {
+        nifty50: number;
+        niftyNext50: number;
+        midcap: number;
     };
     minInvestableThreshold: number; // ₹500
     staleSuggestionDays: number; // 7 days after cycleDays
@@ -39,17 +42,20 @@ export const INVESTMENT_DEFAULTS: InvestmentDefaults = {
     },
     subAllocations: {
         standard: {
-            equity: 50,
-            debt: 25,
-            gold: 15,
-            cash: 10,
+            equity: 70,
+            debt: 20,
+            gold: 10,
         },
         conservative: {
-            equity: 20,
-            debt: 50,
+            equity: 30,
+            debt: 60,
             gold: 10,
-            cash: 20,
         },
+    },
+    equityBreakdown: {
+        nifty50: 60,
+        niftyNext50: 20,
+        midcap: 20,
     },
     minInvestableThreshold: 500,
     staleSuggestionDays: 7,

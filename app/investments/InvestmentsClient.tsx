@@ -18,7 +18,6 @@ export default function InvestmentsClient() {
     const [equity, setEquity] = useState<number>(0);
     const [debt, setDebt] = useState<number>(0);
     const [gold, setGold] = useState<number>(0);
-    const [cash, setCash] = useState<number>(0);
 
     const [statusMsg, setStatusMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
@@ -52,7 +51,6 @@ export default function InvestmentsClient() {
             setEquity(suggestion.buckets.equity.final);
             setDebt(suggestion.buckets.debt.final);
             setGold(suggestion.buckets.gold.final);
-            setCash(suggestion.buckets.cash.final);
         }, 0);
 
         return () => window.clearTimeout(timer);
@@ -64,7 +62,7 @@ export default function InvestmentsClient() {
             const res = await fetch("/api/investments", {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ equity, debt, gold, cash }),
+                body: JSON.stringify({ equity, debt, gold }),
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || "Failed to save allocation");
@@ -107,7 +105,7 @@ export default function InvestmentsClient() {
             await fetch("/api/investments", {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ equity, debt, gold, cash }),
+                body: JSON.stringify({ equity, debt, gold }),
             });
             const res = await fetch("/api/investments/invest", { method: "POST" });
             const data = await res.json();
@@ -126,10 +124,15 @@ export default function InvestmentsClient() {
         },
     });
 
-    const currentTotal = equity + debt + gold + cash;
+    const currentTotal = equity + debt + gold;
     const maxAllowed = suggestion?.maxInvestable ?? 0;
     const isOverCap = currentTotal > maxAllowed;
     const isInvested = suggestion?.status === "INVESTED";
+
+    // Equity sub-allocation amounts (60 / 20 / 20)
+    const nifty50 = Math.round(equity * 0.60);
+    const niftyNext50 = Math.round(equity * 0.20);
+    const midcap = Math.max(0, equity - nifty50 - niftyNext50);
 
     return (
         <div className="container max-w-6xl mx-auto space-y-8 p-4 sm:p-6 lg:p-8">
@@ -141,7 +144,7 @@ export default function InvestmentsClient() {
                     </Link>
                     <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight flex items-center gap-3">
                         <span>Monthly Investment Strategy</span>
-                        {suggestion?.streak > 0 && (
+                        {suggestion?.streak > 1 && (
                             <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-300">
                                 <Flame className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
                                 {suggestion.streak} Cycle Streak
@@ -192,7 +195,7 @@ export default function InvestmentsClient() {
                                         <span>Active Allocation Breakdown</span>
                                     </CardTitle>
                                     <CardDescription>
-                                        Edit amounts below. Capital changes adjust liquid EF/Goal balance automatically.
+                                        Edit amounts below. Asset classes: Equity (70%), Debt (20%), Gold (10%) default.
                                     </CardDescription>
                                 </div>
                                 <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-indigo-500/10 text-indigo-300 border border-indigo-500/30">
@@ -203,16 +206,16 @@ export default function InvestmentsClient() {
                         </CardHeader>
                         <CardContent className="space-y-6">
                             {/* Inputs Grid */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                 {/* Equity Input */}
-                                <div className="p-4 rounded-xl border border-indigo-500/20 bg-indigo-950/20 space-y-2">
+                                <div className="p-4 rounded-xl border border-indigo-500/20 bg-indigo-950/20 space-y-2 sm:col-span-3">
                                     <div className="flex items-center justify-between">
                                         <Label htmlFor="equity-input" className="text-xs font-semibold text-indigo-300 flex items-center gap-1.5">
                                             <span className="h-2 w-2 rounded-full bg-indigo-500" />
-                                            Equity (Growth)
+                                            Equity Allocation (Growth)
                                         </Label>
                                         <span className="text-[11px] font-mono text-slate-400">
-                                            {currentTotal > 0 ? Math.round((equity / currentTotal) * 100) : 0}%
+                                            {currentTotal > 0 ? Math.round((equity / currentTotal) * 100) : 0}% of Total
                                         </span>
                                     </div>
                                     <div className="relative">
@@ -227,18 +230,37 @@ export default function InvestmentsClient() {
                                         />
                                     </div>
                                     <div className="text-[11px] text-slate-500">Suggested: {formatCurrency(suggestion?.buckets.equity.suggested ?? 0)}</div>
+
+                                    {/* Equity Category Sub-Breakdown Card (60/20/20) */}
+                                    <div className="mt-3 p-3 rounded-lg border border-indigo-500/30 bg-black/40 space-y-2">
+                                        <div className="text-[11px] font-bold text-indigo-300 uppercase tracking-wider flex items-center justify-between">
+                                            <span>Equity Sub-Category Distribution</span>
+                                            <span className="text-[10px] text-indigo-400/80 font-normal">Fixed Ratio (60 / 20 / 20)</span>
+                                        </div>
+                                        <div className="grid grid-cols-3 gap-2 pt-1 text-center font-mono">
+                                            <div className="p-2 rounded bg-indigo-950/50 border border-indigo-500/20">
+                                                <div className="text-[10px] text-indigo-300">Nifty 50 (60%)</div>
+                                                <div className="text-xs font-bold text-white mt-0.5">{formatCurrency(nifty50)}</div>
+                                            </div>
+                                            <div className="p-2 rounded bg-indigo-950/50 border border-indigo-500/20">
+                                                <div className="text-[10px] text-indigo-300">Nifty Next 50 (20%)</div>
+                                                <div className="text-xs font-bold text-white mt-0.5">{formatCurrency(niftyNext50)}</div>
+                                            </div>
+                                            <div className="p-2 rounded bg-indigo-950/50 border border-indigo-500/20">
+                                                <div className="text-[10px] text-indigo-300">Midcap (20%)</div>
+                                                <div className="text-xs font-bold text-white mt-0.5">{formatCurrency(midcap)}</div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 {/* Debt Input */}
-                                <div className="p-4 rounded-xl border border-emerald-500/20 bg-emerald-950/20 space-y-2">
+                                <div className="p-4 rounded-xl border border-emerald-500/20 bg-emerald-950/20 space-y-2 sm:col-span-1.5">
                                     <div className="flex items-center justify-between">
                                         <Label htmlFor="debt-input" className="text-xs font-semibold text-emerald-300 flex items-center gap-1.5">
                                             <span className="h-2 w-2 rounded-full bg-emerald-500" />
                                             Debt (Stability)
                                         </Label>
-                                        <span className="text-[11px] font-mono text-slate-400">
-                                            {currentTotal > 0 ? Math.round((debt / currentTotal) * 100) : 0}%
-                                        </span>
                                     </div>
                                     <div className="relative">
                                         <span className="absolute left-3 top-2.5 text-xs text-slate-500 font-mono">₹</span>
@@ -255,15 +277,12 @@ export default function InvestmentsClient() {
                                 </div>
 
                                 {/* Gold Input */}
-                                <div className="p-4 rounded-xl border border-amber-500/20 bg-amber-950/20 space-y-2">
+                                <div className="p-4 rounded-xl border border-amber-500/20 bg-amber-950/20 space-y-2 sm:col-span-1.5">
                                     <div className="flex items-center justify-between">
                                         <Label htmlFor="gold-input" className="text-xs font-semibold text-amber-300 flex items-center gap-1.5">
                                             <span className="h-2 w-2 rounded-full bg-amber-400" />
                                             Gold (Hedge)
                                         </Label>
-                                        <span className="text-[11px] font-mono text-slate-400">
-                                            {currentTotal > 0 ? Math.round((gold / currentTotal) * 100) : 0}%
-                                        </span>
                                     </div>
                                     <div className="relative">
                                         <span className="absolute left-3 top-2.5 text-xs text-slate-500 font-mono">₹</span>
@@ -277,31 +296,6 @@ export default function InvestmentsClient() {
                                         />
                                     </div>
                                     <div className="text-[11px] text-slate-500">Suggested: {formatCurrency(suggestion?.buckets.gold.suggested ?? 0)}</div>
-                                </div>
-
-                                {/* Cash Input */}
-                                <div className="p-4 rounded-xl border border-slate-500/20 bg-slate-900/40 space-y-2">
-                                    <div className="flex items-center justify-between">
-                                        <Label htmlFor="cash-input" className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-                                            <span className="h-2 w-2 rounded-full bg-slate-400" />
-                                            Cash (Liquid)
-                                        </Label>
-                                        <span className="text-[11px] font-mono text-slate-400">
-                                            {currentTotal > 0 ? Math.round((cash / currentTotal) * 100) : 0}%
-                                        </span>
-                                    </div>
-                                    <div className="relative">
-                                        <span className="absolute left-3 top-2.5 text-xs text-slate-500 font-mono">₹</span>
-                                        <Input
-                                            id="cash-input"
-                                            type="number"
-                                            min={0}
-                                            value={cash || ""}
-                                            onChange={(e) => setCash(Math.max(0, Number(e.target.value)))}
-                                            className="pl-7 font-mono text-sm bg-black/40 border-slate-500/30 text-white"
-                                        />
-                                    </div>
-                                    <div className="text-[11px] text-slate-500">Suggested: {formatCurrency(suggestion?.buckets.cash.suggested ?? 0)}</div>
                                 </div>
                             </div>
 
@@ -329,109 +323,90 @@ export default function InvestmentsClient() {
                                 <Button
                                     onClick={() => saveMutation.mutate()}
                                     disabled={saveMutation.isPending || isOverCap}
-                                    className="flex-1 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-medium"
+                                    className="rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-medium"
                                 >
-                                    <Save className="h-4 w-4 mr-1.5" />
-                                    <span>{saveMutation.isPending ? "Saving..." : "Save Custom Allocations"}</span>
-                                </Button>
-
-                                <Button
-                                    onClick={() => investMutation.mutate()}
-                                    disabled={investMutation.isPending || isOverCap || currentTotal === 0}
-                                    className="flex-1 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold"
-                                >
-                                    <CheckCircle2 className="h-4 w-4 mr-1.5" />
-                                    <span>{investMutation.isPending ? "Recording..." : "Mark as Invested ✓"}</span>
+                                    <Save className="h-4 w-4 mr-1.5" /> Save Custom Allocations
                                 </Button>
 
                                 <Button
                                     variant="outline"
                                     onClick={() => resetMutation.mutate()}
                                     disabled={resetMutation.isPending}
-                                    className="rounded-xl border-white/10 hover:bg-white/5"
-                                    title="Reset to system defaults"
+                                    className="rounded-xl border-white/10 text-slate-300 hover:bg-white/5"
                                 >
-                                    <RotateCcw className="h-4 w-4" />
+                                    <RotateCcw className="h-4 w-4 mr-1.5" /> Reset to Default
+                                </Button>
+
+                                <Button
+                                    onClick={() => investMutation.mutate()}
+                                    disabled={investMutation.isPending || isOverCap || currentTotal <= 0}
+                                    className="rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium ml-auto"
+                                >
+                                    <CheckCircle2 className="h-4 w-4 mr-1.5" /> Mark as Invested
                                 </Button>
                             </div>
                         </CardContent>
                     </Card>
 
-                    {/* Right 1 Col: Computation Audit Panel */}
-                    <Card className="border-white/10 bg-slate-900/40">
+                    {/* Right Col: Calculation & Strategy Summary */}
+                    <Card className="border-indigo-500/20 bg-slate-900/40 shadow-xl">
                         <CardHeader>
                             <CardTitle className="text-base font-bold text-white flex items-center gap-2">
-                                <Info className="h-4 w-4 text-indigo-400" />
-                                <span>Computation Audit</span>
+                                <Sparkles className="h-4 w-4 text-indigo-400" />
+                                <span>Engine Computation</span>
                             </CardTitle>
-                            <CardDescription className="text-xs">
-                                How your monthly investable surplus was calculated.
-                            </CardDescription>
                         </CardHeader>
-                        <CardContent className="space-y-4 text-xs font-mono">
-                            <div className="flex items-center justify-between pb-2 border-b border-white/5">
-                                <span className="text-slate-400">Salary Cycle</span>
-                                <span className="text-slate-200">{suggestion?.cycleDays ?? 33} days</span>
+                        <CardContent className="space-y-4 text-xs font-mono text-slate-300">
+                            <div className="flex justify-between border-b border-white/5 pb-2">
+                                <span className="text-slate-400">Raw Cycle Surplus:</span>
+                                <span>{formatCurrency(suggestion?.rawSurplus ?? 0)}</span>
+                            </div>
+                            <div className="flex justify-between border-b border-white/5 pb-2">
+                                <span className="text-slate-400">Smoothed Surplus (70/30):</span>
+                                <span>{formatCurrency(suggestion?.smoothedSurplus ?? 0)}</span>
+                            </div>
+                            <div className="flex justify-between border-b border-white/5 pb-2">
+                                <span className="text-slate-400">Phase Investable Rate:</span>
+                                <span>{suggestion?.investableRate ?? 0}%</span>
+                            </div>
+                            <div className="flex justify-between border-b border-white/5 pb-2">
+                                <span className="text-slate-400">Base Investable:</span>
+                                <span className="text-indigo-300 font-bold">{formatCurrency(suggestion?.baseInvestable ?? 0)}</span>
                             </div>
 
-                            <div className="flex items-center justify-between pb-2 border-b border-white/5">
-                                <span className="text-slate-400">Raw Cycle Surplus</span>
-                                <span className="text-slate-200">{formatCurrency(suggestion?.rawSurplus ?? 0)}</span>
-                            </div>
-
-                            <div className="flex items-center justify-between pb-2 border-b border-white/5">
-                                <span className="text-slate-400">Smoothed Surplus (0.7/0.3)</span>
-                                <span className="text-indigo-300 font-semibold">{formatCurrency(suggestion?.smoothedSurplus ?? 0)}</span>
-                            </div>
-
-                            <div className="flex items-center justify-between pb-2 border-b border-white/5">
-                                <span className="text-slate-400">Phase Rate ({suggestion?.phase})</span>
-                                <span className="text-slate-200">{suggestion?.investableRate ?? 0}%</span>
-                            </div>
-
-                            <div className="flex items-center justify-between pb-2 border-b border-white/5">
-                                <span className="text-slate-400">Base Investable</span>
-                                <span className="text-slate-200">{formatCurrency(suggestion?.baseInvestable ?? 0)}</span>
-                            </div>
-
-                            <div className="flex items-center justify-between pb-2 border-b border-white/5">
-                                <span className="text-slate-400">EF/Goal Spillover</span>
-                                <span className="text-emerald-400">{formatCurrency(suggestion?.spillover ?? 0)}</span>
-                            </div>
-
-                            <div className="flex items-center justify-between pt-2 border-t border-white/10 text-sm">
-                                <span className="text-white font-bold">Suggested Total</span>
-                                <span className="text-emerald-300 font-bold">{formatCurrency(suggestion?.totalInvestable ?? 0)}</span>
+                            <div className="rounded-xl bg-indigo-950/30 border border-indigo-500/20 p-3 space-y-1.5 text-[11px] leading-relaxed">
+                                <span className="font-semibold text-indigo-300">Allocation Strategy:</span>
+                                <p className="text-slate-400 font-sans">
+                                    Default ratio in Wealth Building phase is <strong>70% Equity</strong>, <strong>20% Debt</strong>, <strong>10% Gold</strong> (or <strong>30/60/10</strong> in EF Building). Equity is broken down into Nifty 50 (60%), Nifty Next 50 (20%), and Midcap (20%).
+                                </p>
                             </div>
                         </CardContent>
                     </Card>
                 </div>
             ) : (
-                /* Invested Mode Confirmation Card */
-                <Card className="border-emerald-500/30 bg-gradient-to-br from-emerald-950/40 via-slate-900/80 to-slate-950 p-6 shadow-2xl">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-emerald-500/20">
-                        <div className="flex items-center gap-3">
-                            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300">
-                                <CheckCircle2 className="h-6 w-6" />
-                            </div>
-                            <div>
-                                <h2 className="text-xl font-bold text-white">Investment Confirmed for this Cycle</h2>
-                                <p className="text-xs text-slate-400 mt-0.5">
-                                    Recorded on {suggestion?.investedAt ? new Date(suggestion.investedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "today"}.
-                                </p>
-                            </div>
-                        </div>
-
-                        <div className="flex items-center gap-2 bg-emerald-950/50 border border-emerald-500/30 px-4 py-2 rounded-xl text-xs font-mono text-emerald-300">
-                            <Calendar className="h-4 w-4" />
-                            <span>Next suggestion in: <strong>{suggestion?.nextSuggestionIn ?? suggestion?.cycleDays} days</strong></span>
+                /* Invested State Screen */
+                <Card className="border-emerald-500/30 bg-gradient-to-br from-emerald-950/20 via-slate-900/60 to-slate-950/80 p-6 shadow-xl">
+                    <div className="flex items-center gap-3 text-emerald-400">
+                        <CheckCircle2 className="h-6 w-6" />
+                        <div>
+                            <h2 className="text-lg font-bold text-white">Investment Completed for Current Cycle</h2>
+                            <p className="text-xs text-slate-400">
+                                Recorded on {suggestion?.investedAt ? new Date(suggestion.investedAt).toLocaleDateString("en-IN") : "N/A"}. Next suggestion unlocks in {suggestion?.nextSuggestionIn ?? suggestion?.cycleDays} days.
+                            </p>
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6">
-                        <div className="p-4 rounded-xl border border-indigo-500/20 bg-indigo-950/20">
-                            <div className="text-xs font-semibold text-indigo-300">Equity</div>
-                            <div className="text-lg font-bold font-mono text-white mt-1">{formatCurrency(suggestion?.buckets.equity.final ?? 0)}</div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
+                        <div className="p-4 rounded-xl border border-indigo-500/20 bg-indigo-950/20 space-y-2">
+                            <div className="text-xs font-semibold text-indigo-300">Equity Total</div>
+                            <div className="text-lg font-bold font-mono text-white">{formatCurrency(suggestion?.buckets.equity.final ?? 0)}</div>
+                            {suggestion?.buckets.equity.breakdown && (
+                                <div className="text-[10px] font-mono text-slate-400 space-y-0.5 pt-1 border-t border-indigo-500/20">
+                                    <div>Nifty 50: {formatCurrency(suggestion.buckets.equity.breakdown.nifty50.amount)}</div>
+                                    <div>Nifty Next 50: {formatCurrency(suggestion.buckets.equity.breakdown.niftyNext50.amount)}</div>
+                                    <div>Midcap: {formatCurrency(suggestion.buckets.equity.breakdown.midcap.amount)}</div>
+                                </div>
+                            )}
                         </div>
 
                         <div className="p-4 rounded-xl border border-emerald-500/20 bg-emerald-950/20">
@@ -442,11 +417,6 @@ export default function InvestmentsClient() {
                         <div className="p-4 rounded-xl border border-amber-500/20 bg-amber-950/20">
                             <div className="text-xs font-semibold text-amber-300">Gold</div>
                             <div className="text-lg font-bold font-mono text-white mt-1">{formatCurrency(suggestion?.buckets.gold.final ?? 0)}</div>
-                        </div>
-
-                        <div className="p-4 rounded-xl border border-slate-500/20 bg-slate-900/40">
-                            <div className="text-xs font-semibold text-slate-300">Cash</div>
-                            <div className="text-lg font-bold font-mono text-white mt-1">{formatCurrency(suggestion?.buckets.cash.final ?? 0)}</div>
                         </div>
                     </div>
                 </Card>
@@ -480,7 +450,7 @@ export default function InvestmentsClient() {
                                             </span>
                                         </div>
                                         <div className="text-xs text-slate-400 mt-1 font-mono">
-                                            Equity: {formatCurrency(item.equity)} · Debt: {formatCurrency(item.debt)} · Gold: {formatCurrency(item.gold)} · Cash: {formatCurrency(item.cash)}
+                                            Equity: {formatCurrency(item.equity)} · Debt: {formatCurrency(item.debt)} · Gold: {formatCurrency(item.gold)}
                                         </div>
                                     </div>
 

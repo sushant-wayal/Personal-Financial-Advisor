@@ -464,17 +464,17 @@ export default function SettingsClient() {
                                     </div>
                                 </div>
 
-                                {/* Standard Sub-Allocations */}
+                                 {/* Standard Sub-Allocations */}
                                 <div className="space-y-3 pt-3 border-t border-white/5">
-                                    <div className="text-xs font-medium text-slate-200">Standard Asset Sub-Allocations (%)</div>
-                                    <div className="grid grid-cols-4 gap-2">
+                                    <div className="text-xs font-medium text-slate-200">Standard Allocation (%)</div>
+                                    <div className="grid grid-cols-3 gap-3">
                                         <div>
                                             <Label className="text-[11px] text-indigo-400">Equity %</Label>
                                             <Input
                                                 type="number"
                                                 min={0}
                                                 max={100}
-                                                value={profile?.stdEquityPct ?? 50}
+                                                value={profile?.stdEquityPct ?? 70}
                                                 onChange={(e) => setProfile({ ...profile, stdEquityPct: Number(e.target.value) })}
                                                 className="h-8 text-xs font-mono bg-black/40 border-white/10 mt-1"
                                             />
@@ -485,7 +485,7 @@ export default function SettingsClient() {
                                                 type="number"
                                                 min={0}
                                                 max={100}
-                                                value={profile?.stdDebtPct ?? 25}
+                                                value={profile?.stdDebtPct ?? 20}
                                                 onChange={(e) => setProfile({ ...profile, stdDebtPct: Number(e.target.value) })}
                                                 className="h-8 text-xs font-mono bg-black/40 border-white/10 mt-1"
                                             />
@@ -496,19 +496,8 @@ export default function SettingsClient() {
                                                 type="number"
                                                 min={0}
                                                 max={100}
-                                                value={profile?.stdGoldPct ?? 15}
+                                                value={profile?.stdGoldPct ?? 10}
                                                 onChange={(e) => setProfile({ ...profile, stdGoldPct: Number(e.target.value) })}
-                                                className="h-8 text-xs font-mono bg-black/40 border-white/10 mt-1"
-                                            />
-                                        </div>
-                                        <div>
-                                            <Label className="text-[11px] text-slate-400">Cash %</Label>
-                                            <Input
-                                                type="number"
-                                                min={0}
-                                                max={100}
-                                                value={profile?.stdCashPct ?? 10}
-                                                onChange={(e) => setProfile({ ...profile, stdCashPct: Number(e.target.value) })}
                                                 className="h-8 text-xs font-mono bg-black/40 border-white/10 mt-1"
                                             />
                                         </div>
@@ -517,15 +506,15 @@ export default function SettingsClient() {
 
                                 {/* Conservative Sub-Allocations */}
                                 <div className="space-y-3 pt-3 border-t border-white/5">
-                                    <div className="text-xs font-medium text-slate-200">Conservative (EF-Building) Sub-Allocations (%)</div>
-                                    <div className="grid grid-cols-4 gap-2">
+                                    <div className="text-xs font-medium text-slate-200">Emergency Reserve Allocation (%)</div>
+                                    <div className="grid grid-cols-3 gap-3">
                                         <div>
                                             <Label className="text-[11px] text-indigo-400">Equity %</Label>
                                             <Input
                                                 type="number"
                                                 min={0}
                                                 max={100}
-                                                value={profile?.consEquityPct ?? 20}
+                                                value={profile?.consEquityPct ?? 30}
                                                 onChange={(e) => setProfile({ ...profile, consEquityPct: Number(e.target.value) })}
                                                 className="h-8 text-xs font-mono bg-black/40 border-white/10 mt-1"
                                             />
@@ -536,7 +525,7 @@ export default function SettingsClient() {
                                                 type="number"
                                                 min={0}
                                                 max={100}
-                                                value={profile?.consDebtPct ?? 50}
+                                                value={profile?.consDebtPct ?? 60}
                                                 onChange={(e) => setProfile({ ...profile, consDebtPct: Number(e.target.value) })}
                                                 className="h-8 text-xs font-mono bg-black/40 border-white/10 mt-1"
                                             />
@@ -552,14 +541,37 @@ export default function SettingsClient() {
                                                 className="h-8 text-xs font-mono bg-black/40 border-white/10 mt-1"
                                             />
                                         </div>
+                                    </div>
+                                </div>
+
+                                {/* Equity Category Distribution Configurable Inputs */}
+                                <div className="space-y-2 pt-3 border-t border-white/5">
+                                    <div className="text-xs font-medium text-slate-200">Equity Breakdown Ratio (%)</div>
+                                    <div className="grid grid-cols-3 gap-2">
                                         <div>
-                                            <Label className="text-[11px] text-slate-400">Cash %</Label>
+                                            <Label className="text-[11px] text-slate-400">Nifty 50 %</Label>
                                             <Input
                                                 type="number"
-                                                min={0}
-                                                max={100}
-                                                value={profile?.consCashPct ?? 20}
-                                                onChange={(e) => setProfile({ ...profile, consCashPct: Number(e.target.value) })}
+                                                value={profile?.equityNifty50Pct ?? 60}
+                                                onChange={(e) => setProfile({ ...profile, equityNifty50Pct: Number(e.target.value) })}
+                                                className="h-8 text-xs font-mono bg-black/40 border-white/10 mt-1"
+                                            />
+                                        </div>
+                                        <div>
+                                            <Label className="text-[11px] text-slate-400">Nifty Next 50 %</Label>
+                                            <Input
+                                                type="number"
+                                                value={profile?.equityNiftyNext50Pct ?? 20}
+                                                onChange={(e) => setProfile({ ...profile, equityNiftyNext50Pct: Number(e.target.value) })}
+                                                className="h-8 text-xs font-mono bg-black/40 border-white/10 mt-1"
+                                            />
+                                        </div>
+                                        <div>
+                                            <Label className="text-[11px] text-slate-400">Midcap %</Label>
+                                            <Input
+                                                type="number"
+                                                value={profile?.equityMidcapPct ?? 20}
+                                                onChange={(e) => setProfile({ ...profile, equityMidcapPct: Number(e.target.value) })}
                                                 className="h-8 text-xs font-mono bg-black/40 border-white/10 mt-1"
                                             />
                                         </div>

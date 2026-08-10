@@ -15,7 +15,7 @@
 import { prisma } from "../lib/prisma";
 import { Prisma } from "@prisma/client";
 import { getEnrichedBudgets } from "./budgets";
-import { getOrGenerateInvestmentSuggestion } from "./investmentEngine";
+import { getOrGenerateInvestmentSuggestion, calculateNextStreak } from "./investmentEngine";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1258,7 +1258,6 @@ async function toolUpdateInvestmentAllocations(args: Record<string, unknown>) {
     const eq = args.equity != null ? Number(args.equity) : active.suggestedEquity;
     const db = args.debt != null ? Number(args.debt) : active.suggestedDebt;
     const gd = args.gold != null ? Number(args.gold) : active.suggestedGold;
-    const cs = args.cash != null ? Number(args.cash) : active.suggestedCash;
 
     const updated = await prisma.investmentSuggestion.update({
         where: { id: active.id },
@@ -1267,7 +1266,6 @@ async function toolUpdateInvestmentAllocations(args: Record<string, unknown>) {
             editedEquity: eq,
             editedDebt: db,
             editedGold: gd,
-            editedCash: cs,
         },
     });
     return { ok: true, updated };
@@ -1286,8 +1284,7 @@ async function toolMarkInvestmentCompleted(args: Record<string, unknown>) {
     const eq = isEdited ? (active.editedEquity ?? 0) : active.suggestedEquity;
     const db = isEdited ? (active.editedDebt ?? 0) : active.suggestedDebt;
     const gd = isEdited ? (active.editedGold ?? 0) : active.suggestedGold;
-    const cs = isEdited ? (active.editedCash ?? 0) : active.suggestedCash;
-    const totalInvested = eq + db + gd + cs;
+    const totalInvested = eq + db + gd;
 
     const historyRecord = await prisma.investmentHistory.create({
         data: {
@@ -1298,7 +1295,6 @@ async function toolMarkInvestmentCompleted(args: Record<string, unknown>) {
             equity: eq,
             debt: db,
             gold: gd,
-            cash: cs,
             investedAt: now,
             notes,
         },
@@ -1312,10 +1308,13 @@ async function toolMarkInvestmentCompleted(args: Record<string, unknown>) {
         },
     });
 
+    const lastRecorded = await prisma.investmentHistory.findFirst({
+        where: { id: { not: historyRecord.id } },
+        orderBy: { investedAt: "desc" },
+    });
     const profile = await prisma.financialProfile.findFirst();
-    let newStreak = 1;
+    const newStreak = calculateNextStreak(profile?.investmentStreak ?? 0, lastRecorded?.investedAt ?? null, now);
     if (profile) {
-        newStreak = (profile.investmentStreak || 0) + 1;
         await prisma.financialProfile.update({
             where: { id: profile.id },
             data: { investmentStreak: newStreak },

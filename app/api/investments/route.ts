@@ -17,7 +17,6 @@ export async function PUT(req: Request) {
         const equity = Math.max(0, Number(body.equity || 0));
         const debt = Math.max(0, Number(body.debt || 0));
         const gold = Math.max(0, Number(body.gold || 0));
-        const cash = Math.max(0, Number(body.cash || 0));
 
         const active = await prisma.investmentSuggestion.findFirst({
             where: { status: "ACTIVE" },
@@ -30,7 +29,7 @@ export async function PUT(req: Request) {
 
         const profile = await prisma.financialProfile.findFirst({ select: { balance: true } });
         const maxAllowed = profile?.balance ?? 0;
-        const requestedTotal = equity + debt + gold + cash;
+        const requestedTotal = equity + debt + gold;
 
         if (requestedTotal > maxAllowed) {
             return NextResponse.json(
@@ -46,7 +45,6 @@ export async function PUT(req: Request) {
                 editedEquity: equity,
                 editedDebt: debt,
                 editedGold: gold,
-                editedCash: cash,
             },
         });
 

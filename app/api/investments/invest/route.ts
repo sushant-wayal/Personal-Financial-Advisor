@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/src/lib/prisma";
-import { getOrGenerateInvestmentSuggestion } from "@/src/services/investmentEngine";
+import { getOrGenerateInvestmentSuggestion, calculateNextStreak } from "@/src/services/investmentEngine";
 
 export async function POST(req: Request) {
     try {
@@ -21,8 +21,7 @@ export async function POST(req: Request) {
         const eq = isEdited ? (active.editedEquity ?? 0) : active.suggestedEquity;
         const db = isEdited ? (active.editedDebt ?? 0) : active.suggestedDebt;
         const gd = isEdited ? (active.editedGold ?? 0) : active.suggestedGold;
-        const cs = isEdited ? (active.editedCash ?? 0) : active.suggestedCash;
-        const totalInvested = eq + db + gd + cs;
+        const totalInvested = eq + db + gd;
 
         // 1. Record in InvestmentHistory
         const historyRecord = await prisma.investmentHistory.create({
@@ -34,7 +33,6 @@ export async function POST(req: Request) {
                 equity: eq,
                 debt: db,
                 gold: gd,
-                cash: cs,
                 investedAt: now,
                 notes,
             },
@@ -49,14 +47,17 @@ export async function POST(req: Request) {
             },
         });
 
-        // 3. Increment investmentStreak on profile
+        // 3. Update investmentStreak incrementally on profile based on 40-day rule
+        const lastRecorded = await prisma.investmentHistory.findFirst({
+            where: { id: { not: historyRecord.id } },
+            orderBy: { investedAt: "desc" },
+        });
         const profile = await prisma.financialProfile.findFirst();
+        const newStreak = calculateNextStreak(profile?.investmentStreak ?? 0, lastRecorded?.investedAt ?? null, now);
         if (profile) {
             await prisma.financialProfile.update({
                 where: { id: profile.id },
-                data: {
-                    investmentStreak: (profile.investmentStreak || 0) + 1,
-                },
+                data: { investmentStreak: newStreak },
             });
         }
 

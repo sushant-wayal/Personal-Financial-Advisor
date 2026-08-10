@@ -1,7 +1,7 @@
 import { prisma } from "../lib/prisma";
 import { INVESTMENT_DEFAULTS, FinancialPhase } from "../config/investmentDefaults";
 import { calculateBurnRate, calculateRunway } from "./analytics";
-import { CREDIT_TYPES, DEBIT_TYPES } from "./balance";
+import { CREDIT_TYPES } from "./balance";
 
 export type SalaryCycleInfo = {
     cycleDays: number;
@@ -18,11 +18,22 @@ export type SurplusComputation = {
     surplusTrend: "accelerating" | "growing" | "stable" | "decreasing" | "dropping";
 };
 
+export type EquityBreakdown = {
+    nifty50: { amount: number; pctOfEquity: number; pctOfTotal: number };
+    niftyNext50: { amount: number; pctOfEquity: number; pctOfTotal: number };
+    midcap: { amount: number; pctOfEquity: number; pctOfTotal: number };
+};
+
 export type SubAllocationBreakdown = {
-    equity: { suggested: number; edited: number | null; final: number; pct: number };
+    equity: {
+        suggested: number;
+        edited: number | null;
+        final: number;
+        pct: number;
+        breakdown: EquityBreakdown;
+    };
     debt: { suggested: number; edited: number | null; final: number; pct: number };
     gold: { suggested: number; edited: number | null; final: number; pct: number };
-    cash: { suggested: number; edited: number | null; final: number; pct: number };
 };
 
 export type InvestmentSuggestionResult = {
@@ -59,7 +70,7 @@ function clamp(value: number, min: number, max: number): number {
     return Math.max(min, Math.min(max, value));
 }
 
-function daysBetween(d1: Date, d2: Date): number {
+export function daysBetween(d1: Date, d2: Date): number {
     return Math.abs(Math.round((d1.getTime() - d2.getTime()) / (1000 * 60 * 60 * 24)));
 }
 
@@ -203,11 +214,40 @@ export function determinePhase(
     return "WEALTH_BUILDING";
 }
 
+
+
+/**
+ * Calculates the next streak value when an investment is recorded.
+ * Increments streak if last investment was <= 40 days ago, else resets to 1.
+ */
+export function calculateNextStreak(currentStreak: number, lastInvestedAt: Date | null, now: Date = new Date()): number {
+    if (!lastInvestedAt) return 1;
+    const days = daysBetween(now, lastInvestedAt);
+    return days <= 40 ? currentStreak + 1 : 1;
+}
+
 /**
  * Get Profile Config or Fallbacks
  */
 export async function getEffectiveProfileConfig() {
     const profile = await prisma.financialProfile.findFirst();
+    let streak = profile?.investmentStreak ?? 0;
+
+    // Check if stored streak has expired because >40 days passed since last investment
+    const lastHistory = await prisma.investmentHistory.findFirst({
+        orderBy: { investedAt: "desc" },
+    });
+
+    if (lastHistory?.investedAt && daysBetween(new Date(), new Date(lastHistory.investedAt)) > 40) {
+        streak = 0;
+        if (profile && profile.investmentStreak !== 0) {
+            await prisma.financialProfile.update({
+                where: { id: profile.id },
+                data: { investmentStreak: 0 },
+            });
+        }
+    }
+
     return {
         profile,
         phaseRates: {
@@ -221,16 +261,19 @@ export async function getEffectiveProfileConfig() {
                 equity: profile?.stdEquityPct ?? INVESTMENT_DEFAULTS.subAllocations.standard.equity,
                 debt: profile?.stdDebtPct ?? INVESTMENT_DEFAULTS.subAllocations.standard.debt,
                 gold: profile?.stdGoldPct ?? INVESTMENT_DEFAULTS.subAllocations.standard.gold,
-                cash: profile?.stdCashPct ?? INVESTMENT_DEFAULTS.subAllocations.standard.cash,
             },
             conservative: {
                 equity: profile?.consEquityPct ?? INVESTMENT_DEFAULTS.subAllocations.conservative.equity,
                 debt: profile?.consDebtPct ?? INVESTMENT_DEFAULTS.subAllocations.conservative.debt,
                 gold: profile?.consGoldPct ?? INVESTMENT_DEFAULTS.subAllocations.conservative.gold,
-                cash: profile?.consCashPct ?? INVESTMENT_DEFAULTS.subAllocations.conservative.cash,
             },
         },
-        streak: profile?.investmentStreak ?? 0,
+        equityBreakdown: {
+            nifty50: (profile as any)?.equityNifty50Pct ?? INVESTMENT_DEFAULTS.equityBreakdown.nifty50,
+            niftyNext50: (profile as any)?.equityNiftyNext50Pct ?? INVESTMENT_DEFAULTS.equityBreakdown.niftyNext50,
+            midcap: (profile as any)?.equityMidcapPct ?? INVESTMENT_DEFAULTS.equityBreakdown.midcap,
+        },
+        streak,
     };
 }
 
@@ -245,7 +288,7 @@ export async function getActiveInvestableCarveout(): Promise<number> {
     if (!active) return 0;
 
     if (active.isManuallyEdited) {
-        return (active.editedEquity ?? 0) + (active.editedDebt ?? 0) + (active.editedGold ?? 0) + (active.editedCash ?? 0);
+        return (active.editedEquity ?? 0) + (active.editedDebt ?? 0) + (active.editedGold ?? 0);
     }
     return active.totalInvestable;
 }
@@ -299,8 +342,7 @@ export async function getOrGenerateInvestmentSuggestion(): Promise<InvestmentSug
     const subConfig = phase === "EF_BUILDING" ? config.subAllocations.conservative : config.subAllocations.standard;
     const suggestedEquity = Math.round(baseInvestable * (subConfig.equity / 100));
     const suggestedDebt = Math.round(baseInvestable * (subConfig.debt / 100));
-    const suggestedGold = Math.round(baseInvestable * (subConfig.gold / 100));
-    const suggestedCash = Math.round(baseInvestable * (subConfig.cash / 100));
+    const suggestedGold = Math.max(0, baseInvestable - suggestedEquity - suggestedDebt);
 
     // Check for existing active suggestion
     const active = await prisma.investmentSuggestion.findFirst({
@@ -319,11 +361,12 @@ export async function getOrGenerateInvestmentSuggestion(): Promise<InvestmentSug
                 smoothedSurplus: surplusComp.smoothedSurplus,
                 investableRate: phaseRate,
                 baseInvestable,
-                totalInvestable: active.isManuallyEdited ? active.totalInvestable : baseInvestable,
+                totalInvestable: active.isManuallyEdited
+                    ? (active.editedEquity ?? 0) + (active.editedDebt ?? 0) + (active.editedGold ?? 0)
+                    : baseInvestable,
                 suggestedEquity,
                 suggestedDebt,
                 suggestedGold,
-                suggestedCash,
             },
         });
 
@@ -359,7 +402,6 @@ export async function getOrGenerateInvestmentSuggestion(): Promise<InvestmentSug
             suggestedEquity,
             suggestedDebt,
             suggestedGold,
-            suggestedCash,
             isManuallyEdited: false,
         },
     });
@@ -378,13 +420,43 @@ function buildSuggestionResult(
     const eq = isEdited ? (record.editedEquity ?? 0) : record.suggestedEquity;
     const db = isEdited ? (record.editedDebt ?? 0) : record.suggestedDebt;
     const gd = isEdited ? (record.editedGold ?? 0) : record.suggestedGold;
-    const cs = isEdited ? (record.editedCash ?? 0) : record.suggestedCash;
-    const total = eq + db + gd + cs;
+    const total = isEdited ? (eq + db + gd) : (record.baseInvestable || (eq + db + gd));
 
     const currentBalance = config.profile?.balance ?? 0;
     const maxInvestable = Math.max(0, Math.round(currentBalance));
 
-    const calcPct = (amt: number) => (total > 0 ? Math.round((amt / total) * 100) : 0);
+    const eqPct = total > 0 ? Math.round((eq / total) * 100) : 0;
+    const dbPct = total > 0 ? Math.round((db / total) * 100) : 0;
+    const gdPct = total > 0 ? Math.max(0, 100 - eqPct - dbPct) : 0;
+
+    // Calculate Equity Breakdown based on profile config (default 60 / 20 / 20)
+    const n50Pct = config.equityBreakdown?.nifty50 ?? INVESTMENT_DEFAULTS.equityBreakdown.nifty50;
+    const nn50Pct = config.equityBreakdown?.niftyNext50 ?? INVESTMENT_DEFAULTS.equityBreakdown.niftyNext50;
+    const mcPct = config.equityBreakdown?.midcap ?? INVESTMENT_DEFAULTS.equityBreakdown.midcap;
+
+    const nifty50Amt = Math.round(eq * (n50Pct / 100));
+    const niftyNext50Amt = Math.round(eq * (nn50Pct / 100));
+    const midcapAmt = Math.max(0, eq - nifty50Amt - niftyNext50Amt);
+
+    const calcSubPct = (amt: number) => (total > 0 ? Math.round((amt / total) * 100) : 0);
+
+    const equityBreakdown: EquityBreakdown = {
+        nifty50: {
+            amount: nifty50Amt,
+            pctOfEquity: n50Pct,
+            pctOfTotal: calcSubPct(nifty50Amt),
+        },
+        niftyNext50: {
+            amount: niftyNext50Amt,
+            pctOfEquity: nn50Pct,
+            pctOfTotal: calcSubPct(niftyNext50Amt),
+        },
+        midcap: {
+            amount: midcapAmt,
+            pctOfEquity: mcPct,
+            pctOfTotal: calcSubPct(midcapAmt),
+        },
+    };
 
     return {
         suggestion: {
@@ -401,10 +473,15 @@ function buildSuggestionResult(
             totalInvestable: total,
             isManuallyEdited: isEdited,
             buckets: {
-                equity: { suggested: record.suggestedEquity, edited: record.editedEquity, final: eq, pct: calcPct(eq) },
-                debt: { suggested: record.suggestedDebt, edited: record.editedDebt, final: db, pct: calcPct(db) },
-                gold: { suggested: record.suggestedGold, edited: record.editedGold, final: gd, pct: calcPct(gd) },
-                cash: { suggested: record.suggestedCash, edited: record.editedCash, final: cs, pct: calcPct(cs) },
+                equity: {
+                    suggested: record.suggestedEquity,
+                    edited: record.editedEquity,
+                    final: eq,
+                    pct: eqPct,
+                    breakdown: equityBreakdown,
+                },
+                debt: { suggested: record.suggestedDebt, edited: record.editedDebt, final: db, pct: dbPct },
+                gold: { suggested: record.suggestedGold, edited: record.editedGold, final: gd, pct: gdPct },
             },
             maxInvestable,
             investedAt: record.investedAt ? new Date(record.investedAt) : null,

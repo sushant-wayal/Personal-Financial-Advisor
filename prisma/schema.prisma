@@ -108,16 +108,19 @@ model FinancialProfile {
   goalSprintInvestableRate     Float    @default(40)
 
   // Standard Sub-Allocations (0-100)
-  stdEquityPct        Float    @default(50)
-  stdDebtPct          Float    @default(25)
-  stdGoldPct          Float    @default(15)
-  stdCashPct          Float    @default(10)
+  stdEquityPct        Float    @default(70)
+  stdDebtPct          Float    @default(20)
+  stdGoldPct          Float    @default(10)
 
   // Conservative (EF Building) Sub-Allocations (0-100)
-  consEquityPct       Float    @default(20)
-  consDebtPct         Float    @default(50)
+  consEquityPct       Float    @default(30)
+  consDebtPct         Float    @default(60)
   consGoldPct         Float    @default(10)
-  consCashPct         Float    @default(20)
+
+  // Equity Sub-Category Breakdown (0-100)
+  equityNifty50Pct     Float    @default(60)
+  equityNiftyNext50Pct Float    @default(20)
+  equityMidcapPct      Float    @default(20)
 
   investmentStreak    Int      @default(0)
   createdAt           DateTime @default(now())
@@ -140,13 +143,11 @@ model InvestmentSuggestion {
   suggestedEquity   Float     @default(0)
   suggestedDebt     Float     @default(0)
   suggestedGold     Float     @default(0)
-  suggestedCash     Float     @default(0)
 
   // User edited values (null if unedited)
   editedEquity      Float?
   editedDebt        Float?
   editedGold        Float?
-  editedCash        Float?
   isManuallyEdited  Boolean   @default(false)
 
   createdAt         DateTime  @default(now())
@@ -163,7 +164,6 @@ model InvestmentHistory {
   equity         Float    @default(0)
   debt           Float    @default(0)
   gold           Float    @default(0)
-  cash           Float    @default(0)
   investedAt     DateTime @default(now())
   notes          String?
 }

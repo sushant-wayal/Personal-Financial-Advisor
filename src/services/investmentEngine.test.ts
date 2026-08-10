@@ -10,6 +10,7 @@ vi.mock("../lib/prisma", () => ({
         financialProfile: {
             findFirst: vi.fn(),
             findUnique: vi.fn(),
+            update: vi.fn(),
         },
         investmentSuggestion: {
             findFirst: vi.fn(),
@@ -18,6 +19,10 @@ vi.mock("../lib/prisma", () => ({
         },
         goal: {
             findMany: vi.fn(),
+        },
+        investmentHistory: {
+            findMany: vi.fn(),
+            findFirst: vi.fn(),
         },
     },
 }));
@@ -30,6 +35,29 @@ vi.mock("./analytics", () => ({
 describe("investmentEngine - surplus & suggestions", () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        vi.mocked(prisma.investmentHistory.findMany).mockResolvedValue([]);
+    });
+
+    describe("calculateNextStreak", () => {
+        it("returns 1 for the first ever investment when no prior investment date exists", async () => {
+            const { calculateNextStreak } = await import("./investmentEngine");
+            const streak = calculateNextStreak(0, null, new Date("2026-08-10"));
+            expect(streak).toBe(1);
+        });
+
+        it("resets streak to 1 if the prior investment was over 40 days ago", async () => {
+            const { calculateNextStreak } = await import("./investmentEngine");
+            const priorDate = new Date("2026-06-01"); // 70 days prior to Aug 10
+            const streak = calculateNextStreak(5, priorDate, new Date("2026-08-10"));
+            expect(streak).toBe(1);
+        });
+
+        it("increments current streak if prior investment was within 40 days", async () => {
+            const { calculateNextStreak } = await import("./investmentEngine");
+            const priorDate = new Date("2026-07-20"); // 21 days prior to Aug 10
+            const streak = calculateNextStreak(3, priorDate, new Date("2026-08-10"));
+            expect(streak).toBe(4);
+        });
     });
 
     describe("computeSurplus", () => {
@@ -112,10 +140,9 @@ describe("investmentEngine - surplus & suggestions", () => {
                 investableRate: 50,
                 baseInvestable: 142500,
                 totalInvestable: 142500,
-                suggestedEquity: 85500,
+                suggestedEquity: 99750,
                 suggestedDebt: 28500,
                 suggestedGold: 14250,
-                suggestedCash: 14250,
                 isManuallyEdited: false,
                 createdAt: new Date(),
             };
@@ -144,6 +171,11 @@ describe("investmentEngine - surplus & suggestions", () => {
             expect(result.suggestion.rawSurplus).toBe(100000); // Dynamically updated from live txs
             expect(result.suggestion.smoothedSurplus).toBe(70000); // 0.7 * 100k
             expect(result.suggestion.baseInvestable).toBe(35000); // 50% of 70k in Wealth Building phase
+            expect(result.suggestion.buckets.equity.breakdown).toEqual({
+                nifty50: { amount: 14700, pctOfEquity: 60, pctOfTotal: 42 },
+                niftyNext50: { amount: 4900, pctOfEquity: 20, pctOfTotal: 14 },
+                midcap: { amount: 4900, pctOfEquity: 20, pctOfTotal: 14 },
+            });
         });
     });
 });
