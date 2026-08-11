@@ -132,11 +132,17 @@ export async function getEmergencyFundStatus(): Promise<EmergencyFundStatus> {
     const initialGoalBalance = Math.max(0, currentBalance - initialEfSaved);
 
     // Step 2: Surplus Spillover from Goals to EF
-    // Calculate total capital required by all active goals to be 100% funded
+    // Calculate total capital still needed across all active goals (unfunded portion only).
+    // Goals where currentAmount >= targetAmount are fully funded and contribute 0.
     const totalGoalsNeeded = goals.reduce((sum, g) => sum + Math.max(0, g.targetAmount - Math.max(0, g.currentAmount)), 0);
-    
-    // If goal pool has more money than all active goals need, spill surplus back into EF
-    const unusedGoalSurplus = goals.length > 0 ? Math.max(0, initialGoalBalance - totalGoalsNeeded) : 0;
+
+    // If the goal pool has more money than all goals need, spill the entire surplus back into EF.
+    // This covers three cases correctly:
+    //   (a) No goals at all (goals.length === 0)      → unusedGoalSurplus = initialGoalBalance
+    //   (b) All goals are fully funded                → totalGoalsNeeded = 0, all pool spills
+    //   (c) Goals partially funded                   → only the leftover spills
+    // Previously the `goals.length > 0` guard caused case (a) to produce 0, starving EF.
+    const unusedGoalSurplus = Math.max(0, initialGoalBalance - totalGoalsNeeded);
 
     const savedAmount = provisionalIsComplete
         ? targetAmount
@@ -154,6 +160,8 @@ export async function getEmergencyFundStatus(): Promise<EmergencyFundStatus> {
         Number(profile?.monthlyIncome ?? 0) - Number(profile?.monthlyExpenses ?? 0),
     );
 
+    // Strategy ratios for the returned API response — always reflect the user's configured strategy.
+    // These are NEVER overridden so the UI always shows the correct strategy label and ratios.
     const strategyRatios = getEfStrategyRatios(
         efStrategy,
         progressPct,
@@ -161,28 +169,35 @@ export async function getEmergencyFundStatus(): Promise<EmergencyFundStatus> {
         savedAmount,
         isComplete
     );
-    let efRatio = strategyRatios.efRatio;
-    let goalsRatio = strategyRatios.goalsRatio;
+    const efRatio = strategyRatios.efRatio;
+    const goalsRatio = strategyRatios.goalsRatio;
     const tier = strategyRatios.tier;
-
-    // If EF is incomplete but no active goals need monthly funding (all goals fully funded or no goals exist),
-    // redirect 100% of non-investment monthly capacity into EF drip.
-    if (!isComplete && totalGoalsNeeded === 0) {
-        efRatio = 1.0;
-        goalsRatio = 0.0;
-    }
 
     // Deduct configured phase investable percentage (e.g., 15% for EF_BUILDING, 40% for GOAL_SPRINT, 60% for WEALTH_BUILDING, 0% for CRISIS)
     const phaseInvestableRate = investableSuggestion?.suggestion?.investableRate ?? (isComplete ? 60 : 15);
     const efAndGoalsAvailableCapacity = Math.max(0, monthlyCapacity * ((100 - phaseInvestableRate) / 100));
 
+    // Monthly drip ratios — separate from the strategy display ratios above.
+    // When no active goals need monthly funding (all fully funded or no goals exist),
+    // redirect 100% of non-investment monthly capacity into EF drip.
+    // This only affects how the monthly flow is split; it does NOT change the strategy label.
+    let efDripRatio = efRatio;
+    let goalsDripRatio = goalsRatio;
+    if (!isComplete && totalGoalsNeeded === 0) {
+        efDripRatio = 1.0;
+        goalsDripRatio = 0.0;
+    }
+
     const efMonthlyDrip = isComplete
         ? 0
-        : Math.min(shortfall, Math.round(efAndGoalsAvailableCapacity * efRatio));
+        : Math.min(shortfall, Math.round(efAndGoalsAvailableCapacity * efDripRatio));
 
     const availableGoalCapacity = isComplete
         ? Math.round(efAndGoalsAvailableCapacity)
         : Math.max(0, Math.round(efAndGoalsAvailableCapacity - efMonthlyDrip));
+
+    // Suppress unused variable warnings for goalsDripRatio (used implicitly via the efDripRatio/efMonthlyDrip split)
+    void goalsDripRatio;
 
     let monthsToComplete: number | null = null;
     let estimatedCompletionDate: Date | null = null;
