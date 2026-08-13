@@ -5,6 +5,9 @@ import { estimateForecast } from "./GoalForecastService";
 import { allocateMonthlyCapacity } from "./GoalAllocationService";
 import { getEmergencyFundStatus } from "./emergencyFund";
 import { getActiveInvestableCarveout } from "./investmentEngine";
+import { formatCurrency } from "./shared/formatting";
+import { monthsUntil } from "./shared/dates";
+import { clamp } from "./shared/math";
 
 export type GoalProgressSeed = {
     id: string;
@@ -60,31 +63,7 @@ export type DerivedGoalProgress = GoalProgressSeed & {
     recommendations: string[];
 };
 
-function formatCurrency(amount: number, currency = "INR") {
-    return new Intl.NumberFormat("en-IN", {
-        style: "currency",
-        currency,
-        maximumFractionDigits: 0,
-    }).format(amount || 0);
-}
 
-function monthsUntil(targetDate?: string | Date | null) {
-    if (!targetDate) return null;
-    const target = new Date(targetDate);
-    const now = new Date();
-    return Math.max(0, (target.getFullYear() - now.getFullYear()) * 12 + (target.getMonth() - now.getMonth()));
-}
-
-export function monthsSince(date?: string | Date | null) {
-    if (!date) return 1;
-    const started = new Date(date);
-    const now = new Date();
-    return Math.max(1, (now.getFullYear() - started.getFullYear()) * 12 + (now.getMonth() - started.getMonth()) + 1);
-}
-
-function clamp(value: number, min: number, max: number) {
-    return Math.max(min, Math.min(max, value));
-}
 
 function estimateGoalMonthlyNeed(goal: GoalProgressSeed, monthsLeft: number | null) {
     if (goal.monthlyTarget && goal.monthlyTarget > 0) {

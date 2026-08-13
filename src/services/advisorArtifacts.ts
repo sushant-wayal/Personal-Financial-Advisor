@@ -1,5 +1,5 @@
 import { z, toJSONSchema } from "zod";
-import type { AdvisorResponse, AdvisorArtifact } from "@/types/advisor";
+import type { AdvisorResponse, AdvisorArtifact } from "@/src/types/advisor";
 
 /**
  * Extremely permissive schemas.

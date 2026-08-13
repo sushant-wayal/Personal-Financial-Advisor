@@ -2,8 +2,9 @@ import { prisma } from "../lib/prisma";
 import merchantDict from "../data/merchantDictionary.json";
 import { generateText } from "./gemini";
 import { transactionParserUtils } from "./transactionParser";
+import { INVALID_TRANSACTION_CATEGORIES } from "./shared/formatting";
 
-const INVALID_CATEGORIES = new Set(["bank", "transfer", "upi", "vpa", "paytm", "phonepe", "google pay", "gpay", "hdfc", "icici"]);
+
 
 export const SPENDING_CATEGORIES = [
     "Food",
@@ -35,7 +36,7 @@ type CategoryResult = {
 function normalizeCategory(category?: string): string | undefined {
     if (!category) return undefined;
     const trimmed = category.trim();
-    if (!trimmed || INVALID_CATEGORIES.has(trimmed.toLowerCase())) return undefined;
+    if (!trimmed || INVALID_TRANSACTION_CATEGORIES.has(trimmed.toLowerCase())) return undefined;
     const match = SPENDING_CATEGORIES.find((c) => c.toLowerCase() === trimmed.toLowerCase());
     if (match) return match;
     

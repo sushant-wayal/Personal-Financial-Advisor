@@ -18,7 +18,7 @@ import { buildAdvisorChatMessages } from "./aiContext";
 import { parseAdvisorResponse } from "./advisorArtifacts";
 import { generateTextWithTools } from "./gemini";
 import { setAdvisorStatus, clearAdvisorStatus } from "../lib/redis";
-import type { AdvisorResponse } from "@/types/advisor";
+import type { AdvisorResponse } from "@/src/types/advisor";
 
 const MAX_TOOL_ITERATIONS = 4;
 

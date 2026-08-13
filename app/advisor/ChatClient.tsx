@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import ArtifactRenderer from "../components/advisor/ArtifactRenderer";
-import type { AdvisorResponse } from "@/types/advisor";
+import type { AdvisorResponse } from "@/src/types/advisor";
 
 type ChatTurn = { question: string; response: AdvisorResponse | null };
 

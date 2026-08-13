@@ -4,6 +4,8 @@ import { computeHealthStatus, computeConfidenceScore } from "./GoalFeasibilitySe
 import { allocateMonthlyCapacity, simulateCapacityShift } from "./GoalAllocationService";
 import { buildGoalProgressSignals, deriveGoalProgress } from "./goalProgress";
 import { getEmergencyFundStatus } from "./emergencyFund";
+import { formatCurrency } from "./shared/formatting";
+import { monthsUntil } from "./shared/dates";
 
 export type GoalMilestone = {
     label: string;
@@ -34,21 +36,7 @@ type GoalRecord = {
     createdAt?: string | Date | null;
 };
 
-function formatCurrency(amount: number, currency = "INR") {
-    const safeCurrency = currency || "INR";
-    return new Intl.NumberFormat("en-IN", {
-        style: "currency",
-        currency: safeCurrency,
-        maximumFractionDigits: 0,
-    }).format(amount);
-}
 
-function monthsUntil(targetDate?: string | Date | null) {
-    if (!targetDate) return null;
-    const target = new Date(targetDate);
-    const now = new Date();
-    return Math.max(0, (target.getFullYear() - now.getFullYear()) * 12 + (target.getMonth() - now.getMonth()));
-}
 
 function resolvedCurrency(goal: GoalRecord, fallbackCurrency = "INR") {
     return goal.currency || fallbackCurrency || "INR";

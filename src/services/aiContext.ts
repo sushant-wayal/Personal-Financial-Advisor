@@ -4,20 +4,10 @@ import { generateText } from "./gemini";
 import { listGoals, predictETA, recommendMonthlyContribution } from "./goals";
 import { getEnrichedBudgets } from "./budgets";
 import { getOrGenerateInvestmentSuggestion } from "./investmentEngine";
+import { formatCurrency } from "./shared/formatting";
+import { monthsUntil } from "./shared/dates";
 
-function formatCurrency(amount: number, currency = "INR") {
-    return new Intl.NumberFormat("en-IN", {
-        style: "currency",
-        currency,
-        maximumFractionDigits: 0,
-    }).format(amount);
-}
 
-function monthsUntil(targetDate?: Date | null) {
-    if (!targetDate) return null;
-    const now = new Date();
-    return Math.max(0, (targetDate.getFullYear() - now.getFullYear()) * 12 + (targetDate.getMonth() - now.getMonth()));
-}
 
 function compactTransaction(tx: any, currency: string) {
     return {

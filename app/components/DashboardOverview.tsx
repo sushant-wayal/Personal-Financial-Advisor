@@ -3,7 +3,7 @@ import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
-import { Card, CardContent, CardHeader, CardTitle } from "../../src/components/ui/Card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/src/components/ui/Card";
 import AIInsightsPreview from "./AIInsightsPreview";
 import SpendingHeatmap from "./SpendingHeatmap";
 

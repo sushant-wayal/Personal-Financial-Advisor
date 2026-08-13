@@ -1,3 +1,6 @@
+import { formatCurrency } from "./shared/formatting";
+import { clamp } from "./shared/math";
+
 export type GoalAllocationStrategy = "priority-first" | "proportional" | "utility";
 
 export type GoalAllocationInput = {
@@ -65,13 +68,7 @@ type AllocationWorkingGoal = GoalAllocationInput & {
     requested: number;
 };
 
-function clamp(value: number, min: number, max: number) {
-    return Math.max(min, Math.min(max, value));
-}
 
-function safeCurrency(amount: number) {
-    return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(amount);
-}
 
 function normalizeRequested(value: number) {
     return Math.max(0, Math.round(Number.isFinite(value) ? value : 0));
@@ -198,7 +195,7 @@ function buildPlan(
         const topUnderfunded = underfunded.slice().sort((a, b) => b.shortfall - a.shortfall).slice(0, 3);
         tradeoffs.push(`${underfunded.length} goals remain partially funded under this strategy.`);
         topUnderfunded.forEach((goal) => {
-            tradeoffs.push(`${goal.goalTitle || goal.goalId} still needs ${safeCurrency(goal.shortfall)} per month.`);
+            tradeoffs.push(`${goal.goalTitle || goal.goalId} still needs ${formatCurrency(goal.shortfall)} per month.`);
         });
         if (fullyFunded.length > 0) {
             tradeoffs.push(`${fullyFunded.length} goals are fully protected by this allocation.`);
@@ -379,9 +376,9 @@ export function simulateCapacityShift(
         const allocatedDelta = after.allocated - before.allocated;
         const shareDelta = after.sharePct - before.sharePct;
         const summary = allocatedDelta > 0
-            ? `Gains ${safeCurrency(allocatedDelta)} per month`
+            ? `Gains ${formatCurrency(allocatedDelta)} per month`
             : allocatedDelta < 0
-                ? `Loses ${safeCurrency(Math.abs(allocatedDelta))} per month`
+                ? `Loses ${formatCurrency(Math.abs(allocatedDelta))} per month`
                 : "No allocation change";
 
         return {
@@ -404,18 +401,18 @@ export function simulateCapacityShift(
     if (capacityDelta === 0) {
         tradeoffs.push("This scenario keeps monthly capacity unchanged, so the plan becomes a comparison baseline.");
     } else if (capacityDelta > 0) {
-        tradeoffs.push(`Additional capacity of ${safeCurrency(capacityDelta)} is available to reallocate.`);
+        tradeoffs.push(`Additional capacity of ${formatCurrency(capacityDelta)} is available to reallocate.`);
     } else {
-        tradeoffs.push(`Capacity drops by ${safeCurrency(Math.abs(capacityDelta))}, forcing tradeoffs across goals.`);
+        tradeoffs.push(`Capacity drops by ${formatCurrency(Math.abs(capacityDelta))}, forcing tradeoffs across goals.`);
     }
 
-    winners.forEach((impact) => tradeoffs.push(`${impact.goalTitle} gains ${safeCurrency(impact.allocatedDelta)} per month.`));
-    losers.forEach((impact) => tradeoffs.push(`${impact.goalTitle} loses ${safeCurrency(Math.abs(impact.allocatedDelta))} per month.`));
+    winners.forEach((impact) => tradeoffs.push(`${impact.goalTitle} gains ${formatCurrency(impact.allocatedDelta)} per month.`));
+    losers.forEach((impact) => tradeoffs.push(`${impact.goalTitle} loses ${formatCurrency(Math.abs(impact.allocatedDelta))} per month.`));
 
     const description = capacityDelta > 0
-        ? `If monthly savings increase by ${safeCurrency(capacityDelta)}`
+        ? `If monthly savings increase by ${formatCurrency(capacityDelta)}`
         : capacityDelta < 0
-            ? `If monthly savings decrease by ${safeCurrency(Math.abs(capacityDelta))}`
+            ? `If monthly savings decrease by ${formatCurrency(Math.abs(capacityDelta))}`
             : "If monthly savings stay the same";
 
     return {

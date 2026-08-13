@@ -1,7 +1,8 @@
 import { prisma } from "../lib/prisma";
 import { getTransactionImpact, getLast30DaysNetImpact } from "./balance";
+import { INVALID_TRANSACTION_CATEGORIES } from "./shared/formatting";
 
-const INVALID_ANALYTICS_CATEGORIES = new Set(["bank", "transfer", "upi", "vpa", "paytm", "phonepe", "google pay", "gpay", "hdfc", "icici"]);
+
 const INCOME_TYPES = ["CREDIT", "CREDITED", "SALARY", "INCOME", "BONUS", "REFUND"];
 const EXPENSE_TYPES = ["DEBIT", "DEBITED", "EXPENSE", "PURCHASE", "WITHDRAWAL", "CHARGE", "BILL", "PAYMENT", "SUBSCRIPTION"];
 
@@ -15,7 +16,7 @@ type AnalyticsTransaction = {
 
 function categoryNameForAnalytics(t: AnalyticsTransaction) {
     const name = (t.category?.name || "Miscellaneous").toString();
-    return INVALID_ANALYTICS_CATEGORIES.has(name.toLowerCase()) ? "Miscellaneous" : name;
+    return INVALID_TRANSACTION_CATEGORIES.has(name.toLowerCase()) ? "Miscellaneous" : name;
 }
 
 function monthRange(date: Date) {

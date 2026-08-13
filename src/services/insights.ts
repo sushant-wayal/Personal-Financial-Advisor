@@ -2,14 +2,9 @@ import { prisma } from "../lib/prisma";
 import { calculateBurnRate, calculateMonthlySavingsRate, calculateRunway, categoryBreakdown, monthlyTrend } from "./analytics";
 import { generateText } from "./gemini";
 import { getInsightRetentionWindowStart, persistInsightIfNew } from "./insightStore";
+import { formatCurrency } from "./shared/formatting";
 
-function formatCurrency(amount: number) {
-    return new Intl.NumberFormat("en-IN", {
-        style: "currency",
-        currency: "INR",
-        maximumFractionDigits: 0,
-    }).format(amount);
-}
+
 
 function parseLargeExpenseMessage(message: string): { amount: number; merchant: string } | null {
     const match = message.match(/Large expense of\s+[^\d-]*([\d,]+(?:\.\d+)?)\s+at\s+(.+)$/i);

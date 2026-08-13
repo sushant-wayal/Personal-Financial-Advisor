@@ -2,6 +2,8 @@ import { prisma } from "../lib/prisma";
 import { INVESTMENT_DEFAULTS, FinancialPhase } from "../config/investmentDefaults";
 import { calculateBurnRate, calculateRunway } from "./analytics";
 import { CREDIT_TYPES } from "./balance";
+import { clamp } from "./shared/math";
+import { daysBetween } from "./shared/dates";
 
 export type SalaryCycleInfo = {
     cycleDays: number;
@@ -66,13 +68,7 @@ export type InvestmentSuggestionResult = {
     };
 };
 
-function clamp(value: number, min: number, max: number): number {
-    return Math.max(min, Math.min(max, value));
-}
 
-export function daysBetween(d1: Date, d2: Date): number {
-    return Math.abs(Math.round((d1.getTime() - d2.getTime()) / (1000 * 60 * 60 * 24)));
-}
 
 /**
  * 1. Detect Salary Cycle Length (Clamped between 30 and 33 days, default 33)

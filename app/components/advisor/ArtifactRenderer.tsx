@@ -22,7 +22,7 @@ import type {
     AdvisorText,
     AdvisorActionConfirmation,
     AdvisorSuggestedAction,
-} from "@/types/advisor";
+} from "@/src/types/advisor";
 
 function toneStyles(tone?: string) {
     switch (tone) {
