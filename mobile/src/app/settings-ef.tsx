@@ -53,19 +53,14 @@ export default function EFSettingsScreen() {
 
   const loadData = useCallback(async () => {
     try {
-      const [resProfile, resEf] = await Promise.all([
-        fetch(apiUrl("/api/profile")),
-        fetch(apiUrl("/api/emergency-fund")),
-      ]);
-
-      const dataProfile = await resProfile.json();
+      const resEf = await fetch(apiUrl("/api/emergency-fund"));
       const dataEf = await resEf.json();
 
-      if (dataProfile.ok && dataProfile.profile) {
-        setProfile(dataProfile.profile);
-      }
       if (dataEf.ok) {
         setEfStatus(dataEf);
+        if (dataEf.profile) {
+          setProfile(dataEf.profile);
+        }
       }
     } catch (e: any) {
       console.error("Failed to load EF settings", e);

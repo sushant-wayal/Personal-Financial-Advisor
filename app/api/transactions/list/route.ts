@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-
+import { prisma } from "@/src/lib/prisma";
 import { getTransactions, type TransactionSort } from "@/src/services/transactions";
 
 const VALID_SORT_FIELDS = new Set(["date", "amount", "merchant", "category", "type"]);
@@ -64,11 +64,15 @@ export async function GET(req: Request) {
             sort,
         };
 
-        const result = await getTransactions(queryInput);
+        const [result, categories] = await Promise.all([
+            getTransactions(queryInput),
+            prisma.category.findMany({ select: { id: true, name: true } }),
+        ]);
 
         return NextResponse.json({
             ...result,
             transactions: result.data,
+            categories: categories.map((c) => c.name),
         });
     } catch (e: unknown) {
         const message = e instanceof Error ? e.message : String(e);

@@ -1,6 +1,6 @@
 import { prisma } from "../lib/prisma";
 import { calculateBurnRate } from "./analytics";
-import { getActiveInvestableCarveout, getOrGenerateInvestmentSuggestion } from "./investmentEngine";
+import { getActiveInvestableCarveout } from "./investmentEngine";
 
 export type EfStrategy = "BALANCED" | "AGGRESSIVE_EF" | "ACCELERATED_GOALS" | "STRICT";
 
@@ -79,7 +79,7 @@ export function getEfStrategyRatios(
 }
 
 export async function getEmergencyFundStatus(): Promise<EmergencyFundStatus> {
-    const [profile, burnData, goals, investableCarveout, investableSuggestion] = await Promise.all([
+    const [profile, burnData, goals, investableCarveout, activeSuggestion] = await Promise.all([
         prisma.financialProfile.findFirst({
             select: {
                 emergencyFundMonths: true,
@@ -93,7 +93,11 @@ export async function getEmergencyFundStatus(): Promise<EmergencyFundStatus> {
         calculateBurnRate(),
         prisma.goal.findMany({ select: { targetAmount: true, currentAmount: true } }),
         getActiveInvestableCarveout(),
-        getOrGenerateInvestmentSuggestion().catch(() => null),
+        prisma.investmentSuggestion.findFirst({
+            where: { status: "ACTIVE" },
+            select: { investableRate: true },
+            orderBy: { createdAt: "desc" },
+        }).catch(() => null),
     ]);
 
     const targetMonths = Math.max(3, profile?.emergencyFundMonths ?? 6);
@@ -174,7 +178,7 @@ export async function getEmergencyFundStatus(): Promise<EmergencyFundStatus> {
     const tier = strategyRatios.tier;
 
     // Deduct configured phase investable percentage (e.g., 15% for EF_BUILDING, 40% for GOAL_SPRINT, 60% for WEALTH_BUILDING, 0% for CRISIS)
-    const phaseInvestableRate = investableSuggestion?.suggestion?.investableRate ?? (isComplete ? 60 : 15);
+    const phaseInvestableRate = activeSuggestion?.investableRate ?? (isComplete ? 60 : 15);
     const efAndGoalsAvailableCapacity = Math.max(0, monthlyCapacity * ((100 - phaseInvestableRate) / 100));
 
     // Monthly drip ratios — separate from the strategy display ratios above.

@@ -4,6 +4,7 @@ import { computeHealthStatus, computeConfidenceScore } from "./GoalFeasibilitySe
 import { allocateMonthlyCapacity, simulateCapacityShift } from "./GoalAllocationService";
 import { buildGoalProgressSignals, deriveGoalProgress } from "./goalProgress";
 import { getEmergencyFundStatus } from "./emergencyFund";
+import { getOrGenerateInvestmentSuggestion } from "./investmentEngine";
 import { formatCurrency } from "./shared/formatting";
 import { monthsUntil } from "./shared/dates";
 
@@ -225,9 +226,10 @@ export async function listGoals() {
 }
 
 export async function getGoalOverview() {
-    const [{ goals, signals }, efStatus] = await Promise.all([
+    const [{ goals, signals }, efStatus, investmentData] = await Promise.all([
         loadDerivedGoals(),
         getEmergencyFundStatus(),
+        getOrGenerateInvestmentSuggestion().catch(() => null),
     ]);
 
     const effectiveCapacity = signals.availableGoalCapacity;
@@ -269,7 +271,7 @@ export async function getGoalOverview() {
         }
     }
 
-    return { ...overview, emergencyFund: efStatus };
+    return { ...overview, emergencyFund: efStatus, investmentSuggestion: investmentData?.suggestion ?? null };
 }
 
 export async function createGoal(data: { title: string; targetAmount: number; targetDate?: string; priority?: number; notes?: string; initialAllocation?: number; currentAmount?: number }) {

@@ -188,44 +188,32 @@ async function loadDashboard(force = false): Promise<DashboardData> {
   return fetchCachedValue(
     "dashboard-v2",
     async () => {
-      const [balance, networth, savings, burn, runway, monthly, categories, heatmap, seasonality, acceleration, insights, budgets] = await Promise.all([
-        fetchJson<BalanceData>("/api/analytics/balance"),
-        fetchJson<{ totals: { netWorth: number } }>("/api/networth"),
-        fetchJson<SavingsData>("/api/analytics/savings-rate"),
-        fetchJson<BurnData>("/api/analytics/burn-rate"),
-        fetchJson<RunwayData>("/api/analytics/runway"),
-        fetchJson<MonthlyPoint[]>("/api/analytics/monthly"),
-        fetchJson<CategoryPoint[]>("/api/analytics/categories"),
-        fetchJson<HeatmapPoint[]>("/api/analytics/heatmap"),
-        fetchJson<SeasonalityData>("/api/analytics/seasonality"),
-        fetchJson<AccelerationData>("/api/analytics/acceleration"),
-        fetchJson<Insight[]>("/api/insights/generate"),
-        fetchJson<{ budgets: BudgetData[] }>("/api/budgets").then(res => res.budgets || []),
-      ]);
-
-      const resolvedBalance: BalanceData = balance;
+      const data = await fetchJson<DashboardData>("/api/dashboard/overview");
+      const balance = data.balance;
       const nextBalance: BalanceData =
-        resolvedBalance.percentChange === null || resolvedBalance.percentChange === undefined
+        !balance || balance.percentChange === null || balance.percentChange === undefined
           ? (() => {
-            const prev = resolvedBalance.balance - resolvedBalance.lastMonthDelta;
-            const pct = prev !== 0 ? (resolvedBalance.lastMonthDelta / prev) * 100 : 0;
-            return { ...resolvedBalance, percentChange: Math.round(pct) };
+            const b = balance?.balance ?? 0;
+            const delta = balance?.lastMonthDelta ?? 0;
+            const prev = b - delta;
+            const pct = prev !== 0 ? (delta / prev) * 100 : 0;
+            return { balance: b, lastMonthDelta: delta, percentChange: Math.round(pct) };
           })()
-          : resolvedBalance;
+          : balance;
 
       return {
         balance: nextBalance,
-        networth,
-        savings,
-        burn,
-        runway,
-        monthly,
-        categories,
-        heatmap,
-        seasonality,
-        acceleration,
-        insights,
-        budgets,
+        networth: data.networth ?? null,
+        savings: data.savings ?? null,
+        burn: data.burn ?? null,
+        runway: data.runway ?? null,
+        monthly: data.monthly ?? [],
+        categories: data.categories ?? [],
+        heatmap: data.heatmap ?? [],
+        seasonality: data.seasonality ?? null,
+        acceleration: data.acceleration ?? null,
+        insights: data.insights ?? [],
+        budgets: data.budgets ?? [],
       };
     },
     { force },

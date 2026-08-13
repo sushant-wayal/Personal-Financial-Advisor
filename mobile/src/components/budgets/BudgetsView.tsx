@@ -100,35 +100,22 @@ export function BudgetsView() {
   const [limit, setLimit] = useState("");
   const [rollover, setRollover] = useState(false);
 
-  const fetchBudgets = useCallback(async () => {
+  const loadData = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/api/budgets`);
       const data = await res.json();
       if (data.ok) {
-        setBudgets(data.budgets);
+        if (Array.isArray(data.budgets)) {
+          setBudgets(data.budgets);
+        }
+        if (Array.isArray(data.categories)) {
+          setCategories(data.categories);
+        }
       }
     } catch (err) {
       console.error(err);
     }
   }, []);
-
-  const fetchCategories = useCallback(async () => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/categories`);
-      const data = await res.json();
-      if (Array.isArray(data)) {
-        setCategories(data);
-      } else if (data.ok && data.categories) {
-        setCategories(data.categories);
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  }, []);
-
-  const loadData = useCallback(async () => {
-    await Promise.all([fetchBudgets(), fetchCategories()]);
-  }, [fetchBudgets, fetchCategories]);
 
   useEffect(() => {
     let isMounted = true;

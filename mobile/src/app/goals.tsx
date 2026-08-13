@@ -406,23 +406,25 @@ export default function GoalsScreen() {
       } finally {
         if (mounted) setLoading(false);
       }
-    })();
 
-    (async () => {
-      try {
-        setAdvisorRefreshing(true);
-        const data = await fetchAIRecommendations(false);
-        if (!mounted) return;
-        setAdvisorPayload(data);
-        if ((data as any).lastRun) {
-          setAdvisorLastRun(new Date((data as any).lastRun).toISOString());
+      // Fetch AI recommendations in background after main goals render
+      if (mounted) {
+        try {
+          setAdvisorRefreshing(true);
+          const data = await fetchAIRecommendations(false);
+          if (!mounted) return;
+          setAdvisorPayload(data);
+          if ((data as any).lastRun) {
+            setAdvisorLastRun(new Date((data as any).lastRun).toISOString());
+          }
+        } catch (e: unknown) {
+          if (mounted) setAdvisorError(e instanceof Error ? e.message : String(e));
+        } finally {
+          if (mounted) setAdvisorRefreshing(false);
         }
-      } catch (e: unknown) {
-        setAdvisorError(e instanceof Error ? e.message : String(e));
-      } finally {
-        if (mounted) setAdvisorRefreshing(false);
       }
     })();
+
     return () => {
       mounted = false;
     };
@@ -724,22 +726,26 @@ function EmergencyFundWidget({ ef }: { ef?: EmergencyFundData }) {
     );
 }
 
-function InvestmentWidget() {
+function InvestmentWidget({ suggestion: initialSuggestion }: { suggestion?: any }) {
     const router = useRouter();
-    const [data, setData] = useState<any>(null);
-    const [loading, setLoading] = useState(true);
+    const [fetchedData, setFetchedData] = useState<any>(null);
+    const [loading, setLoading] = useState(!initialSuggestion);
 
     useEffect(() => {
+        if (initialSuggestion) {
+            return;
+        }
+        let active = true;
         fetch(apiUrl("/api/investments"))
             .then((r) => r.json())
-            .then((d) => { if (d.ok) setData(d); })
+            .then((d) => { if (active && d.ok) setFetchedData(d); })
             .catch(() => {})
-            .finally(() => setLoading(false));
-    }, []);
+            .finally(() => { if (active) setLoading(false); });
+        return () => { active = false; };
+    }, [initialSuggestion]);
 
-    if (loading || !data?.suggestion) return null;
-
-    const { suggestion } = data;
+    const suggestion = initialSuggestion || fetchedData?.suggestion;
+    if (loading || !suggestion) return null;
     const isInvested = suggestion.status === "INVESTED";
     const isCrisis = suggestion.phase === "CRISIS";
     const total = suggestion.totalInvestable;
@@ -904,7 +910,7 @@ function DashboardView({
           <EmergencyFundWidget ef={overview?.emergencyFund} />
       </View>
 
-      <InvestmentWidget />
+      <InvestmentWidget suggestion={(overview as any)?.investmentSuggestion} />
 
       <View style={styles.timelineCard}>
         <View style={styles.cardHeadingRow}>

@@ -41,13 +41,8 @@ export default function InvestmentsScreen() {
 
   const loadData = useCallback(async () => {
     try {
-      const [resSuggest, resHistory] = await Promise.all([
-        fetch(apiUrl("/api/investments")),
-        fetch(apiUrl("/api/investments/history")),
-      ]);
-
+      const resSuggest = await fetch(apiUrl("/api/investments"));
       const dataSuggest = await resSuggest.json();
-      const dataHistory = await resHistory.json();
 
       if (dataSuggest.ok) {
         setSuggestionData(dataSuggest);
@@ -57,10 +52,9 @@ export default function InvestmentsScreen() {
           setDebt(buckets.debt?.final ?? 0);
           setGold(buckets.gold?.final ?? 0);
         }
-      }
-
-      if (dataHistory.ok) {
-        setHistoryData(dataHistory.history ?? []);
+        if (Array.isArray(dataSuggest.history)) {
+          setHistoryData(dataSuggest.history);
+        }
       }
     } catch (e: any) {
       console.error("Failed to load investment data", e);

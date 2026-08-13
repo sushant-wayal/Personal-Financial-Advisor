@@ -23,7 +23,7 @@ import { Skeleton, TransactionsSkeleton } from "../components/LoadingSkeleton";
 import { getCurrencySymbol, useCurrency, formatIndianAmountInput, parseIndianAmountInput } from "../providers/CurrencyProvider";
 import { API_BASE_URL } from "../lib/apiBaseUrl";
 import { beginHorizontalScroll, endHorizontalScroll, updateHorizontalScroll } from "../lib/horizontalScrollPriority";
-import { clearClientCache, fetchCachedValue } from "../lib/clientCache";
+import { clearClientCache, fetchCachedValue, setClientCache } from "../lib/clientCache";
 import { ConfirmModal } from "../components/ConfirmModal";
 
 type Transaction = {
@@ -137,6 +137,9 @@ async function fetchTransactions(page = 1, pageSize = 50, filters?: TransactionF
       const res = await fetch(url.toString());
       if (!res.ok) throw new Error("Failed to load transactions");
       const payload = await res.json();
+      if (Array.isArray(payload.categories) && payload.categories.length > 0) {
+        setClientCache("transactions:categories", payload.categories.map((c: string) => ({ id: c, name: c })));
+      }
       return (payload.transactions ?? payload.data ?? []) as Transaction[];
     },
     { force },

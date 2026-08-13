@@ -5,7 +5,6 @@ import { pruneOldInsights } from "../../../../src/services/insightStore";
 
 export async function GET() {
     try {
-        await pruneOldInsights();
         const insights = await listInsights(50);
         return NextResponse.json({ ok: true, insights });
     } catch (e: any) {

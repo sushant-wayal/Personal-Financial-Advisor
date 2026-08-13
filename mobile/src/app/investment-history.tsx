@@ -37,19 +37,14 @@ export default function InvestmentHistoryScreen() {
 
   const loadData = useCallback(async () => {
     try {
-      const [resHistory, resSuggest] = await Promise.all([
-        fetch(apiUrl("/api/investments/history")),
-        fetch(apiUrl("/api/investments")),
-      ]);
-
+      const resHistory = await fetch(apiUrl("/api/investments/history"));
       const dataHistory = await resHistory.json();
-      const dataSuggest = await resSuggest.json();
 
       if (dataHistory.ok) {
         setHistoryData(dataHistory.history ?? []);
-      }
-      if (dataSuggest.ok && dataSuggest.suggestion) {
-        setStreak(dataSuggest.suggestion.streak ?? 0);
+        if (typeof dataHistory.streak === "number") {
+          setStreak(dataHistory.streak);
+        }
       }
     } catch (e: any) {
       console.error("Failed to load investment history", e);

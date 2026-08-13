@@ -5,7 +5,11 @@ import { prisma } from "@/src/lib/prisma";
 export async function GET() {
     try {
         const result = await getOrGenerateInvestmentSuggestion();
-        return NextResponse.json({ ok: true, ...result });
+        const history = await prisma.investmentHistory.findMany({
+            orderBy: { investedAt: "desc" },
+            take: 20,
+        });
+        return NextResponse.json({ ok: true, ...result, history });
     } catch (e: any) {
         return NextResponse.json({ error: e.message || String(e) }, { status: 500 });
     }

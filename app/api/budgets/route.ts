@@ -4,8 +4,11 @@ import { getEnrichedBudgets } from "@/src/services/budgets";
 
 export async function GET(_request: Request) {
   try {
-    const enrichedBudgets = await getEnrichedBudgets();
-    return NextResponse.json({ ok: true, budgets: enrichedBudgets });
+    const [enrichedBudgets, categories] = await Promise.all([
+      getEnrichedBudgets(),
+      prisma.category.findMany({ orderBy: { name: "asc" } }),
+    ]);
+    return NextResponse.json({ ok: true, budgets: enrichedBudgets, categories });
   } catch (error: any) {
     console.error("Failed to fetch budgets", error);
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
