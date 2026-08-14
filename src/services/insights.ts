@@ -155,7 +155,7 @@ export async function generateInsights(limit = 50) {
     return generated;
 }
 
-export async function listInsights(limit = 50) {
+export async function listInsights(limit = 20) {
     const since = getInsightRetentionWindowStart();
     const raw = await prisma.financialInsight.findMany({
         where: {
@@ -163,8 +163,16 @@ export async function listInsights(limit = 50) {
                 gte: since,
             },
         },
+        select: {
+            id: true,
+            type: true,
+            message: true,
+            score: true,
+            createdAt: true,
+            meta: true,
+        },
         orderBy: { createdAt: "desc" },
-        take: Math.max(limit * 5, 200),
+        take: limit,
     });
 
     if (raw.length === 0) {

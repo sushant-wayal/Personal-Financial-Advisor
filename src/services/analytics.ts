@@ -530,16 +530,14 @@ export async function getUnifiedDashboardOverview() {
     const now = new Date();
     const oneYearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
 
-    const profile = await prisma.financialProfile.findFirst({ select: { balance: true, ownerName: true, currency: true } });
-    const bankBal = profile?.balance ?? 0;
-
-    const [allTxs, insights, budgets, networthTotals] = await Promise.all([
+    const [profile, allTxs, insights, budgets, networthTotals] = await Promise.all([
+        prisma.financialProfile.findFirst({ select: { balance: true, ownerName: true, currency: true } }),
         prisma.transaction.findMany({
             where: { timestamp: { gte: oneYearAgo } },
             select: { amount: true, timestamp: true, type: true, transactionType: true, category: { select: { name: true } } },
             orderBy: { timestamp: "asc" },
         }),
-        listInsights(50).catch(() => []),
+        listInsights(20).catch(() => []),
         getEnrichedBudgets().catch(() => []),
         (async () => {
             const [
@@ -564,7 +562,7 @@ export async function getUnifiedDashboardOverview() {
                 prisma.stock.findMany({ select: { currentWorth: true, currentQuantity: true, currentPrice: true } }),
             ]);
 
-            let totalAssets = bankBal;
+            let totalAssets = 0;
             let totalLiabilities = 0;
 
             totalAssets += ppf.reduce((sum, item) => sum + (item.currentWorth ?? item.currentBalance), 0);
@@ -585,15 +583,20 @@ export async function getUnifiedDashboardOverview() {
             totalLiabilities += bnpl.reduce((sum, item) => sum + item.currentOutstanding, 0);
             totalLiabilities += borrow.reduce((sum, item) => sum + item.outstandingAmount, 0);
 
-            return {
-                totals: {
-                    assets: totalAssets,
-                    liabilities: totalLiabilities,
-                    netWorth: totalAssets - totalLiabilities,
-                },
-            };
+            return { assetsExceptBank: totalAssets, liabilities: totalLiabilities };
         })(),
     ]);
+
+    const bankBal = profile?.balance ?? 0;
+    const totalAssets = networthTotals.assetsExceptBank + bankBal;
+    const totalLiabilities = networthTotals.liabilities;
+    const networthSummary = {
+        totals: {
+            assets: totalAssets,
+            liabilities: totalLiabilities,
+            netWorth: totalAssets - totalLiabilities,
+        },
+    };
 
     const balanceVal = profile?.balance ?? 0;
     const nowMs = now.getTime();
@@ -799,7 +802,7 @@ export async function getUnifiedDashboardOverview() {
 
     return {
         balance,
-        networth: networthTotals,
+        networth: networthSummary,
         savings,
         burn,
         runway,
