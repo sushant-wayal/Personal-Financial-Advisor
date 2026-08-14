@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getUnifiedDashboardOverview } from "@/src/services/analytics";
 
-export const revalidate = 10;
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {

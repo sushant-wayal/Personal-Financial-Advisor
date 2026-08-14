@@ -3,7 +3,7 @@ import { getEmergencyFundStatus } from "../../../src/services/emergencyFund";
 
 import { prisma } from "../../../src/lib/prisma";
 
-export const revalidate = 10;
+export const dynamic = "force-dynamic";
 
 export async function GET() {
     try {
