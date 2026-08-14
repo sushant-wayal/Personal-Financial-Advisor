@@ -540,50 +540,37 @@ export async function getUnifiedDashboardOverview() {
         listInsights(20).catch(() => []),
         getEnrichedBudgets().catch(() => []),
         (async () => {
-            const [
-                ppf, epf, fd, rd, vehicle, plot, indProp, apt, jewel, rec,
-                loan, cc, bnpl, borrow, mf, stock
-            ] = await Promise.all([
-                prisma.pPFAccount.findMany({ select: { currentWorth: true, currentBalance: true } }),
-                prisma.ePFAccount.findMany({ select: { currentWorth: true, currentBalance: true } }),
-                prisma.fDAccount.findMany({ select: { currentWorth: true, principalAmount: true } }),
-                prisma.rDAccount.findMany({ select: { currentWorth: true, currentTotalDeposits: true } }),
-                prisma.vehicleAsset.findMany({ select: { currentWorth: true, purchasePrice: true } }),
-                prisma.plotAsset.findMany({ select: { currentWorth: true, purchasePrice: true } }),
-                prisma.independentPropertyAsset.findMany({ select: { currentWorth: true, purchasePrice: true } }),
-                prisma.apartmentAsset.findMany({ select: { currentWorth: true, purchasePrice: true } }),
-                prisma.jewelleryAsset.findMany({ select: { currentWorth: true, purchasePrice: true } }),
-                prisma.receivableAsset.findMany({ select: { currentWorth: true, principalAmount: true } }),
-                prisma.loanLiability.findMany({ select: { outstandingBalance: true } }),
-                prisma.creditCardLiability.findMany({ select: { currentOutstanding: true } }),
-                prisma.bnplLiability.findMany({ select: { currentOutstanding: true } }),
-                prisma.borrowedLiability.findMany({ select: { outstandingAmount: true } }),
-                prisma.mutualFund.findMany({ select: { currentWorth: true, currentUnits: true, currentNav: true } }),
-                prisma.stock.findMany({ select: { currentWorth: true, currentQuantity: true, currentPrice: true } }),
-            ]);
-
-            let totalAssets = 0;
-            let totalLiabilities = 0;
-
-            totalAssets += ppf.reduce((sum, item) => sum + (item.currentWorth ?? item.currentBalance), 0);
-            totalAssets += epf.reduce((sum, item) => sum + (item.currentWorth ?? item.currentBalance), 0);
-            totalAssets += fd.reduce((sum, item) => sum + (item.currentWorth ?? item.principalAmount), 0);
-            totalAssets += rd.reduce((sum, item) => sum + (item.currentWorth ?? item.currentTotalDeposits), 0);
-            totalAssets += vehicle.reduce((sum, item) => sum + (item.currentWorth ?? (item.purchasePrice || 0)), 0);
-            totalAssets += plot.reduce((sum, item) => sum + (item.currentWorth ?? (item.purchasePrice || 0)), 0);
-            totalAssets += indProp.reduce((sum, item) => sum + (item.currentWorth ?? (item.purchasePrice || 0)), 0);
-            totalAssets += apt.reduce((sum, item) => sum + (item.currentWorth ?? (item.purchasePrice || 0)), 0);
-            totalAssets += jewel.reduce((sum, item) => sum + (item.currentWorth ?? (item.purchasePrice || 0)), 0);
-            totalAssets += rec.reduce((sum, item) => sum + (item.currentWorth ?? item.principalAmount), 0);
-            totalAssets += mf.reduce((sum, item) => sum + (item.currentWorth ?? ((item.currentUnits || 0) * (item.currentNav || 0))), 0);
-            totalAssets += stock.reduce((sum, item) => sum + ((item as any).currentWorth ?? (((item as any).currentQuantity || 0) * ((item as any).currentPrice || 0))), 0);
-
-            totalLiabilities += loan.reduce((sum, item) => sum + item.outstandingBalance, 0);
-            totalLiabilities += cc.reduce((sum, item) => sum + item.currentOutstanding, 0);
-            totalLiabilities += bnpl.reduce((sum, item) => sum + item.currentOutstanding, 0);
-            totalLiabilities += borrow.reduce((sum, item) => sum + item.outstandingAmount, 0);
-
-            return { assetsExceptBank: totalAssets, liabilities: totalLiabilities };
+            try {
+                const res = await prisma.$queryRaw<Array<{ assets: number | null; liabilities: number | null }>>`
+                    SELECT 
+                        (
+                            COALESCE((SELECT SUM(COALESCE("currentWorth", "currentBalance", 0)) FROM "PPFAccount"), 0) +
+                            COALESCE((SELECT SUM(COALESCE("currentWorth", "currentBalance", 0)) FROM "EPFAccount"), 0) +
+                            COALESCE((SELECT SUM(COALESCE("currentWorth", "principalAmount", 0)) FROM "FDAccount"), 0) +
+                            COALESCE((SELECT SUM(COALESCE("currentWorth", "currentTotalDeposits", 0)) FROM "RDAccount"), 0) +
+                            COALESCE((SELECT SUM(COALESCE("currentWorth", "purchasePrice", 0)) FROM "VehicleAsset"), 0) +
+                            COALESCE((SELECT SUM(COALESCE("currentWorth", "purchasePrice", 0)) FROM "PlotAsset"), 0) +
+                            COALESCE((SELECT SUM(COALESCE("currentWorth", "purchasePrice", 0)) FROM "IndependentPropertyAsset"), 0) +
+                            COALESCE((SELECT SUM(COALESCE("currentWorth", "purchasePrice", 0)) FROM "ApartmentAsset"), 0) +
+                            COALESCE((SELECT SUM(COALESCE("currentWorth", "purchasePrice", 0)) FROM "JewelleryAsset"), 0) +
+                            COALESCE((SELECT SUM(COALESCE("currentWorth", "principalAmount", 0)) FROM "ReceivableAsset"), 0) +
+                            COALESCE((SELECT SUM(COALESCE("currentWorth", COALESCE("currentUnits", 0) * COALESCE("currentNav", 0), 0)) FROM "MutualFund"), 0) +
+                            COALESCE((SELECT SUM(COALESCE("currentWorth", COALESCE("currentQuantity", 0) * COALESCE("currentPrice", 0), 0)) FROM "Stock"), 0)
+                        ) AS assets,
+                        (
+                            COALESCE((SELECT SUM("outstandingBalance") FROM "LoanLiability"), 0) +
+                            COALESCE((SELECT SUM("currentOutstanding") FROM "CreditCardLiability"), 0) +
+                            COALESCE((SELECT SUM("currentOutstanding") FROM "BNPLLiability"), 0) +
+                            COALESCE((SELECT SUM("outstandingAmount") FROM "BorrowedLiability"), 0)
+                        ) AS liabilities
+                `;
+                return {
+                    assetsExceptBank: Number(res[0]?.assets ?? 0),
+                    liabilities: Number(res[0]?.liabilities ?? 0),
+                };
+            } catch {
+                return { assetsExceptBank: 0, liabilities: 0 };
+            }
         })(),
     ]);
 

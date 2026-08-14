@@ -163,6 +163,7 @@ type DashboardData = {
   acceleration: AccelerationData | null;
   insights: Insight[];
   budgets: BudgetData[];
+  profile?: { ownerName?: string; currency?: string } | null;
 };
 
 function apiUrl(path: string) {
@@ -214,6 +215,7 @@ async function loadDashboard(force = false): Promise<DashboardData> {
         acceleration: data.acceleration ?? null,
         insights: data.insights ?? [],
         budgets: data.budgets ?? [],
+        profile: data.profile ?? null,
       };
     },
     { force },
@@ -1031,8 +1033,8 @@ function BudgetWidget({ budgets }: { budgets: BudgetData[] }) {
 }
 
 export default function Index() {
-  useCurrency();
-  const { firstName } = useUserProfile();
+  const { setCurrencyCode } = useCurrency();
+  const { firstName, setOwnerName } = useUserProfile();
   const { width } = useWindowDimensions();
   const router = useRouter();
   const cardWidth = Math.max(width - 48, 280);
@@ -1058,6 +1060,10 @@ export default function Index() {
     try {
       const nextDashboard = await loadDashboard(force);
       setDashboard(nextDashboard);
+      if (nextDashboard.profile) {
+        if (nextDashboard.profile.ownerName) setOwnerName(nextDashboard.profile.ownerName);
+        if (nextDashboard.profile.currency) setCurrencyCode(nextDashboard.profile.currency);
+      }
     } catch (loadError) {
       const message = loadError instanceof Error ? loadError.message : "Failed to load dashboard data.";
       setError(message);

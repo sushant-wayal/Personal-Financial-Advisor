@@ -106,7 +106,6 @@ export default function RootLayout() {
   const [fontsLoaded, setFontsLoaded] = useState(false);
   const [currencyCode, setCurrencyCode] = useState(DEFAULT_CURRENCY_CODE);
   const [ownerName, setOwnerName] = useState("");
-  const [profileLoaded, setProfileLoaded] = useState(false);
   const [swipeTranslateX] = useState(() => new Animated.Value(0));
   const swipeAnimation = useRef<Animated.CompositeAnimation | null>(null);
   const gestureStateRef = useRef({ startIndex: 0, active: false, direction: 0 as -1 | 0 | 1, pendingRoute: null as string | null });
@@ -293,7 +292,6 @@ export default function RootLayout() {
       if (!mounted) return;
       setCurrencyCode(nextProfile.currencyCode);
       setOwnerName(nextProfile.ownerName);
-      setProfileLoaded(true);
     })();
 
     return () => {
@@ -301,7 +299,7 @@ export default function RootLayout() {
     };
   }, []);
 
-  if (!fontsLoaded || !profileLoaded) {
+  if (!fontsLoaded) {
     return (
       <SafeAreaProvider>
         <AppBootstrapSkeleton />
