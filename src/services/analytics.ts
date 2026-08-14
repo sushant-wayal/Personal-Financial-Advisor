@@ -560,7 +560,7 @@ export async function getUnifiedDashboardOverview() {
                         (
                             COALESCE((SELECT SUM("outstandingBalance") FROM "LoanLiability"), 0) +
                             COALESCE((SELECT SUM("currentOutstanding") FROM "CreditCardLiability"), 0) +
-                            COALESCE((SELECT SUM("currentOutstanding") FROM "BNPLLiability"), 0) +
+                            COALESCE((SELECT SUM("currentOutstanding") FROM "BnplLiability"), 0) +
                             COALESCE((SELECT SUM("outstandingAmount") FROM "BorrowedLiability"), 0)
                         ) AS liabilities
                 `;
@@ -568,7 +568,8 @@ export async function getUnifiedDashboardOverview() {
                     assetsExceptBank: Number(res[0]?.assets ?? 0),
                     liabilities: Number(res[0]?.liabilities ?? 0),
                 };
-            } catch {
+            } catch (queryErr) {
+                console.error("Failed to calculate networth totals in dashboard overview:", queryErr);
                 return { assetsExceptBank: 0, liabilities: 0 };
             }
         })(),
