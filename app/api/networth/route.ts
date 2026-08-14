@@ -2,25 +2,47 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/src/lib/prisma";
 import { calculateCurrentBalance } from "@/src/services/analytics";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
     try {
-        const ppf = await prisma.pPFAccount.findMany();
-        const epf = await prisma.ePFAccount.findMany();
-        const fd = await prisma.fDAccount.findMany();
-        const rd = await prisma.rDAccount.findMany();
-        const vehicle = await prisma.vehicleAsset.findMany();
-        const plot = await prisma.plotAsset.findMany();
-        const independentProperty = await prisma.independentPropertyAsset.findMany();
-        const apartment = await prisma.apartmentAsset.findMany();
-        const jewellery = await prisma.jewelleryAsset.findMany();
-        const receivable = await prisma.receivableAsset.findMany();
-        const loan = await prisma.loanLiability.findMany();
-        const creditCard = await prisma.creditCardLiability.findMany();
-        const bnpl = await prisma.bnplLiability.findMany();
-        const borrowed = await prisma.borrowedLiability.findMany();
-        const mutualFund = await prisma.mutualFund.findMany();
-        const stock = await prisma.stock.findMany();
-        const bankBalance = await calculateCurrentBalance();
+        const [
+            ppf,
+            epf,
+            fd,
+            rd,
+            vehicle,
+            plot,
+            independentProperty,
+            apartment,
+            jewellery,
+            receivable,
+            loan,
+            creditCard,
+            bnpl,
+            borrowed,
+            mutualFund,
+            stock,
+            bankBalance
+        ] = await Promise.all([
+            prisma.pPFAccount.findMany(),
+            prisma.ePFAccount.findMany(),
+            prisma.fDAccount.findMany(),
+            prisma.rDAccount.findMany(),
+            prisma.vehicleAsset.findMany(),
+            prisma.plotAsset.findMany(),
+            prisma.independentPropertyAsset.findMany(),
+            prisma.apartmentAsset.findMany(),
+            prisma.jewelleryAsset.findMany(),
+            prisma.receivableAsset.findMany(),
+            prisma.loanLiability.findMany(),
+            prisma.creditCardLiability.findMany(),
+            prisma.bnplLiability.findMany(),
+            prisma.borrowedLiability.findMany(),
+            prisma.mutualFund.findMany(),
+            prisma.stock.findMany(),
+            calculateCurrentBalance(),
+        ]);
 
         const assets = {
             "Bank Balance": [{ id: "bank_balance", bankName: "Liquid Cash", currentWorth: bankBalance }],
