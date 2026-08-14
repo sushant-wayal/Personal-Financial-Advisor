@@ -3,6 +3,8 @@ import { getEmergencyFundStatus } from "../../../src/services/emergencyFund";
 
 import { prisma } from "../../../src/lib/prisma";
 
+export const revalidate = 10;
+
 export async function GET() {
     try {
         const [status, profile] = await Promise.all([

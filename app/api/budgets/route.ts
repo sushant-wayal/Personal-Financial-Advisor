@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import prisma from "@/src/lib/prisma";
 import { getEnrichedBudgets } from "@/src/services/budgets";
 
+export const revalidate = 10;
+
 export async function GET(_request: Request) {
   try {
     const [enrichedBudgets, categories] = await Promise.all([
