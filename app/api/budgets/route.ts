@@ -8,7 +8,7 @@ export async function GET(_request: Request) {
   try {
     const [enrichedBudgets, categories] = await Promise.all([
       getEnrichedBudgets(),
-      prisma.category.findMany({ orderBy: { name: "asc" } }),
+      prisma.category.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
     ]);
     return NextResponse.json({ ok: true, budgets: enrichedBudgets, categories });
   } catch (error: any) {

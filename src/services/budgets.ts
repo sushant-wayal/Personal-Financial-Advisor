@@ -2,30 +2,41 @@ import { prisma } from "../lib/prisma";
 import { CREDIT_TYPES } from "./balance";
 
 export async function getEnrichedBudgets() {
-  const budgets = await prisma.categoryBudget.findMany({
-    include: {
-      category: true,
-    },
-  });
-
-  if (budgets.length === 0) return [];
-
   const now = new Date();
   const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  const currentMonthSpends = await prisma.transaction.groupBy({
-    by: ["categoryId"],
-    where: {
-      timestamp: { gte: currentMonthStart },
-      NOT: {
-        OR: [
-          { transactionType: { in: Array.from(CREDIT_TYPES) } },
-          { type: { in: Array.from(CREDIT_TYPES) } },
-        ],
+  const [budgets, currentMonthSpends] = await Promise.all([
+    prisma.categoryBudget.findMany({
+      select: {
+        id: true,
+        categoryId: true,
+        monthlyLimit: true,
+        rollover: true,
+        createdAt: true,
+        category: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
       },
-    },
-    _sum: { amount: true },
-  });
+    }),
+    prisma.transaction.groupBy({
+      by: ["categoryId"],
+      where: {
+        timestamp: { gte: currentMonthStart },
+        NOT: {
+          OR: [
+            { transactionType: { in: Array.from(CREDIT_TYPES) } },
+            { type: { in: Array.from(CREDIT_TYPES) } },
+          ],
+        },
+      },
+      _sum: { amount: true },
+    }),
+  ]);
+
+  if (budgets.length === 0) return [];
 
   const currentMonthSpendMap = new Map<string, number>();
   for (const item of currentMonthSpends) {
