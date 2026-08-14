@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/src/lib/prisma";
-import { calculateCurrentBalance } from "@/src/services/analytics";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +22,7 @@ export async function GET() {
             borrowed,
             mutualFund,
             stock,
-            bankBalance
+            profile
         ] = await Promise.all([
             prisma.pPFAccount.findMany(),
             prisma.ePFAccount.findMany(),
@@ -41,8 +40,10 @@ export async function GET() {
             prisma.borrowedLiability.findMany(),
             prisma.mutualFund.findMany(),
             prisma.stock.findMany(),
-            calculateCurrentBalance(),
+            prisma.financialProfile.findFirst({ select: { balance: true } }),
         ]);
+
+        const bankBalance = profile?.balance ?? 0;
 
         const assets = {
             "Bank Balance": [{ id: "bank_balance", bankName: "Liquid Cash", currentWorth: bankBalance }],
