@@ -8,9 +8,31 @@ export async function getEnrichedBudgets() {
     },
   });
 
+  if (budgets.length === 0) return [];
+
   const now = new Date();
   const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const currentMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+
+  const currentMonthSpends = await prisma.transaction.groupBy({
+    by: ["categoryId"],
+    where: {
+      timestamp: { gte: currentMonthStart },
+      NOT: {
+        OR: [
+          { transactionType: { in: Array.from(CREDIT_TYPES) } },
+          { type: { in: Array.from(CREDIT_TYPES) } },
+        ],
+      },
+    },
+    _sum: { amount: true },
+  });
+
+  const currentMonthSpendMap = new Map<string, number>();
+  for (const item of currentMonthSpends) {
+    if (item.categoryId) {
+      currentMonthSpendMap.set(item.categoryId, Math.abs(item._sum.amount ?? 0));
+    }
+  }
 
   const enrichedBudgets = await Promise.all(
     budgets.map(async (budget) => {
@@ -28,14 +50,13 @@ export async function getEnrichedBudgets() {
             categoryId: budget.categoryId,
             timestamp: {
               gte: startMonth,
-              lte: currentMonthEnd,
             },
             NOT: {
               OR: [
                 { transactionType: { in: Array.from(CREDIT_TYPES) } },
                 { type: { in: Array.from(CREDIT_TYPES) } },
-              ]
-            }
+              ],
+            },
           },
           _sum: {
             amount: true,
@@ -52,30 +73,10 @@ export async function getEnrichedBudgets() {
           currentMonthLimit: budget.monthlyLimit,
         };
       } else {
-        const agg = await prisma.transaction.aggregate({
-          where: {
-            categoryId: budget.categoryId,
-            timestamp: {
-              gte: currentMonthStart,
-              lte: currentMonthEnd,
-            },
-            NOT: {
-              OR: [
-                { transactionType: { in: Array.from(CREDIT_TYPES) } },
-                { type: { in: Array.from(CREDIT_TYPES) } },
-              ]
-            }
-          },
-          _sum: {
-            amount: true,
-          },
-        });
-
-        const spent = Math.abs(agg._sum.amount || 0);
-
+        const spent = currentMonthSpendMap.get(budget.categoryId) ?? 0;
         return {
           ...budget,
-          spent: spent,
+          spent,
           available: budget.monthlyLimit - spent,
           totalLimit: budget.monthlyLimit,
           currentMonthLimit: budget.monthlyLimit,
