@@ -7,44 +7,17 @@ const VALID_EF_STRATEGIES = ["BALANCED", "AGGRESSIVE_EF", "ACCELERATED_GOALS", "
 export async function GET() {
     try {
         const profile = await prisma.financialProfile.findFirst();
-        const averages = await calculateAveragedMonthlyIncomeAndExpense();
-        
-        if (profile) {
-            if (!profile.monthlyIncome || profile.monthlyIncome === 0) {
-                profile.monthlyIncome = averages.monthlyIncome;
-            }
-            if (!profile.monthlyExpenses || profile.monthlyExpenses === 0) {
-                profile.monthlyExpenses = averages.monthlyExpenses;
-            }
-            // Auto-migrate legacy 50/25/15/10 profile sub-allocations to 70/20/10 and 30/60/10
-            if (profile.stdEquityPct === 50 || profile.consEquityPct === 20) {
-                const updatedProfile = await prisma.financialProfile.update({
-                    where: { id: profile.id },
-                    data: {
-                        stdEquityPct: 70,
-                        stdDebtPct: 20,
-                        stdGoldPct: 10,
-                        consEquityPct: 30,
-                        consDebtPct: 60,
-                        consGoldPct: 10,
-                    },
-                });
-                Object.assign(profile, updatedProfile);
-            }
-        }
-        
         return NextResponse.json({
             ok: true,
             profile: profile || {
-                ...averages,
                 balance: 0,
                 emergencyFundMonths: 6,
                 efStrategy: "BALANCED",
                 currency: "INR"
             }
         });
-    } catch (e: any) {
-        return NextResponse.json({ error: e.message || String(e) }, { status: 500 });
+    } catch (e: unknown) {
+        return NextResponse.json({ error: e instanceof Error ? e.message : String(e) }, { status: 500 });
     }
 }
 

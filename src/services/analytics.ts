@@ -530,7 +530,7 @@ export async function getUnifiedDashboardOverview() {
     const now = new Date();
     const oneYearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
 
-    const profile = await prisma.financialProfile.findFirst({ select: { balance: true } });
+    const profile = await prisma.financialProfile.findFirst({ select: { balance: true, ownerName: true, currency: true } });
     const bankBal = profile?.balance ?? 0;
 
     const [allTxs, insights, budgets, networthTotals] = await Promise.all([
@@ -810,5 +810,9 @@ export async function getUnifiedDashboardOverview() {
         acceleration,
         insights,
         budgets,
+        profile: {
+            ownerName: profile?.ownerName || "",
+            currency: profile?.currency || "INR",
+        },
     };
 }
