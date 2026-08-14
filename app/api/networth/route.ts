@@ -5,45 +5,47 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
     try {
-        const [
-            ppf,
-            epf,
-            fd,
-            rd,
-            vehicle,
-            plot,
-            independentProperty,
-            apartment,
-            jewellery,
-            receivable,
-            loan,
-            creditCard,
-            bnpl,
-            borrowed,
-            mutualFund,
-            stock,
-            profile
-        ] = await Promise.all([
-            prisma.pPFAccount.findMany({ select: { id: true, currentWorth: true, currentBalance: true } }),
-            prisma.ePFAccount.findMany({ select: { id: true, currentWorth: true, currentBalance: true } }),
-            prisma.fDAccount.findMany({ select: { id: true, bankName: true, currentWorth: true, principalAmount: true } }),
-            prisma.rDAccount.findMany({ select: { id: true, bankName: true, currentWorth: true, currentTotalDeposits: true } }),
-            prisma.vehicleAsset.findMany({ select: { id: true, brand: true, modelName: true, currentWorth: true, purchasePrice: true } }),
-            prisma.plotAsset.findMany({ select: { id: true, locality: true, city: true, currentWorth: true, purchasePrice: true } }),
-            prisma.independentPropertyAsset.findMany({ select: { id: true, locality: true, city: true, currentWorth: true, purchasePrice: true } }),
-            prisma.apartmentAsset.findMany({ select: { id: true, locality: true, city: true, currentWorth: true, purchasePrice: true } }),
-            prisma.jewelleryAsset.findMany({ select: { id: true, currentWorth: true, purchasePrice: true } }),
-            prisma.receivableAsset.findMany({ select: { id: true, currentWorth: true, principalAmount: true } }),
-            prisma.loanLiability.findMany({ select: { id: true, outstandingBalance: true } }),
-            prisma.creditCardLiability.findMany({ select: { id: true, currentOutstanding: true } }),
-            prisma.bnplLiability.findMany({ select: { id: true, currentOutstanding: true } }),
-            prisma.borrowedLiability.findMany({ select: { id: true, outstandingAmount: true } }),
-            prisma.mutualFund.findMany({ select: { id: true, currentWorth: true, currentUnits: true, currentNav: true } }),
-            prisma.stock.findMany({ select: { id: true, currentWorth: true, currentQuantity: true, currentPrice: true } }),
-            prisma.financialProfile.findFirst({ select: { balance: true } }),
-        ]);
+        const rawRes = await prisma.$queryRaw<Array<{ data: any }>>`
+            SELECT json_build_object(
+                'ppf', (SELECT COALESCE(json_agg(t), '[]'::json) FROM (SELECT "id", "currentWorth", "currentBalance" FROM "PPFAccount") t),
+                'epf', (SELECT COALESCE(json_agg(t), '[]'::json) FROM (SELECT "id", "currentWorth", "currentBalance" FROM "EPFAccount") t),
+                'fd', (SELECT COALESCE(json_agg(t), '[]'::json) FROM (SELECT "id", "bankName", "currentWorth", "principalAmount" FROM "FDAccount") t),
+                'rd', (SELECT COALESCE(json_agg(t), '[]'::json) FROM (SELECT "id", "bankName", "currentWorth", "currentTotalDeposits" FROM "RDAccount") t),
+                'vehicle', (SELECT COALESCE(json_agg(t), '[]'::json) FROM (SELECT "id", "brand", "modelName", "currentWorth", "purchasePrice" FROM "VehicleAsset") t),
+                'plot', (SELECT COALESCE(json_agg(t), '[]'::json) FROM (SELECT "id", "locality", "city", "currentWorth", "purchasePrice" FROM "PlotAsset") t),
+                'independentProperty', (SELECT COALESCE(json_agg(t), '[]'::json) FROM (SELECT "id", "locality", "city", "currentWorth", "purchasePrice" FROM "IndependentPropertyAsset") t),
+                'apartment', (SELECT COALESCE(json_agg(t), '[]'::json) FROM (SELECT "id", "locality", "city", "currentWorth", "purchasePrice" FROM "ApartmentAsset") t),
+                'jewellery', (SELECT COALESCE(json_agg(t), '[]'::json) FROM (SELECT "id", "currentWorth", "purchasePrice" FROM "JewelleryAsset") t),
+                'receivable', (SELECT COALESCE(json_agg(t), '[]'::json) FROM (SELECT "id", "currentWorth", "principalAmount" FROM "ReceivableAsset") t),
+                'loan', (SELECT COALESCE(json_agg(t), '[]'::json) FROM (SELECT "id", "outstandingBalance" FROM "LoanLiability") t),
+                'creditCard', (SELECT COALESCE(json_agg(t), '[]'::json) FROM (SELECT "id", "currentOutstanding" FROM "CreditCardLiability") t),
+                'bnpl', (SELECT COALESCE(json_agg(t), '[]'::json) FROM (SELECT "id", "currentOutstanding" FROM "BnplLiability") t),
+                'borrowed', (SELECT COALESCE(json_agg(t), '[]'::json) FROM (SELECT "id", "outstandingAmount" FROM "BorrowedLiability") t),
+                'mutualFund', (SELECT COALESCE(json_agg(t), '[]'::json) FROM (SELECT "id", "currentWorth", "currentUnits", "currentNav" FROM "MutualFund") t),
+                'stock', (SELECT COALESCE(json_agg(t), '[]'::json) FROM (SELECT "id", "currentWorth", "currentQuantity", "currentPrice" FROM "Stock") t),
+                'balance', (SELECT COALESCE((SELECT "balance" FROM "FinancialProfile" LIMIT 1), 0))
+            ) as data;
+        `;
 
-        const bankBalance = profile?.balance ?? 0;
+        const d = rawRes[0]?.data || {};
+        const bankBalance = Number(d.balance || 0);
+
+        const ppf = d.ppf || [];
+        const epf = d.epf || [];
+        const fd = d.fd || [];
+        const rd = d.rd || [];
+        const vehicle = d.vehicle || [];
+        const plot = d.plot || [];
+        const independentProperty = d.independentProperty || [];
+        const apartment = d.apartment || [];
+        const jewellery = d.jewellery || [];
+        const receivable = d.receivable || [];
+        const loan = d.loan || [];
+        const creditCard = d.creditCard || [];
+        const bnpl = d.bnpl || [];
+        const borrowed = d.borrowed || [];
+        const mutualFund = d.mutualFund || [];
+        const stock = d.stock || [];
 
         const assets = {
             "Bank Balance": [{ id: "bank_balance", bankName: "Liquid Cash", currentWorth: bankBalance }],
@@ -68,27 +70,26 @@ export async function GET() {
             borrowedLiability: borrowed
         };
 
-        // Calculate totals
         let totalAssets = bankBalance;
         let totalLiabilities = 0;
 
-        totalAssets += ppf.reduce((sum, item) => sum + (item.currentWorth ?? item.currentBalance), 0);
-        totalAssets += epf.reduce((sum, item) => sum + (item.currentWorth ?? item.currentBalance), 0);
-        totalAssets += fd.reduce((sum, item) => sum + (item.currentWorth ?? item.principalAmount), 0);
-        totalAssets += rd.reduce((sum, item) => sum + (item.currentWorth ?? item.currentTotalDeposits), 0);
-        totalAssets += vehicle.reduce((sum, item) => sum + (item.currentWorth ?? (item.purchasePrice || 0)), 0);
-        totalAssets += plot.reduce((sum, item) => sum + (item.currentWorth ?? (item.purchasePrice || 0)), 0);
-        totalAssets += independentProperty.reduce((sum, item) => sum + (item.currentWorth ?? (item.purchasePrice || 0)), 0);
-        totalAssets += apartment.reduce((sum, item) => sum + (item.currentWorth ?? (item.purchasePrice || 0)), 0);
-        totalAssets += jewellery.reduce((sum, item) => sum + (item.currentWorth ?? (item.purchasePrice || 0)), 0);
-        totalAssets += receivable.reduce((sum, item) => sum + (item.currentWorth ?? item.principalAmount), 0);
-        totalAssets += mutualFund.reduce((sum, item) => sum + (item.currentWorth ?? ((item.currentUnits || 0) * (item.currentNav || 0))), 0);
-        totalAssets += stock.reduce((sum, item) => sum + ((item as any).currentWorth ?? (((item as any).currentQuantity || 0) * ((item as any).currentPrice || 0))), 0);
+        totalAssets += ppf.reduce((sum: number, item: any) => sum + Number(item.currentWorth ?? item.currentBalance ?? 0), 0);
+        totalAssets += epf.reduce((sum: number, item: any) => sum + Number(item.currentWorth ?? item.currentBalance ?? 0), 0);
+        totalAssets += fd.reduce((sum: number, item: any) => sum + Number(item.currentWorth ?? item.principalAmount ?? 0), 0);
+        totalAssets += rd.reduce((sum: number, item: any) => sum + Number(item.currentWorth ?? item.currentTotalDeposits ?? 0), 0);
+        totalAssets += vehicle.reduce((sum: number, item: any) => sum + Number(item.currentWorth ?? (item.purchasePrice || 0)), 0);
+        totalAssets += plot.reduce((sum: number, item: any) => sum + Number(item.currentWorth ?? (item.purchasePrice || 0)), 0);
+        totalAssets += independentProperty.reduce((sum: number, item: any) => sum + Number(item.currentWorth ?? (item.purchasePrice || 0)), 0);
+        totalAssets += apartment.reduce((sum: number, item: any) => sum + Number(item.currentWorth ?? (item.purchasePrice || 0)), 0);
+        totalAssets += jewellery.reduce((sum: number, item: any) => sum + Number(item.currentWorth ?? (item.purchasePrice || 0)), 0);
+        totalAssets += receivable.reduce((sum: number, item: any) => sum + Number(item.currentWorth ?? item.principalAmount ?? 0), 0);
+        totalAssets += mutualFund.reduce((sum: number, item: any) => sum + Number(item.currentWorth ?? ((item.currentUnits || 0) * (item.currentNav || 0))), 0);
+        totalAssets += stock.reduce((sum: number, item: any) => sum + Number(item.currentWorth ?? ((item.currentQuantity || 0) * (item.currentPrice || 0))), 0);
 
-        totalLiabilities += loan.reduce((sum, item) => sum + item.outstandingBalance, 0);
-        totalLiabilities += creditCard.reduce((sum, item) => sum + item.currentOutstanding, 0);
-        totalLiabilities += bnpl.reduce((sum, item) => sum + item.currentOutstanding, 0);
-        totalLiabilities += borrowed.reduce((sum, item) => sum + item.outstandingAmount, 0);
+        totalLiabilities += loan.reduce((sum: number, item: any) => sum + Number(item.outstandingBalance ?? 0), 0);
+        totalLiabilities += creditCard.reduce((sum: number, item: any) => sum + Number(item.currentOutstanding ?? 0), 0);
+        totalLiabilities += bnpl.reduce((sum: number, item: any) => sum + Number(item.currentOutstanding ?? 0), 0);
+        totalLiabilities += borrowed.reduce((sum: number, item: any) => sum + Number(item.outstandingAmount ?? 0), 0);
 
         return NextResponse.json({
             assets,
