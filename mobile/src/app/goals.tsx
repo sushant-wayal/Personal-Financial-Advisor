@@ -102,6 +102,7 @@ type Overview = {
   totalRecommendedMonthlyContribution: number;
   totalRecommendedMonthlyContributionLabel?: string;
   emergencyFund?: EmergencyFundData;
+  investmentSuggestion?: any;
 };
 
 type AdvisorRecommendation = {
@@ -139,6 +140,7 @@ async function fetchGoalsOverview(force = false): Promise<Overview> {
         totalRecommendedMonthlyContribution: payload.totalRecommendedMonthlyContribution ?? 0,
         totalRecommendedMonthlyContributionLabel: payload.totalRecommendedMonthlyContributionLabel,
         emergencyFund: payload.emergencyFund,
+        investmentSuggestion: payload.investmentSuggestion ?? null,
         aiRecommendations: payload.aiRecommendations ?? null,
       };
     },
