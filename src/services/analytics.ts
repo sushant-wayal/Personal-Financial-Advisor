@@ -182,11 +182,13 @@ export async function calculateBurnRate() {
 }
 
 export async function calculateRunway() {
-    const currentBalance = await calculateCurrentBalance();
-    const last30DaysDelta = await getLast30DaysNetImpact();
-    const previousBalance = currentBalance - last30DaysDelta;
+    const [currentBalance, last30DaysDelta, burnData] = await Promise.all([
+        calculateCurrentBalance(),
+        getLast30DaysNetImpact(),
+        calculateBurnRate(),
+    ]);
 
-    const burnData = await calculateBurnRate();
+    const previousBalance = currentBalance - last30DaysDelta;
 
     const runwayMonths = burnData.burnRate > 0 ? currentBalance / burnData.burnRate : null;
     const previousRunwayMonths = burnData.previousBurnRate > 0 ? previousBalance / burnData.previousBurnRate : null;
