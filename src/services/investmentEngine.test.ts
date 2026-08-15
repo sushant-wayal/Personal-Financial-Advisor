@@ -67,11 +67,9 @@ describe("investmentEngine - surplus & suggestions", () => {
             // Mock currentTxs (last 30d): 100k Salary credit, 40k Expense debit with positive amount
             vi.mocked(prisma.transaction.findMany)
                 .mockResolvedValueOnce([
-                    { amount: 100000, transactionType: "SALARY", category: { name: "Salary" } },
-                    { amount: 40000, transactionType: "DEBIT", category: { name: "Shopping" } },
-                ] as any)
-                .mockResolvedValueOnce([])
-                .mockResolvedValueOnce([]);
+                    { amount: 100000, transactionType: "SALARY", category: { name: "Salary" }, timestamp: new Date() },
+                    { amount: 40000, transactionType: "DEBIT", category: { name: "Shopping" }, timestamp: new Date() },
+                ] as any);
 
             const result = await computeSurplus(30);
 
@@ -85,12 +83,10 @@ describe("investmentEngine - surplus & suggestions", () => {
 
             vi.mocked(prisma.transaction.findMany)
                 .mockResolvedValueOnce([
-                    { amount: 100000, transactionType: "SALARY", category: { name: "Salary" } },
-                    { amount: 50000, transactionType: "TRANSFER", category: { name: "Transfer" } }, // Self transfer
-                    { amount: 20000, transactionType: "DEBIT", category: { name: "Food" } },
-                ] as any)
-                .mockResolvedValueOnce([])
-                .mockResolvedValueOnce([]);
+                    { amount: 100000, transactionType: "SALARY", category: { name: "Salary" }, timestamp: new Date() },
+                    { amount: 50000, transactionType: "TRANSFER", category: { name: "Transfer" }, timestamp: new Date() }, // Self transfer
+                    { amount: 20000, transactionType: "DEBIT", category: { name: "Food" }, timestamp: new Date() },
+                ] as any);
 
             const result = await computeSurplus(30);
 
@@ -105,11 +101,9 @@ describe("investmentEngine - surplus & suggestions", () => {
 
             vi.mocked(prisma.transaction.findMany)
                 .mockResolvedValueOnce([
-                    { amount: 100000, transactionType: "CREDIT", category: { name: "Freelance" } },
-                    { amount: 10000, transactionType: "DEBIT", category: { name: "Bills" } },
-                ] as any)
-                .mockResolvedValueOnce([])
-                .mockResolvedValueOnce([]);
+                    { amount: 100000, transactionType: "CREDIT", category: { name: "Freelance" }, timestamp: new Date() },
+                    { amount: 10000, transactionType: "DEBIT", category: { name: "Bills" }, timestamp: new Date() },
+                ] as any);
 
             const result = await computeSurplus(30);
 
@@ -153,12 +147,9 @@ describe("investmentEngine - surplus & suggestions", () => {
             // Live transactions: Income 150k, Expenses 50k => Net Surplus 100k
             vi.mocked(prisma.transaction.findMany)
                 .mockResolvedValueOnce([
-                    { amount: 150000, transactionType: "SALARY", category: { name: "Salary" } },
-                    { amount: 50000, transactionType: "DEBIT", category: { name: "Rent" } },
-                ] as any)
-                .mockResolvedValueOnce([])
-                .mockResolvedValueOnce([])
-                .mockResolvedValueOnce([]); // salary check
+                    { amount: 150000, transactionType: "SALARY", category: { name: "Salary" }, timestamp: new Date() },
+                    { amount: 50000, transactionType: "DEBIT", category: { name: "Rent" }, timestamp: new Date() },
+                ] as any);
 
             (prisma.investmentSuggestion.update as any).mockImplementation(async ({ data }: any) => ({
                 ...activeSuggestion,

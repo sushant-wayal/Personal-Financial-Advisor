@@ -89,8 +89,8 @@ export async function detectSalaryCycle(): Promise<SalaryCycleInfo> {
     const salaryTxs = await prisma.transaction.findMany({
         where: {
             OR: [
-                { category: { name: { equals: "Salary", mode: "insensitive" } } },
-                { transactionType: { in: ["SALARY", "CREDITED"], mode: "insensitive" } },
+                { category: { name: { in: ["Salary", "salary", "SALARY"] } } },
+                { transactionType: { in: ["SALARY", "CREDITED", "salary", "credited"] } },
             ],
             amount: { gt: 0 },
         },
@@ -134,12 +134,16 @@ export async function computeSurplus(cycleDays: number): Promise<SurplusComputat
         timestamp: true,
     };
 
-    const [currentTxs, prevTxs, threeCycleTxs, profile] = await Promise.all([
-        prisma.transaction.findMany({ where: { timestamp: { gte: currentStart } }, select: txSelect }),
-        prisma.transaction.findMany({ where: { timestamp: { gte: prevStart, lt: currentStart } }, select: txSelect }),
+    const [threeCycleTxs, profile] = await Promise.all([
         prisma.transaction.findMany({ where: { timestamp: { gte: threeCyclesStart } }, select: txSelect }),
         prisma.financialProfile.findFirst({ select: { balance: true } }),
     ]);
+
+    const currentTxs = threeCycleTxs.filter((t) => new Date(t.timestamp!) >= currentStart);
+    const prevTxs = threeCycleTxs.filter((t) => {
+        const ts = new Date(t.timestamp!);
+        return ts >= prevStart && ts < currentStart;
+    });
 
     const currentBalance = Math.max(0, profile?.balance ?? 0);
 
