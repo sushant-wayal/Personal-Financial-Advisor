@@ -309,22 +309,59 @@ export default function InvestmentsScreen() {
                 <Text style={styles.suggestedNote}>Suggested: {formatCurrencyAmount(suggestion?.buckets?.equity?.suggested ?? 0, "INR")}</Text>
 
                 {/* Equity Category Distribution */}
-                <View style={{ marginTop: 10, padding: 10, borderRadius: 8, backgroundColor: "rgba(0,0,0,0.4)", borderWidth: 1, borderColor: "rgba(129,140,248,0.25)" }}>
-                  <Text style={{ color: "#818cf8", fontFamily: "Inter", fontSize: fs(11), fontWeight: "700", textTransform: "uppercase", marginBottom: 6 }}>
-                    Equity Sub-Category Breakdown
-                  </Text>
-                  <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 4 }}>
-                    <View style={{ flex: 1, padding: 6, borderRadius: 6, backgroundColor: "rgba(129,140,248,0.1)", alignItems: "center" }}>
-                      <Text style={{ color: "#c4c7c8", fontSize: fs(10) }}>Nifty 50 ({n50Pct}%)</Text>
-                      <Text style={{ color: "#ffffff", fontWeight: "700", fontSize: fs(11), marginTop: 2 }}>{formatCurrencyAmount(nifty50, "INR")}</Text>
+                <View style={{ marginTop: 12, padding: 12, borderRadius: 10, backgroundColor: "rgba(6, 10, 24, 0.8)", borderWidth: 1, borderColor: "rgba(129, 140, 248, 0.25)" }}>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                    <Text style={{ color: "#a5b4fc", fontSize: fs(11), fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5 }}>
+                      Equity Sub-Category Distribution
+                    </Text>
+                    <View style={{ backgroundColor: "rgba(129, 140, 248, 0.15)", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 12, borderWidth: 1, borderColor: "rgba(129, 140, 248, 0.3)" }}>
+                      <Text style={{ color: "#c7d2fe", fontSize: fs(10), fontWeight: "700" }}>{n50Pct}% / {nn50Pct}% / {mcPct}%</Text>
                     </View>
-                    <View style={{ flex: 1, padding: 6, borderRadius: 6, backgroundColor: "rgba(129,140,248,0.1)", alignItems: "center" }}>
-                      <Text style={{ color: "#c4c7c8", fontSize: fs(10) }}>Nifty Next 50 ({nn50Pct}%)</Text>
-                      <Text style={{ color: "#ffffff", fontWeight: "700", fontSize: fs(11), marginTop: 2 }}>{formatCurrencyAmount(niftyNext50, "INR")}</Text>
+                  </View>
+
+                  {/* Multi-segment Progress Bar */}
+                  <View style={{ height: 5, borderRadius: 3, backgroundColor: "rgba(15, 23, 42, 0.8)", flexDirection: "row", overflow: "hidden", marginBottom: 10 }}>
+                    <View style={{ flex: n50Pct, backgroundColor: "#6366f1" }} />
+                    <View style={{ flex: nn50Pct, backgroundColor: "#8b5cf6" }} />
+                    <View style={{ flex: mcPct, backgroundColor: "#22d3ee" }} />
+                  </View>
+
+                  {/* Category Rows */}
+                  <View style={{ gap: 6 }}>
+                    {/* Nifty 50 */}
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 8, borderRadius: 6, backgroundColor: "rgba(30, 27, 75, 0.3)", borderWidth: 1, borderColor: "rgba(99, 102, 241, 0.15)" }}>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1 }}>
+                        <View style={{ width: 8, height: 8, borderRadius: 2, backgroundColor: "#6366f1" }} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ color: "#ffffff", fontSize: fs(11), fontWeight: "600" }}>Nifty 50 Index</Text>
+                          <Text style={{ color: "#94a3b8", fontSize: fs(9) }}>Large Cap Core ({n50Pct}%)</Text>
+                        </View>
+                      </View>
+                      <Text style={{ color: "#c7d2fe", fontWeight: "700", fontSize: fs(12) }}>{formatCurrencyAmount(nifty50, "INR")}</Text>
                     </View>
-                    <View style={{ flex: 1, padding: 6, borderRadius: 6, backgroundColor: "rgba(129,140,248,0.1)", alignItems: "center" }}>
-                      <Text style={{ color: "#c4c7c8", fontSize: fs(10) }}>Midcap ({mcPct}%)</Text>
-                      <Text style={{ color: "#ffffff", fontWeight: "700", fontSize: fs(11), marginTop: 2 }}>{formatCurrencyAmount(midcap, "INR")}</Text>
+
+                    {/* Nifty Next 50 */}
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 8, borderRadius: 6, backgroundColor: "rgba(30, 27, 75, 0.3)", borderWidth: 1, borderColor: "rgba(99, 102, 241, 0.15)" }}>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1 }}>
+                        <View style={{ width: 8, height: 8, borderRadius: 2, backgroundColor: "#8b5cf6" }} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ color: "#ffffff", fontSize: fs(11), fontWeight: "600" }}>Nifty Next 50 Index</Text>
+                          <Text style={{ color: "#94a3b8", fontSize: fs(9) }}>Growth Blend ({nn50Pct}%)</Text>
+                        </View>
+                      </View>
+                      <Text style={{ color: "#ddd6fe", fontWeight: "700", fontSize: fs(12) }}>{formatCurrencyAmount(niftyNext50, "INR")}</Text>
+                    </View>
+
+                    {/* Midcap */}
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 8, borderRadius: 6, backgroundColor: "rgba(30, 27, 75, 0.3)", borderWidth: 1, borderColor: "rgba(99, 102, 241, 0.15)" }}>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1 }}>
+                        <View style={{ width: 8, height: 8, borderRadius: 2, backgroundColor: "#22d3ee" }} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ color: "#ffffff", fontSize: fs(11), fontWeight: "600" }}>Midcap 150 Index</Text>
+                          <Text style={{ color: "#94a3b8", fontSize: fs(9) }}>High Growth Alpha ({mcPct}%)</Text>
+                        </View>
+                      </View>
+                      <Text style={{ color: "#a5f3fc", fontWeight: "700", fontSize: fs(12) }}>{formatCurrencyAmount(midcap, "INR")}</Text>
                     </View>
                   </View>
                 </View>

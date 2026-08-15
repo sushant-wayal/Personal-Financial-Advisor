@@ -129,9 +129,13 @@ export default function InvestmentsClient() {
     const isOverCap = currentTotal > maxAllowed;
     const isInvested = suggestion?.status === "INVESTED";
 
-    // Equity sub-allocation amounts (60 / 20 / 20)
-    const nifty50 = Math.round(equity * 0.60);
-    const niftyNext50 = Math.round(equity * 0.20);
+    // Equity sub-allocation percentages and amounts
+    const n50Pct = suggestion?.subAllocations?.equityNifty50Pct ?? 60;
+    const nn50Pct = suggestion?.subAllocations?.equityNiftyNext50Pct ?? 20;
+    const mcPct = suggestion?.subAllocations?.equityMidcapPct ?? 20;
+
+    const nifty50 = Math.round(equity * (n50Pct / 100));
+    const niftyNext50 = Math.round(equity * (nn50Pct / 100));
     const midcap = Math.max(0, equity - nifty50 - niftyNext50);
 
     return (
@@ -231,24 +235,69 @@ export default function InvestmentsClient() {
                                     </div>
                                     <div className="text-[11px] text-slate-500">Suggested: {formatCurrency(suggestion?.buckets.equity.suggested ?? 0)}</div>
 
-                                    {/* Equity Category Sub-Breakdown Card (60/20/20) */}
-                                    <div className="mt-3 p-3 rounded-lg border border-indigo-500/30 bg-black/40 space-y-2">
-                                        <div className="text-[11px] font-bold text-indigo-300 uppercase tracking-wider flex items-center justify-between">
-                                            <span>Equity Sub-Category Distribution</span>
-                                            <span className="text-[10px] text-indigo-400/80 font-normal">Fixed Ratio (60 / 20 / 20)</span>
+                                    {/* Equity Category Sub-Breakdown Card */}
+                                    <div className="mt-4 p-4 rounded-xl border border-indigo-500/25 bg-slate-950/80 shadow-inner space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <div className="h-2.5 w-2.5 rounded-full bg-indigo-400 animate-pulse" />
+                                                <span className="text-xs font-bold text-indigo-200 tracking-wide uppercase">
+                                                    Equity Portfolio Distribution
+                                                </span>
+                                            </div>
+                                            <span className="text-[11px] font-mono text-indigo-400/90 bg-indigo-500/10 px-2.5 py-0.5 rounded-full border border-indigo-500/20">
+                                                {n50Pct}% / {nn50Pct}% / {mcPct}%
+                                            </span>
                                         </div>
-                                        <div className="grid grid-cols-3 gap-2 pt-1 text-center font-mono">
-                                            <div className="p-2 rounded bg-indigo-950/50 border border-indigo-500/20">
-                                                <div className="text-[10px] text-indigo-300">Nifty 50 (60%)</div>
-                                                <div className="text-xs font-bold text-white mt-0.5">{formatCurrency(nifty50)}</div>
+
+                                        {/* Multi-segment Segmented Bar */}
+                                        <div className="h-2 w-full rounded-full bg-slate-900 overflow-hidden flex gap-0.5">
+                                            <div style={{ width: `${n50Pct}%` }} className="h-full bg-gradient-to-r from-indigo-500 to-blue-500 rounded-l-full" title={`Nifty 50 (${n50Pct}%)`} />
+                                            <div style={{ width: `${nn50Pct}%` }} className="h-full bg-gradient-to-r from-violet-500 to-purple-500" title={`Nifty Next 50 (${nn50Pct}%)`} />
+                                            <div style={{ width: `${mcPct}%` }} className="h-full bg-gradient-to-r from-cyan-400 to-teal-400 rounded-r-full" title={`Midcap (${mcPct}%)`} />
+                                        </div>
+
+                                        {/* Category Breakdown Rows */}
+                                        <div className="space-y-2 pt-1">
+                                            {/* Nifty 50 */}
+                                            <div className="flex items-center justify-between p-2.5 rounded-lg bg-indigo-950/40 border border-indigo-500/15 hover:border-indigo-500/30 transition-colors">
+                                                <div className="flex items-center gap-2.5 min-w-0">
+                                                    <div className="h-3 w-3 rounded-md bg-indigo-500 flex-shrink-0" />
+                                                    <div className="truncate">
+                                                        <div className="text-xs font-semibold text-white">Nifty 50 Index</div>
+                                                        <div className="text-[10px] text-slate-400">Large Cap Core ({n50Pct}%)</div>
+                                                    </div>
+                                                </div>
+                                                <div className="text-right font-mono text-xs sm:text-sm font-bold text-indigo-300">
+                                                    {formatCurrency(nifty50)}
+                                                </div>
                                             </div>
-                                            <div className="p-2 rounded bg-indigo-950/50 border border-indigo-500/20">
-                                                <div className="text-[10px] text-indigo-300">Nifty Next 50 (20%)</div>
-                                                <div className="text-xs font-bold text-white mt-0.5">{formatCurrency(niftyNext50)}</div>
+
+                                            {/* Nifty Next 50 */}
+                                            <div className="flex items-center justify-between p-2.5 rounded-lg bg-indigo-950/40 border border-indigo-500/15 hover:border-indigo-500/30 transition-colors">
+                                                <div className="flex items-center gap-2.5 min-w-0">
+                                                    <div className="h-3 w-3 rounded-md bg-violet-500 flex-shrink-0" />
+                                                    <div className="truncate">
+                                                        <div className="text-xs font-semibold text-white">Nifty Next 50 Index</div>
+                                                        <div className="text-[10px] text-slate-400">Growth Blend ({nn50Pct}%)</div>
+                                                    </div>
+                                                </div>
+                                                <div className="text-right font-mono text-xs sm:text-sm font-bold text-violet-300">
+                                                    {formatCurrency(niftyNext50)}
+                                                </div>
                                             </div>
-                                            <div className="p-2 rounded bg-indigo-950/50 border border-indigo-500/20">
-                                                <div className="text-[10px] text-indigo-300">Midcap (20%)</div>
-                                                <div className="text-xs font-bold text-white mt-0.5">{formatCurrency(midcap)}</div>
+
+                                            {/* Midcap 150 */}
+                                            <div className="flex items-center justify-between p-2.5 rounded-lg bg-indigo-950/40 border border-indigo-500/15 hover:border-indigo-500/30 transition-colors">
+                                                <div className="flex items-center gap-2.5 min-w-0">
+                                                    <div className="h-3 w-3 rounded-md bg-cyan-400 flex-shrink-0" />
+                                                    <div className="truncate">
+                                                        <div className="text-xs font-semibold text-white">Midcap 150 Index</div>
+                                                        <div className="text-[10px] text-slate-400">High Growth Alpha ({mcPct}%)</div>
+                                                    </div>
+                                                </div>
+                                                <div className="text-right font-mono text-xs sm:text-sm font-bold text-cyan-300">
+                                                    {formatCurrency(midcap)}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
