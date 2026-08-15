@@ -13,6 +13,10 @@
       "schedule": "*/5 * * * *"
     },
     {
+      "path": "/api/insights/generate",
+      "schedule": "*/5 * * * *"
+    },
+    {
       "path": "/api/gmail/watch/renew",
       "schedule": "0 0 * * *"
     },

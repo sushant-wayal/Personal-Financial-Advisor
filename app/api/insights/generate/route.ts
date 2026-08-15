@@ -3,6 +3,8 @@ import { analyzeBehavior } from "../../../../src/services/behavior";
 import { generateInsights, listInsights } from "../../../../src/services/insights";
 import { pruneOldInsights } from "../../../../src/services/insightStore";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
     try {
         const insights = await listInsights(50);
