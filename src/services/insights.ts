@@ -169,7 +169,6 @@ export async function listInsights(limit = 20) {
             message: true,
             score: true,
             createdAt: true,
-            meta: true,
         },
         orderBy: { createdAt: "desc" },
         take: limit,
@@ -202,7 +201,6 @@ export async function listInsights(limit = 20) {
                 message: `Detected ${parsedEntries.length} high-value expenses in recent history. Top entries: ${topEntries.join("; ")}.`,
                 score: Math.max(...largeExpenses.map((entry) => entry.score ?? 0)),
                 createdAt: newestLargeExpense.createdAt,
-                meta: newestLargeExpense.meta,
             });
         } else {
             condensed.push(newestLargeExpense);
