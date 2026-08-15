@@ -322,12 +322,25 @@ export function getPhaseLabel(phase: FinancialPhase): string {
  * 5. Main Generator/Fetcher for Suggestions
  */
 export async function getOrGenerateInvestmentSuggestion(options?: { burnData?: Awaited<ReturnType<typeof calculateBurnRate>> }): Promise<InvestmentSuggestionResult> {
-    const [cycleInfo, config] = await Promise.all([
+    const now = new Date();
+    const sixMonthsFromNow = new Date(now.getFullYear(), now.getMonth() + 6, now.getDate());
+
+    const [cycleInfo, config, imminentGoals, active] = await Promise.all([
         detectSalaryCycle(),
         getEffectiveProfileConfig(),
+        prisma.goal.findMany({
+            where: {
+                targetDate: { lte: sixMonthsFromNow },
+                status: { not: "COMPLETED" },
+            },
+            select: { id: true },
+        }),
+        prisma.investmentSuggestion.findFirst({
+            where: { status: "ACTIVE" },
+            orderBy: { createdAt: "desc" },
+        }),
     ]);
     const cycleDays = cycleInfo.cycleDays;
-    const now = new Date();
 
     // Compute live dynamic cycle data in parallel
     const [surplusComp, runway, burnData] = await Promise.all([
@@ -342,13 +355,6 @@ export async function getOrGenerateInvestmentSuggestion(options?: { burnData?: A
     const currentBalance = config.profile?.balance ?? 0;
     const efComplete = currentBalance >= efTargetAmount && efTargetAmount > 0;
 
-    const imminentGoals = await prisma.goal.findMany({
-        where: {
-            targetDate: { lte: new Date(now.getFullYear(), now.getMonth() + 6, now.getDate()) },
-            status: { not: "COMPLETED" },
-        },
-    });
-
     const phase = determinePhase(surplusComp.smoothedSurplus, runway.runwayMonths ?? 0, efComplete, imminentGoals.length > 0);
     const phaseRate = config.phaseRates[phase];
     const baseInvestable = Math.max(0, Math.round(surplusComp.smoothedSurplus * (phaseRate / 100)));
@@ -357,12 +363,6 @@ export async function getOrGenerateInvestmentSuggestion(options?: { burnData?: A
     const suggestedEquity = Math.round(baseInvestable * (subConfig.equity / 100));
     const suggestedDebt = Math.round(baseInvestable * (subConfig.debt / 100));
     const suggestedGold = Math.max(0, baseInvestable - suggestedEquity - suggestedDebt);
-
-    // Check for existing active suggestion
-    const active = await prisma.investmentSuggestion.findFirst({
-        where: { status: "ACTIVE" },
-        orderBy: { createdAt: "desc" },
-    });
 
     if (active) {
         // Update active suggestion with live derived surplus and recommendations
