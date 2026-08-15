@@ -4,6 +4,8 @@ import { calculateAveragedMonthlyIncomeAndExpense } from "../../../src/services/
 
 const VALID_EF_STRATEGIES = ["BALANCED", "AGGRESSIVE_EF", "ACCELERATED_GOALS", "STRICT"];
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
     try {
         const profile = await prisma.financialProfile.findFirst();
