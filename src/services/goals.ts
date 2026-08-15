@@ -228,12 +228,13 @@ export async function listGoals() {
 }
 
 export async function getGoalOverview() {
-    const burnData = await calculateBurnRate();
-    const efStatus = await getEmergencyFundStatus({ burnData });
-    const [{ goals, signals }, investmentData] = await Promise.all([
-        loadDerivedGoals(efStatus),
-        getOrGenerateInvestmentSuggestion({ burnData }).catch(() => null),
+    const [_burnData, efStatus, investmentData] = await Promise.all([
+        calculateBurnRate(),
+        getEmergencyFundStatus(),
+        getOrGenerateInvestmentSuggestion().catch(() => null),
     ]);
+
+    const { goals, signals } = await loadDerivedGoals(efStatus);
 
     const effectiveCapacity = signals.availableGoalCapacity;
 
