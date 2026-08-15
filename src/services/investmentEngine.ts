@@ -321,7 +321,7 @@ export function getPhaseLabel(phase: FinancialPhase): string {
 /**
  * 5. Main Generator/Fetcher for Suggestions
  */
-export async function getOrGenerateInvestmentSuggestion(): Promise<InvestmentSuggestionResult> {
+export async function getOrGenerateInvestmentSuggestion(options?: { burnData?: Awaited<ReturnType<typeof calculateBurnRate>> }): Promise<InvestmentSuggestionResult> {
     const [cycleInfo, config] = await Promise.all([
         detectSalaryCycle(),
         getEffectiveProfileConfig(),
@@ -332,8 +332,8 @@ export async function getOrGenerateInvestmentSuggestion(): Promise<InvestmentSug
     // Compute live dynamic cycle data in parallel
     const [surplusComp, runway, burnData] = await Promise.all([
         computeSurplus(cycleDays),
-        calculateRunway(),
-        calculateBurnRate(),
+        calculateRunway(options),
+        options?.burnData ?? calculateBurnRate(),
     ]);
 
     const efTargetMonths = Math.max(3, config.profile?.emergencyFundMonths ?? 6);

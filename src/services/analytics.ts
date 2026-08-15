@@ -181,11 +181,11 @@ export async function calculateBurnRate() {
     };
 }
 
-export async function calculateRunway() {
+export async function calculateRunway(options?: { burnData?: Awaited<ReturnType<typeof calculateBurnRate>> }) {
     const [currentBalance, last30DaysDelta, burnData] = await Promise.all([
         calculateCurrentBalance(),
         getLast30DaysNetImpact(),
-        calculateBurnRate(),
+        options?.burnData ?? calculateBurnRate(),
     ]);
 
     const previousBalance = currentBalance - last30DaysDelta;

@@ -1,4 +1,5 @@
 import { prisma } from "../lib/prisma";
+import { calculateBurnRate } from "./analytics";
 import { estimateForecast } from "./GoalForecastService";
 import { computeHealthStatus, computeConfidenceScore } from "./GoalFeasibilityService";
 import { allocateMonthlyCapacity, simulateCapacityShift } from "./GoalAllocationService";
@@ -227,10 +228,11 @@ export async function listGoals() {
 }
 
 export async function getGoalOverview() {
-    const efStatus = await getEmergencyFundStatus();
+    const burnData = await calculateBurnRate();
+    const efStatus = await getEmergencyFundStatus({ burnData });
     const [{ goals, signals }, investmentData] = await Promise.all([
         loadDerivedGoals(efStatus),
-        getOrGenerateInvestmentSuggestion().catch(() => null),
+        getOrGenerateInvestmentSuggestion({ burnData }).catch(() => null),
     ]);
 
     const effectiveCapacity = signals.availableGoalCapacity;

@@ -77,7 +77,7 @@ export function getEfStrategyRatios(
     }
 }
 
-export async function getEmergencyFundStatus(): Promise<EmergencyFundStatus> {
+export async function getEmergencyFundStatus(options?: { burnData?: Awaited<ReturnType<typeof calculateBurnRate>> }): Promise<EmergencyFundStatus> {
     const [profile, burnData, goals, activeSuggestion] = await Promise.all([
         prisma.financialProfile.findFirst({
             select: {
@@ -89,7 +89,7 @@ export async function getEmergencyFundStatus(): Promise<EmergencyFundStatus> {
                 salaryCycleDays: true,
             },
         }),
-        calculateBurnRate(),
+        options?.burnData ?? calculateBurnRate(),
         prisma.goal.findMany({ select: { targetAmount: true, currentAmount: true } }),
         prisma.investmentSuggestion.findFirst({
             where: { status: "ACTIVE" },
