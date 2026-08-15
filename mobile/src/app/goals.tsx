@@ -139,6 +139,7 @@ async function fetchGoalsOverview(force = false): Promise<Overview> {
         totalRecommendedMonthlyContribution: payload.totalRecommendedMonthlyContribution ?? 0,
         totalRecommendedMonthlyContributionLabel: payload.totalRecommendedMonthlyContributionLabel,
         emergencyFund: payload.emergencyFund,
+        aiRecommendations: payload.aiRecommendations ?? null,
       };
     },
     { force, ttlMs: GOALS_OVERVIEW_TTL_MS },
@@ -389,6 +390,12 @@ export default function GoalsScreen() {
     setError(null);
     const data = await fetchGoalsOverview(force);
     setOverview(data);
+    if ((data as any).aiRecommendations) {
+      setAdvisorPayload((data as any).aiRecommendations);
+      if ((data as any).aiRecommendations.lastRun) {
+        setAdvisorLastRun(new Date((data as any).aiRecommendations.lastRun).toISOString());
+      }
+    }
     setSelectedGoalId((current) => current ?? data.goals[0]?.id ?? null);
     return data;
   }, []);
@@ -398,29 +405,13 @@ export default function GoalsScreen() {
 
     (async () => {
       try {
-        setAdvisorRefreshing(true);
-        const [_, data] = await Promise.all([
-          load(),
-          fetchAIRecommendations(false).catch((e: unknown) => {
-            if (mounted) setAdvisorError(e instanceof Error ? e.message : String(e));
-            return null;
-          }),
-        ]);
+        await load();
         if (!mounted) return;
-        if (data) {
-          setAdvisorPayload(data);
-          if ((data as any).lastRun) {
-            setAdvisorLastRun(new Date((data as any).lastRun).toISOString());
-          }
-        }
         setError(null);
       } catch (e: unknown) {
         if (mounted) setError(e instanceof Error ? e.message : String(e));
       } finally {
-        if (mounted) {
-          setLoading(false);
-          setAdvisorRefreshing(false);
-        }
+        if (mounted) setLoading(false);
       }
     })();
 

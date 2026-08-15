@@ -227,22 +227,28 @@ export async function listGoals() {
 }
 
 export async function getGoalOverview() {
-    const rawGoals = await prisma.goal.findMany({
-        orderBy: { priority: "asc" },
-        select: {
-            id: true,
-            title: true,
-            status: true,
-            targetAmount: true,
-            currentAmount: true,
-            monthlyTarget: true,
-            priority: true,
-            currency: true,
-            targetDate: true,
-            notes: true,
-            createdAt: true,
-        },
-    });
+    const [rawGoals, aiMem] = await Promise.all([
+        prisma.goal.findMany({
+            orderBy: { priority: "asc" },
+            select: {
+                id: true,
+                title: true,
+                status: true,
+                targetAmount: true,
+                currentAmount: true,
+                monthlyTarget: true,
+                priority: true,
+                currency: true,
+                targetDate: true,
+                notes: true,
+                createdAt: true,
+            },
+        }),
+        prisma.aIMemory.findFirst({
+            where: { key: "ai_goals_recommendation" },
+            select: { value: true, updatedAt: true },
+        }).catch(() => null),
+    ]);
 
     const [efStatus, investmentData] = await Promise.all([
         getEmergencyFundStatus({ goals: rawGoals }),
@@ -291,7 +297,14 @@ export async function getGoalOverview() {
         }
     }
 
-    return { ...overview, emergencyFund: efStatus, investmentSuggestion: investmentData?.suggestion ?? null };
+    let aiRecommendations: any = null;
+    if (aiMem?.value) {
+        try {
+            aiRecommendations = { ...JSON.parse(aiMem.value), lastRun: aiMem.updatedAt };
+        } catch {}
+    }
+
+    return { ...overview, emergencyFund: efStatus, investmentSuggestion: investmentData?.suggestion ?? null, aiRecommendations };
 }
 
 export async function createGoal(data: { title: string; targetAmount: number; targetDate?: string; priority?: number; notes?: string; initialAllocation?: number; currentAmount?: number }) {
