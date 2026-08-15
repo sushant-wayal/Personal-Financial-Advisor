@@ -94,6 +94,7 @@ export async function detectSalaryCycle(): Promise<SalaryCycleInfo> {
             ],
             amount: { gt: 0 },
         },
+        select: { timestamp: true },
         orderBy: { timestamp: "desc" },
         take: 3,
     });
@@ -125,10 +126,18 @@ export async function computeSurplus(cycleDays: number): Promise<SurplusComputat
     const prevStart = new Date(now.getTime() - cycleDays * 2 * 24 * 60 * 60 * 1000);
     const threeCyclesStart = new Date(now.getTime() - cycleDays * 3 * 24 * 60 * 60 * 1000);
 
+    const txSelect = {
+        amount: true,
+        type: true,
+        transactionType: true,
+        category: { select: { name: true } },
+        timestamp: true,
+    };
+
     const [currentTxs, prevTxs, threeCycleTxs, profile] = await Promise.all([
-        prisma.transaction.findMany({ where: { timestamp: { gte: currentStart } }, include: { category: true } }),
-        prisma.transaction.findMany({ where: { timestamp: { gte: prevStart, lt: currentStart } }, include: { category: true } }),
-        prisma.transaction.findMany({ where: { timestamp: { gte: threeCyclesStart } }, include: { category: true } }),
+        prisma.transaction.findMany({ where: { timestamp: { gte: currentStart } }, select: txSelect }),
+        prisma.transaction.findMany({ where: { timestamp: { gte: prevStart, lt: currentStart } }, select: txSelect }),
+        prisma.transaction.findMany({ where: { timestamp: { gte: threeCyclesStart } }, select: txSelect }),
         prisma.financialProfile.findFirst({ select: { balance: true } }),
     ]);
 
@@ -309,16 +318,21 @@ export function getPhaseLabel(phase: FinancialPhase): string {
  * 5. Main Generator/Fetcher for Suggestions
  */
 export async function getOrGenerateInvestmentSuggestion(): Promise<InvestmentSuggestionResult> {
-    const cycleInfo = await detectSalaryCycle();
+    const [cycleInfo, config] = await Promise.all([
+        detectSalaryCycle(),
+        getEffectiveProfileConfig(),
+    ]);
     const cycleDays = cycleInfo.cycleDays;
-    const config = await getEffectiveProfileConfig();
     const now = new Date();
 
-    // Always compute live dynamic cycle data
-    const surplusComp = await computeSurplus(cycleDays);
-    const runway = await calculateRunway();
+    // Compute live dynamic cycle data in parallel
+    const [surplusComp, runway, burnData] = await Promise.all([
+        computeSurplus(cycleDays),
+        calculateRunway(),
+        calculateBurnRate(),
+    ]);
+
     const efTargetMonths = Math.max(3, config.profile?.emergencyFundMonths ?? 6);
-    const burnData = await calculateBurnRate();
     const avgMonthlyExpenses = burnData.burnRate > 0 ? burnData.burnRate : (config.profile?.monthlyExpenses ?? 0);
     const efTargetAmount = efTargetMonths * avgMonthlyExpenses;
     const currentBalance = config.profile?.balance ?? 0;
