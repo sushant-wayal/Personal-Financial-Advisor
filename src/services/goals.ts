@@ -1,5 +1,4 @@
 import { prisma } from "../lib/prisma";
-import { calculateBurnRate } from "./analytics";
 import { estimateForecast } from "./GoalForecastService";
 import { computeHealthStatus, computeConfidenceScore } from "./GoalFeasibilityService";
 import { allocateMonthlyCapacity, simulateCapacityShift } from "./GoalAllocationService";
@@ -228,13 +227,30 @@ export async function listGoals() {
 }
 
 export async function getGoalOverview() {
-    const [_burnData, efStatus, investmentData] = await Promise.all([
-        calculateBurnRate(),
-        getEmergencyFundStatus(),
+    const rawGoals = await prisma.goal.findMany({
+        orderBy: { priority: "asc" },
+        select: {
+            id: true,
+            title: true,
+            status: true,
+            targetAmount: true,
+            currentAmount: true,
+            monthlyTarget: true,
+            priority: true,
+            currency: true,
+            targetDate: true,
+            notes: true,
+            createdAt: true,
+        },
+    });
+
+    const [efStatus, investmentData] = await Promise.all([
+        getEmergencyFundStatus({ goals: rawGoals }),
         getOrGenerateInvestmentSuggestion().catch(() => null),
     ]);
 
-    const { goals, signals } = await loadDerivedGoals(efStatus);
+    const signals = await buildGoalProgressSignals(efStatus);
+    const goals = deriveGoalProgress(rawGoals as GoalRecord[], signals);
 
     const effectiveCapacity = signals.availableGoalCapacity;
 
