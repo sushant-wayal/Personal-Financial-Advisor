@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/src/lib/prisma";
 import { getTransactions, type TransactionSort } from "@/src/services/transactions";
 
+export const dynamic = "force-dynamic";
+
 const VALID_SORT_FIELDS = new Set(["date", "amount", "merchant", "category", "type"]);
 
 function parseNumber(value: string | null) {

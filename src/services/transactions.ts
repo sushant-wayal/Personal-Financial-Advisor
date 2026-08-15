@@ -201,7 +201,7 @@ export async function getTransactions(input: TransactionQueryInput): Promise<Tra
     const orderBy = buildOrderBy(input.sort);
 
     try {
-        const [data, total] = await prisma.$transaction([
+        const [data, total] = await Promise.all([
             prisma.transaction.findMany({
                 where,
                 orderBy,
