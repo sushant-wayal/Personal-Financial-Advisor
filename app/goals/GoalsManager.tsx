@@ -35,10 +35,12 @@ async function fetchEmergencyFund(): Promise<EmergencyFundData> {
 
 export default function GoalsManager() {
     const queryClient = useQueryClient();
-    const { data: goals = [], isLoading } = useQuery({ queryKey: ["goals"], queryFn: fetchGoals });
-    const { data: goalOverview } = useQuery({ queryKey: ["goalOverview"], queryFn: fetchGoalOverview });
+    const { data: goals = [], isLoading: isLoadingGoals } = useQuery({ queryKey: ["goals"], queryFn: fetchGoals });
+    const { data: goalOverview, isLoading: isLoadingOverview } = useQuery({ queryKey: ["goalOverview"], queryFn: fetchGoalOverview });
     const { data: efData } = useQuery({ queryKey: ["emergencyFund"], queryFn: fetchEmergencyFund, refetchInterval: 30000 });
     const ef = goalOverview?.emergencyFund ?? efData;
+
+    const isPageLoading = isLoadingGoals || isLoadingOverview;
 
     const [createGoalOpen, setCreateGoalOpen] = useState(false);
     const [form, setForm] = useState<GoalFormData>({ title: "", targetAmount: "", targetDate: "", priority: "3", notes: "" });
@@ -100,6 +102,17 @@ export default function GoalsManager() {
     const totalTargetAmount = useMemo(() => goals.reduce((sum, g) => sum + (g.targetAmount || 0), 0), [goals]);
     const fundingGap = Math.max(0, totalTargetAmount - totalCurrentAmount);
 
+    if (isPageLoading) {
+        return (
+            <div className="space-y-8 animate-pulse p-2">
+                <div className="h-28 rounded-2xl bg-slate-900/60 border border-slate-800/60" />
+                <div className="h-44 rounded-2xl bg-slate-900/60 border border-slate-800/60" />
+                <div className="h-36 rounded-2xl bg-slate-900/60 border border-slate-800/60" />
+                <div className="h-64 rounded-2xl bg-slate-900/60 border border-slate-800/60" />
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-8">
             <EmergencyFundWidget ef={ef} />
@@ -157,8 +170,7 @@ export default function GoalsManager() {
             />
 
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {isLoading && <div className="text-sm text-slate-400">Loading goals...</div>}
-                {!isLoading && goals.length === 0 && (
+                {goals.length === 0 && (
                     <div className="text-sm text-slate-500">No goals yet. Create one above to get started.</div>
                 )}
                 {goals.map((goal) => (
