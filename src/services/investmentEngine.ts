@@ -239,6 +239,7 @@ export async function getEffectiveProfileConfig() {
 
     // Check if stored streak has expired because >40 days passed since last investment
     const lastHistory = await prisma.investmentHistory.findFirst({
+        select: { investedAt: true },
         orderBy: { investedAt: "desc" },
     });
 
