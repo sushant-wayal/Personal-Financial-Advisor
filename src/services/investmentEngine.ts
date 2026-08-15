@@ -365,8 +365,24 @@ export async function getOrGenerateInvestmentSuggestion(options?: { burnData?: A
     const suggestedGold = Math.max(0, baseInvestable - suggestedEquity - suggestedDebt);
 
     if (active) {
-        // Update active suggestion with live derived surplus and recommendations
-        const updatedActive = await prisma.investmentSuggestion.update({
+        const liveActive = {
+            ...active,
+            phase,
+            cycleDays,
+            rawSurplus: surplusComp.rawSurplus,
+            smoothedSurplus: surplusComp.smoothedSurplus,
+            investableRate: phaseRate,
+            baseInvestable,
+            totalInvestable: active.isManuallyEdited
+                ? (active.editedEquity ?? 0) + (active.editedDebt ?? 0) + (active.editedGold ?? 0)
+                : baseInvestable,
+            suggestedEquity,
+            suggestedDebt,
+            suggestedGold,
+        };
+
+        // Non-blocking async background persist
+        prisma.investmentSuggestion.update({
             where: { id: active.id },
             data: {
                 phase,
@@ -375,16 +391,14 @@ export async function getOrGenerateInvestmentSuggestion(options?: { burnData?: A
                 smoothedSurplus: surplusComp.smoothedSurplus,
                 investableRate: phaseRate,
                 baseInvestable,
-                totalInvestable: active.isManuallyEdited
-                    ? (active.editedEquity ?? 0) + (active.editedDebt ?? 0) + (active.editedGold ?? 0)
-                    : baseInvestable,
+                totalInvestable: liveActive.totalInvestable,
                 suggestedEquity,
                 suggestedDebt,
                 suggestedGold,
             },
-        });
+        }).catch(() => null);
 
-        return buildSuggestionResult(updatedActive, config, cycleDays, null, surplusComp);
+        return buildSuggestionResult(liveActive, config, cycleDays, null, surplusComp);
     }
 
     // Check if last suggestion was INVESTED and cycle has NOT completed yet
