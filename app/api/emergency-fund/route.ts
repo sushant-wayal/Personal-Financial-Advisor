@@ -7,10 +7,8 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
     try {
-        const [status, profile] = await Promise.all([
-            getEmergencyFundStatus(),
-            prisma.financialProfile.findFirst(),
-        ]);
+        const profile = await prisma.financialProfile.findFirst();
+        const status = await getEmergencyFundStatus({ profile });
         return NextResponse.json({ ok: true, ...status, profile });
     } catch (e: any) {
         return NextResponse.json({ error: e.message || String(e) }, { status: 500 });
