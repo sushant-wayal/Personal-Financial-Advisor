@@ -88,10 +88,7 @@ export async function detectSalaryCycle(): Promise<SalaryCycleInfo> {
 
     const salaryTxs = await prisma.transaction.findMany({
         where: {
-            OR: [
-                { category: { name: { in: ["Salary", "salary", "SALARY"] } } },
-                { transactionType: { in: ["SALARY", "CREDITED", "salary", "credited"] } },
-            ],
+            transactionType: { in: ["SALARY", "CREDITED", "salary", "credited"] },
             amount: { gt: 0 },
         },
         select: { timestamp: true },
@@ -130,7 +127,6 @@ export async function computeSurplus(cycleDays: number): Promise<SurplusComputat
         amount: true,
         type: true,
         transactionType: true,
-        category: { select: { name: true } },
         timestamp: true,
     };
 
@@ -153,9 +149,8 @@ export async function computeSurplus(cycleDays: number): Promise<SurplusComputat
     };
 
     const isSelfTransfer = (t: any) => {
-        const categoryName = String(t.category?.name || "").toLowerCase();
         const type = String(t.transactionType || t.type || "").toUpperCase();
-        return categoryName === "transfer" || categoryName === "bank" || type === "TRANSFER";
+        return type === "TRANSFER" || type === "SELF_TRANSFER";
     };
 
     const calcSurplus = (txs: any[]) => {
