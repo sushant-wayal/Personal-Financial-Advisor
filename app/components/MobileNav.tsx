@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { DollarSign, Home, MessageCircle, PieChart, Settings, TrendingUp } from "lucide-react";
+import { DollarSign, Home, MessageCircle, PieChart, Settings, TrendingUp, Wallet } from "lucide-react";
 
 const navItems = [
     { label: "Dashboard", icon: Home, href: "/" },
+    { label: "Budgets", icon: Wallet, href: "/budgets" },
     { label: "Transactions", icon: PieChart, href: "/transactions" },
     { label: "Goals", icon: DollarSign, href: "/goals" },
     { label: "Invest", icon: TrendingUp, href: "/investments" },
@@ -21,7 +22,7 @@ export default function MobileNav() {
             aria-label="Primary"
             className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-background/95 px-2 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-2 backdrop-blur lg:hidden"
         >
-            <div className="grid grid-cols-6 gap-1">
+            <div className="grid grid-cols-7 gap-1">
                 {navItems.map((item) => {
                     const Icon = item.icon;
                     const isActive = pathname === item.href;

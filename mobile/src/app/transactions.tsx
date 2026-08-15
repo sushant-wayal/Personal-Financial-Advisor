@@ -15,7 +15,7 @@ import {
   View,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { DatePickerModal } from "../components/DatePickerModal";
@@ -443,6 +443,9 @@ function isCreditTransaction(tx: Transaction) {
 export default function TransactionsScreen() {
   useCurrency();
   const router = useRouter();
+  const params = useLocalSearchParams<{ category?: string; categoryId?: string; dateRange?: string; timeRange?: string }>();
+  const initialCategory = params.category || params.categoryId || null;
+  const initialTimeRange = params.dateRange || params.timeRange || "all";
   const statusBarHeight = Platform.OS === "android" ? StatusBar.currentHeight ?? 0 : 0;
   const [items, setItems] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -454,8 +457,8 @@ export default function TransactionsScreen() {
   const [loadingMore, setLoadingMore] = useState(false);
   const loadingMoreRef = useRef(false);
 
-  const [timeRange, setTimeRange] = useState("all");
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [timeRange, setTimeRange] = useState(initialTimeRange);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(initialCategory);
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [options, setOptions] = useState<{ transactionTypes: string[]; paymentMethods: string[] }>({ transactionTypes: [], paymentMethods: [] });
@@ -638,7 +641,11 @@ export default function TransactionsScreen() {
         if (!mounted) return;
         setCategories(cats);
         setOptions(opts);
-        const data = await fetchTransactions(1, pageSize, { dateRange: "all" });
+        const initialFilters: TransactionFilters = {
+          dateRange: initialTimeRange,
+          category: initialCategory || undefined,
+        };
+        const data = await fetchTransactions(1, pageSize, initialFilters);
         if (!mounted) return;
         setItems(data);
         setPage(1);
@@ -655,6 +662,25 @@ export default function TransactionsScreen() {
       mounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    const paramCat = params.category || params.categoryId || null;
+    const paramTime = params.dateRange || params.timeRange || null;
+    if (!paramCat && !paramTime) return;
+
+    let active = true;
+    const timer = setTimeout(() => {
+      if (!active) return;
+      if (paramCat) setSelectedCategory(paramCat);
+      if (paramTime) setTimeRange(paramTime);
+      void reload(buildFilters({ category: paramCat ?? undefined, dateRange: paramTime ?? undefined }));
+    }, 0);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [buildFilters, params.category, params.categoryId, params.dateRange, params.timeRange, reload]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);

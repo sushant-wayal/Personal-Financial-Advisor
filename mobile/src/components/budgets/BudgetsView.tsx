@@ -12,6 +12,7 @@ import {
   TouchableWithoutFeedback,
   Modal,
 } from "react-native";
+import { useRouter } from "expo-router";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { MaterialIcons } from "@expo/vector-icons";
 import { API_BASE_URL } from "../../lib/apiBaseUrl";
@@ -82,6 +83,7 @@ function CustomSwitch({ value, onValueChange }: { value: boolean; onValueChange:
 }
 
 export function BudgetsView() {
+  const router = useRouter();
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -265,9 +267,28 @@ export function BudgetsView() {
                   <View style={[styles.progressFill, { width: `${progress * 100}%`, backgroundColor: progressColor }]} />
                 </View>
                 
-                <Text style={styles.availableText}>
-                  Available{b.rollover ? " (including rollover)" : ""}: {formatCurrencyAmount(b.available, currencyCode)}
-                </Text>
+                <View style={styles.cardFooter}>
+                  <Text style={styles.availableText}>
+                    Available{b.rollover ? " (inc. rollover)" : ""}: {formatCurrencyAmount(b.available, currencyCode)}
+                  </Text>
+                  <Pressable
+                    style={styles.txsButton}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      router.push({
+                        pathname: "/transactions",
+                        params: {
+                          category: b.category?.name,
+                          dateRange: "this_month",
+                        },
+                      });
+                    }}
+                  >
+                    <MaterialIcons name="receipt-long" size={13} color="#7dffa2" />
+                    <Text style={styles.txsButtonText}>Transactions</Text>
+                    <MaterialIcons name="chevron-right" size={14} color="#7dffa2" />
+                  </Pressable>
+                </View>
               </Pressable>
             );
           })
@@ -406,7 +427,10 @@ const styles = StyleSheet.create({
   amountValue: { color: "#fff", fontFamily: "Hanken Grotesk", fontSize: fs(24), fontWeight: "700" },
   progressTrack: { height: 6, backgroundColor: "rgba(255,255,255,0.04)", borderRadius: 3, overflow: "hidden" },
   progressFill: { height: "100%", borderRadius: 3 },
-  availableText: { color: "#8e9192", fontFamily: "Inter", fontSize: fs(13), marginTop: 2 },
+  availableText: { color: "#8e9192", fontFamily: "Inter", fontSize: fs(13) },
+  cardFooter: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 8 },
+  txsButton: { flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "rgba(125,255,162,0.1)", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10, borderWidth: 1, borderColor: "rgba(125,255,162,0.3)" },
+  txsButtonText: { color: "#7dffa2", fontFamily: "Inter", fontSize: fs(12), fontWeight: "600" },
   
   sheetOverlayWrap: {
     ...StyleSheet.absoluteFillObject,

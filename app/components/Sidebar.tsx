@@ -2,10 +2,11 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, PieChart, MessageCircle, DollarSign, Settings, TrendingUp } from "lucide-react";
+import { Home, PieChart, MessageCircle, DollarSign, Settings, TrendingUp, Wallet } from "lucide-react";
 
 const navItems = [
     { label: "Dashboard", icon: Home, href: "/" },
+    { label: "Budgets", icon: Wallet, href: "/budgets" },
     { label: "Transactions", icon: PieChart, href: "/transactions" },
     { label: "Goals", icon: DollarSign, href: "/goals" },
     { label: "Investments", icon: TrendingUp, href: "/investments" },

@@ -158,7 +158,12 @@ export async function getTransactions(input: TransactionQueryInput): Promise<Tra
     }
 
     if (category) {
-        andConditions.push({ category: { name: { equals: category } } });
+        andConditions.push({
+            OR: [
+                { category: { name: { equals: category } } },
+                { categoryId: { equals: category } },
+            ],
+        });
     }
 
     if (typeFilter) {
