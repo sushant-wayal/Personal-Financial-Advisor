@@ -2,13 +2,29 @@ import { NextResponse } from "next/server";
 import { getOrGenerateInvestmentSuggestion } from "@/src/services/investmentEngine";
 import { prisma } from "@/src/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
     try {
-        const result = await getOrGenerateInvestmentSuggestion();
-        const history = await prisma.investmentHistory.findMany({
-            orderBy: { investedAt: "desc" },
-            take: 20,
-        });
+        const [result, history] = await Promise.all([
+            getOrGenerateInvestmentSuggestion(),
+            prisma.investmentHistory.findMany({
+                orderBy: { investedAt: "desc" },
+                take: 20,
+                select: {
+                    id: true,
+                    suggestionId: true,
+                    phase: true,
+                    rawSurplus: true,
+                    totalInvested: true,
+                    equity: true,
+                    debt: true,
+                    gold: true,
+                    investedAt: true,
+                    notes: true,
+                },
+            }),
+        ]);
         return NextResponse.json({ ok: true, ...result, history });
     } catch (e: any) {
         return NextResponse.json({ error: e.message || String(e) }, { status: 500 });
