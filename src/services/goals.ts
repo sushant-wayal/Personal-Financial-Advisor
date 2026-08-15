@@ -227,12 +227,11 @@ export async function listGoals() {
 }
 
 export async function getGoalOverview() {
-    const [efStatus, investmentData] = await Promise.all([
-        getEmergencyFundStatus(),
+    const efStatus = await getEmergencyFundStatus();
+    const [{ goals, signals }, investmentData] = await Promise.all([
+        loadDerivedGoals(efStatus),
         getOrGenerateInvestmentSuggestion().catch(() => null),
     ]);
-
-    const { goals, signals } = await loadDerivedGoals(efStatus);
 
     const effectiveCapacity = signals.availableGoalCapacity;
 
