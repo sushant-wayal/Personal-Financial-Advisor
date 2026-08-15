@@ -1,6 +1,5 @@
 import { prisma } from "../lib/prisma";
 import { calculateBurnRate } from "./analytics";
-import { getActiveInvestableCarveout } from "./investmentEngine";
 
 export type EfStrategy = "BALANCED" | "AGGRESSIVE_EF" | "ACCELERATED_GOALS" | "STRICT";
 
@@ -79,7 +78,7 @@ export function getEfStrategyRatios(
 }
 
 export async function getEmergencyFundStatus(): Promise<EmergencyFundStatus> {
-    const [profile, burnData, goals, investableCarveout, activeSuggestion] = await Promise.all([
+    const [profile, burnData, goals, activeSuggestion] = await Promise.all([
         prisma.financialProfile.findFirst({
             select: {
                 emergencyFundMonths: true,
@@ -92,13 +91,18 @@ export async function getEmergencyFundStatus(): Promise<EmergencyFundStatus> {
         }),
         calculateBurnRate(),
         prisma.goal.findMany({ select: { targetAmount: true, currentAmount: true } }),
-        getActiveInvestableCarveout(),
         prisma.investmentSuggestion.findFirst({
             where: { status: "ACTIVE" },
-            select: { investableRate: true },
+            select: { investableRate: true, totalInvestable: true, isManuallyEdited: true, editedEquity: true, editedDebt: true, editedGold: true },
             orderBy: { createdAt: "desc" },
         }).catch(() => null),
     ]);
+
+    const investableCarveout = activeSuggestion
+        ? (activeSuggestion.isManuallyEdited
+            ? (activeSuggestion.editedEquity ?? 0) + (activeSuggestion.editedDebt ?? 0) + (activeSuggestion.editedGold ?? 0)
+            : activeSuggestion.totalInvestable)
+        : 0;
 
     const targetMonths = Math.max(3, profile?.emergencyFundMonths ?? 6);
     const rawBalance = Math.max(0, profile?.balance ?? 0);

@@ -194,10 +194,11 @@ export function analyzeGoalConflicts(goals: GoalRecord[], monthlyCapacity: numbe
     };
 }
 
-async function loadDerivedGoals() {
+async function loadDerivedGoals(providedEfStatus?: Awaited<ReturnType<typeof getEmergencyFundStatus>>) {
     const [goals, signals] = await Promise.all([
         prisma.goal.findMany({
-            orderBy: { priority: "asc" }, select: {
+            orderBy: { priority: "asc" },
+            select: {
                 id: true,
                 title: true,
                 status: true,
@@ -209,9 +210,9 @@ async function loadDerivedGoals() {
                 targetDate: true,
                 notes: true,
                 createdAt: true,
-            }
+            },
         }),
-        buildGoalProgressSignals(),
+        buildGoalProgressSignals(providedEfStatus),
     ]);
 
     return {
@@ -226,11 +227,12 @@ export async function listGoals() {
 }
 
 export async function getGoalOverview() {
-    const [{ goals, signals }, efStatus, investmentData] = await Promise.all([
-        loadDerivedGoals(),
+    const [efStatus, investmentData] = await Promise.all([
         getEmergencyFundStatus(),
         getOrGenerateInvestmentSuggestion().catch(() => null),
     ]);
+
+    const { goals, signals } = await loadDerivedGoals(efStatus);
 
     const effectiveCapacity = signals.availableGoalCapacity;
 
