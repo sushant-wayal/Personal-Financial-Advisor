@@ -103,7 +103,7 @@ export default function GoalsManager() {
     return (
         <div className="space-y-8">
             <EmergencyFundWidget ef={ef} />
-            <InvestmentCard />
+            <InvestmentCard initialSuggestion={goalOverview?.investmentSuggestion} />
 
             <Card className="overflow-hidden border-white/10 bg-slate-950/55 shadow-2xl backdrop-blur p-6">
                 <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between mb-6">

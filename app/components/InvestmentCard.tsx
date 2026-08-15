@@ -11,18 +11,26 @@ function formatCurrency(amount: number, currency = "INR") {
     return new Intl.NumberFormat("en-IN", { style: "currency", currency, maximumFractionDigits: 0 }).format(amount || 0);
 }
 
-export function InvestmentCard() {
-    const { data, isLoading, isError } = useQuery({
+interface InvestmentCardProps {
+    initialSuggestion?: any;
+}
+
+export function InvestmentCard({ initialSuggestion }: InvestmentCardProps = {}) {
+    const { data: queryData, isLoading, isError } = useQuery({
         queryKey: ["investmentSuggestion"],
         queryFn: async () => {
             const res = await fetch("/api/investments");
             if (!res.ok) throw new Error("Failed to load investments");
             return res.json();
         },
+        enabled: !initialSuggestion,
         staleTime: 1000 * 30, // 30s
     });
 
-    if (isLoading) {
+    const suggestion = initialSuggestion || queryData?.suggestion;
+    const isReady = Boolean(suggestion);
+
+    if (!isReady && isLoading) {
         return (
             <Card className="overflow-hidden border-indigo-700/30 bg-gradient-to-br from-indigo-950/30 via-slate-900/40 to-slate-950/60 p-5 shadow-lg shadow-indigo-950/20">
                 <div className="flex items-center gap-3">
@@ -36,7 +44,7 @@ export function InvestmentCard() {
         );
     }
 
-    if (isError || !data?.ok) {
+    if (!isReady && (isError || (queryData && !queryData.ok))) {
         return (
             <Card className="overflow-hidden border-rose-500/30 bg-gradient-to-br from-rose-950/30 via-slate-900/60 to-slate-950/80 p-5 shadow-xl">
                 <div className="flex items-center justify-between">
@@ -47,7 +55,7 @@ export function InvestmentCard() {
                         <div>
                             <h3 className="text-sm font-semibold text-white">Monthly Investment Widget</h3>
                             <p className="text-xs text-rose-300 mt-0.5">
-                                {data?.error || "Unable to load investment suggestion."}
+                                {queryData?.error || "Unable to load investment suggestion."}
                             </p>
                         </div>
                     </div>
@@ -61,11 +69,13 @@ export function InvestmentCard() {
         );
     }
 
-    const { suggestion } = data;
-    const isInvested = suggestion.status === "INVESTED";
-    const isCrisis = suggestion.phase === "CRISIS";
-    const total = suggestion.totalInvestable;
-    const buckets = suggestion.buckets;
+    const currentSuggestion = suggestion || queryData?.suggestion;
+    if (!currentSuggestion) return null;
+
+    const isInvested = currentSuggestion.status === "INVESTED";
+    const isCrisis = currentSuggestion.phase === "CRISIS";
+    const total = currentSuggestion.totalInvestable;
+    const buckets = currentSuggestion.buckets;
 
     return (
         <Card className={`group relative overflow-hidden border transition-all duration-300 shadow-xl ${

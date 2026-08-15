@@ -398,29 +398,28 @@ export default function GoalsScreen() {
 
     (async () => {
       try {
-        await load();
+        setAdvisorRefreshing(true);
+        const [_, data] = await Promise.all([
+          load(),
+          fetchAIRecommendations(false).catch((e: unknown) => {
+            if (mounted) setAdvisorError(e instanceof Error ? e.message : String(e));
+            return null;
+          }),
+        ]);
         if (!mounted) return;
-        setError(null);
-      } catch (e: unknown) {
-        if (mounted) setError(e instanceof Error ? e.message : String(e));
-      } finally {
-        if (mounted) setLoading(false);
-      }
-
-      // Fetch AI recommendations in background after main goals render
-      if (mounted) {
-        try {
-          setAdvisorRefreshing(true);
-          const data = await fetchAIRecommendations(false);
-          if (!mounted) return;
+        if (data) {
           setAdvisorPayload(data);
           if ((data as any).lastRun) {
             setAdvisorLastRun(new Date((data as any).lastRun).toISOString());
           }
-        } catch (e: unknown) {
-          if (mounted) setAdvisorError(e instanceof Error ? e.message : String(e));
-        } finally {
-          if (mounted) setAdvisorRefreshing(false);
+        }
+        setError(null);
+      } catch (e: unknown) {
+        if (mounted) setError(e instanceof Error ? e.message : String(e));
+      } finally {
+        if (mounted) {
+          setLoading(false);
+          setAdvisorRefreshing(false);
         }
       }
     })();
