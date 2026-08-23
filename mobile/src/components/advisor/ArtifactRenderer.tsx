@@ -260,47 +260,92 @@ export function ComparisonTable({ title, columns, rows }: AdvisorComparisonTable
     const safeCols = Array.isArray(columns) ? columns : [];
     const safeRows = Array.isArray(rows) ? rows : [];
 
+    // Use consistent column widths across the header and all rows so columns align with mathematical precision
+    const itemColWidth = safeCols.length <= 2 ? 140 : 130;
+    const dataColWidth = safeCols.length <= 2 ? 140 : 120;
+
     return (
         <ArtifactShell iconNode={icon("info-outline", "#5ec8ff")} title={title}>
-            <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                onTouchStart={beginHorizontalScroll}
-                onTouchEnd={endHorizontalScroll}
-                onTouchCancel={endHorizontalScroll}
-                onScrollBeginDrag={beginHorizontalScroll}
-                onScrollEndDrag={endHorizontalScroll}
-                onMomentumScrollEnd={endHorizontalScroll}
-                onScroll={(event) => updateHorizontalScroll(event.nativeEvent.contentOffset.x, event.nativeEvent.layoutMeasurement.width, event.nativeEvent.contentSize.width)}
-                scrollEventThrottle={16}
-            >
-                <View style={styles.table}>
-                    <View style={styles.tableHeaderRow}>
-                        {/* "Item" is a fixed label column for row.label — data columns come from `columns` */}
-                        <Text style={[styles.tableHeaderCell, styles.tableLabelCell]}>Item</Text>
-                        {safeCols.map((column, i) => (
-                            <Text key={`col-${i}`} style={styles.tableHeaderCell}>{column}</Text>
-                        ))}
-                    </View>
-                    {safeRows.map((row, rowIdx) => {
-                        // Pad values with "—" if Gemini returned fewer than columns.length
-                        const safeValues = Array.isArray(row.values) ? row.values : [];
-                        const paddedValues = Array.from({ length: safeCols.length }, (_, i) =>
-                            safeValues[i] !== undefined && safeValues[i] !== null && safeValues[i] !== ""
-                                ? String(safeValues[i])
-                                : "—"
-                        );
-                        return (
-                            <View key={`row-${rowIdx}`} style={styles.tableRow}>
-                                <Text style={[styles.tableCell, styles.tableLabelCell]}>{row.label || "—"}</Text>
-                                {paddedValues.map((value, colIdx) => (
-                                    <Text key={`${rowIdx}-${colIdx}`} style={styles.tableCell}>{value}</Text>
-                                ))}
+            <View style={styles.stackGapSmall}>
+                <ScrollView
+                    horizontal
+                    nestedScrollEnabled
+                    showsHorizontalScrollIndicator={true}
+                    onTouchStart={beginHorizontalScroll}
+                    onTouchEnd={endHorizontalScroll}
+                    onTouchCancel={endHorizontalScroll}
+                    onScrollBeginDrag={beginHorizontalScroll}
+                    onScrollEndDrag={endHorizontalScroll}
+                    onMomentumScrollEnd={endHorizontalScroll}
+                    onScroll={(event) =>
+                        updateHorizontalScroll(
+                            event.nativeEvent.contentOffset.x,
+                            event.nativeEvent.layoutMeasurement.width,
+                            event.nativeEvent.contentSize.width
+                        )
+                    }
+                    scrollEventThrottle={16}
+                    contentContainerStyle={styles.tableScrollContent}
+                >
+                    <View style={styles.tableContainer}>
+                        <View style={styles.tableHeaderRow}>
+                            {/* "Item" is a fixed label column for row.label — data columns come from `columns` */}
+                            <View style={[styles.tableCellWrap, { width: itemColWidth }]}>
+                                <Text style={styles.tableHeaderCell} numberOfLines={2}>
+                                    Item
+                                </Text>
                             </View>
-                        );
-                    })}
-                </View>
-            </ScrollView>
+                            {safeCols.map((column, i) => (
+                                <View key={`col-${i}`} style={[styles.tableCellWrap, { width: dataColWidth }]}>
+                                    <Text style={styles.tableHeaderCell} numberOfLines={2}>
+                                        {column}
+                                    </Text>
+                                </View>
+                            ))}
+                        </View>
+                        {safeRows.map((row, rowIdx) => {
+                            // Pad values with "—" if Gemini returned fewer than columns.length
+                            const safeValues = Array.isArray(row.values) ? row.values : [];
+                            const paddedValues = Array.from({ length: safeCols.length }, (_, i) =>
+                                safeValues[i] !== undefined && safeValues[i] !== null && safeValues[i] !== ""
+                                    ? String(safeValues[i])
+                                    : "—"
+                            );
+                            const isLast = rowIdx === safeRows.length - 1;
+                            return (
+                                <View
+                                    key={`row-${rowIdx}`}
+                                    style={[
+                                        styles.tableRow,
+                                        rowIdx % 2 === 1 ? styles.tableRowAlt : null,
+                                        isLast ? styles.tableRowLast : null,
+                                    ]}
+                                >
+                                    <View style={[styles.tableCellWrap, { width: itemColWidth }]}>
+                                        <Text style={[styles.tableCell, styles.tableLabelCell]}>
+                                            {row.label || "—"}
+                                        </Text>
+                                    </View>
+                                    {paddedValues.map((value, colIdx) => (
+                                        <View
+                                            key={`${rowIdx}-${colIdx}`}
+                                            style={[styles.tableCellWrap, { width: dataColWidth }]}
+                                        >
+                                            <Text style={styles.tableCell}>{value}</Text>
+                                        </View>
+                                    ))}
+                                </View>
+                            );
+                        })}
+                    </View>
+                </ScrollView>
+                {safeCols.length >= 3 ? (
+                    <View style={styles.tableScrollHint}>
+                        <MaterialIcons name="swap-horiz" size={14} color="#8e9192" />
+                        <Text style={styles.tableScrollHintText}>Swipe horizontally to compare all columns</Text>
+                    </View>
+                ) : null}
+            </View>
         </ArtifactShell>
     );
 }
@@ -831,49 +876,72 @@ const styles = StyleSheet.create({
         fontFamily: "JetBrains Mono",
         fontWeight: "700",
     },
-    table: {
-        minWidth: 340,
+    tableScrollContent: {
+        minWidth: "100%",
+    },
+    tableContainer: {
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: "#3a3a3a",
+        backgroundColor: "#1c1b1b",
+        overflow: "hidden",
     },
     tableHeaderRow: {
         flexDirection: "row",
+        backgroundColor: "#262525",
         borderBottomWidth: 1,
-        borderBottomColor: "#444748",
-        paddingBottom: 8,
-        marginBottom: 8,
+        borderBottomColor: "#3a3a3a",
+        paddingVertical: 10,
+        paddingHorizontal: 2,
     },
     tableRow: {
         flexDirection: "row",
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: "#444748",
-        backgroundColor: "#2a2a2a",
-        marginBottom: 8,
+        borderBottomWidth: 1,
+        borderBottomColor: "#2c2d2e",
+        backgroundColor: "#1c1b1b",
+        paddingVertical: 10,
+        paddingHorizontal: 2,
+    },
+    tableRowAlt: {
+        backgroundColor: "#222121",
+    },
+    tableRowLast: {
+        borderBottomWidth: 0,
+    },
+    tableCellWrap: {
+        paddingHorizontal: 10,
+        justifyContent: "center",
     },
     tableHeaderCell: {
-        flex: 1,
         color: "#8e9192",
         fontSize: 10,
         lineHeight: 14,
-        letterSpacing: 1,
+        letterSpacing: 1.2,
         textTransform: "uppercase",
         fontFamily: "JetBrains Mono",
         fontWeight: "700",
-        paddingHorizontal: 12,
-        paddingVertical: 6,
     },
     tableLabelCell: {
-        flex: 1.1,
         color: "#e5e2e1",
         fontWeight: "700",
     },
     tableCell: {
-        flex: 1,
         color: "#c4c7c8",
         fontSize: 13,
         lineHeight: 18,
         fontFamily: "Inter",
-        paddingHorizontal: 12,
-        paddingVertical: 10,
+    },
+    tableScrollHint: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "flex-end",
+        gap: 4,
+        marginTop: 2,
+    },
+    tableScrollHintText: {
+        color: "#8e9192",
+        fontSize: 11,
+        fontFamily: "Inter",
     },
     formQuestionBlock: {
         marginBottom: 8,
