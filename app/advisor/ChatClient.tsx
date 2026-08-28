@@ -341,12 +341,108 @@ export default function ChatClient() {
         }
     }, [q, threads]);
 
+    // ── Dynamic AI suggestions (cached for 12 h) ──────────────────────────────
+    const SUGGESTIONS_CACHE_KEY = "web_advisor_suggestions_v1";
+    const SUGGESTIONS_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
+    const [suggestions, setSuggestions] = useState<string[]>([]);
+    const [suggestionsLoading, setSuggestionsLoading] = useState(true);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        async function loadSuggestions() {
+            try {
+                const cached = typeof window !== "undefined" ? localStorage.getItem(SUGGESTIONS_CACHE_KEY) : null;
+                if (cached) {
+                    const parsed = JSON.parse(cached) as { ts: number; suggestions: string[] };
+                    const ageMs = Date.now() - parsed.ts;
+                    if (ageMs < SUGGESTIONS_TTL_MS && Array.isArray(parsed.suggestions) && parsed.suggestions.length > 0) {
+                        if (!cancelled) {
+                            setSuggestions(parsed.suggestions);
+                            setSuggestionsLoading(false);
+                        }
+                        return;
+                    }
+                }
+            } catch {
+                // Ignore cache parse errors
+            }
+
+            try {
+                const res = await fetch("/api/ai/advisor/suggestions");
+                const data = await res.json();
+                if (!cancelled && Array.isArray(data?.suggestions) && data.suggestions.length > 0) {
+                    setSuggestions(data.suggestions);
+                    if (typeof window !== "undefined") {
+                        try {
+                            localStorage.setItem(
+                                SUGGESTIONS_CACHE_KEY,
+                                JSON.stringify({ ts: Date.now(), suggestions: data.suggestions })
+                            );
+                        } catch { /* non-fatal */ }
+                    }
+                }
+            } catch {
+                // Fetch failed — fallback will remain or empty
+            } finally {
+                if (!cancelled) setSuggestionsLoading(false);
+            }
+        }
+
+        void loadSuggestions();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
     return (
         <Card aria-label="AI financial chat" className="flex h-[70vh] flex-col px-10">
             <div ref={liveRef} className="flex-1 overflow-auto" aria-live="polite">
                 <div className="prose prose-invert max-w-none text-sm">
                     {!threads.length && (
-                        <div className="text-muted-foreground">Ask a question to get started.</div>
+                        <div className="my-6 rounded-2xl border border-zinc-800/80 bg-zinc-900/40 p-5 shadow-inner">
+                            <div className="flex items-center gap-2 mb-2">
+                                <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-purple-500/10 text-purple-400">
+                                    ✦
+                                </span>
+                                <span className="font-medium text-zinc-200">Analysis Ready</span>
+                                {suggestionsLoading && (
+                                    <span className="ml-auto flex items-center gap-1.5 rounded-full bg-purple-500/10 px-2 py-0.5 text-[11px] font-medium text-purple-400">
+                                        <OrbitingLoader color="#a78bfa" /> AI
+                                    </span>
+                                )}
+                            </div>
+                            <p className="text-xs text-zinc-400 mb-4">
+                                {suggestionsLoading
+                                    ? "Personalizing questions based on your latest financial snapshot…"
+                                    : suggestions.length > 0
+                                        ? "Here are suggestions based on your live financial data:"
+                                        : "Ask about a purchase, a goal deadline, cash runway, or what should move first."}
+                            </p>
+
+                            <div className="flex flex-col gap-2">
+                                {suggestionsLoading
+                                    ? [0, 1, 2].map((i) => (
+                                        <div
+                                            key={i}
+                                            className="h-10 animate-pulse rounded-xl border border-zinc-800/40 bg-zinc-850/40"
+                                        />
+                                    ))
+                                    : suggestions.map((prompt) => (
+                                        <button
+                                            key={prompt}
+                                            type="button"
+                                            onClick={() => void send(prompt)}
+                                            className="group flex items-center gap-2.5 rounded-xl border border-zinc-800/90 bg-zinc-900/70 px-3.5 py-2.5 text-left text-xs sm:text-sm text-zinc-300 transition-all hover:border-purple-500/50 hover:bg-purple-950/20 hover:text-purple-200"
+                                        >
+                                            <span className="text-purple-400 text-xs transition-transform group-hover:scale-110">
+                                                ✦
+                                            </span>
+                                            <span className="flex-1">{prompt}</span>
+                                        </button>
+                                    ))}
+                            </div>
+                        </div>
                     )}
                     {threads.map((entry, index) => (
                         <div key={`${entry.question}-${index}`} className="mb-6">
