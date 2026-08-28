@@ -283,8 +283,6 @@ export default function NetWorthScreen() {
     return g.meta.filter === activeFilter;
   });
 
-  const showLiquidCash = activeFilter === "ALL" || activeFilter === "DEPOSITS";
-
   const assetPercentage = totals.assets + totals.liabilities > 0 
     ? Math.round((totals.assets / (totals.assets + totals.liabilities)) * 100) 
     : 100;
@@ -336,16 +334,14 @@ export default function NetWorthScreen() {
           </View>
         </View>
 
-        {/* Minimal Clean Liquid Cash Card */}
-        {showLiquidCash && (
-          <View style={styles.liquidCashCard}>
-            <View style={styles.liquidCashLeft}>
-              <View style={styles.liquidCashDot} />
-              <Text style={styles.liquidCashTitle}>Liquid Cash</Text>
-            </View>
-            <Text style={styles.liquidCashValue}>{formatCurrency(bankBalanceValue)}</Text>
+        {/* Minimal Clean Liquid Cash Card (Always Visible, Free of Filters) */}
+        <View style={styles.liquidCashCard}>
+          <View style={styles.liquidCashLeft}>
+            <View style={styles.liquidCashDot} />
+            <Text style={styles.liquidCashTitle}>Liquid Cash</Text>
           </View>
-        )}
+          <Text style={styles.liquidCashValue}>{formatCurrency(bankBalanceValue)}</Text>
+        </View>
 
         {/* Inline Horizontal Filter ScrollView with gesture protection */}
         <ScrollView
@@ -390,7 +386,7 @@ export default function NetWorthScreen() {
 
         {/* Grouped Asset & Liability Accordions (Collapsed by default) */}
         <View style={styles.groupsContainer}>
-          {filteredGroups.length === 0 && !showLiquidCash ? (
+          {filteredGroups.length === 0 ? (
             <View style={styles.emptyContainer}>
               <MaterialIcons name="account-balance-wallet" size={48} color="#333" />
               <Text style={styles.emptyTitle}>No holdings found in this category</Text>
