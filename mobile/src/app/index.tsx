@@ -1,4 +1,4 @@
-/* eslint-disable react-hooks/rules-of-hooks, react-hooks/refs, react-hooks/set-state-in-effect */
+/* eslint-disable react-hooks/refs, react-hooks/set-state-in-effect */
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
@@ -356,7 +356,6 @@ function TrendChart({
   width,
   selectedIndex,
   onSelectIndex,
-  onBoundsChange,
   period,
   onPeriodChange,
 }: {
@@ -364,7 +363,6 @@ function TrendChart({
   width: number;
   selectedIndex: number | null;
   onSelectIndex: (index: number) => void;
-  onBoundsChange?: (bounds: { x: number; y: number; width: number; height: number }) => void;
   period: ChartPeriod;
   onPeriodChange: (period: ChartPeriod) => void;
 }) {
@@ -433,19 +431,7 @@ function TrendChart({
   const selectedPoint = activeIndex >= 0 ? points[activeIndex] ?? null : null;
 
 
-  useEffect(() => {
-    if (!onBoundsChange) {
-      return;
-    }
 
-    const handle = requestAnimationFrame(() => {
-      chartRef.current?.measureInWindow((x, y, measuredWidth, measuredHeight) => {
-        onBoundsChange({ x, y, width: measuredWidth, height: measuredHeight });
-      });
-    });
-
-    return () => cancelAnimationFrame(handle);
-  }, [chartWidth, onBoundsChange]);
 
   const handleChartPress = (locationX: number) => {
     if (!points.length) {
@@ -468,7 +454,7 @@ function TrendChart({
   };
 
   return (
-    <View ref={chartRef} style={[styles.chartWrap, { height: chartHeight, width: chartWidth }]}>
+    <View ref={chartRef} style={[styles.chartWrap, { height: chartHeight, width: chartWidth }]} onTouchStart={(e) => e.stopPropagation()}>
       <View style={styles.chartLegendRow}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
           <View style={styles.legendItem}>
@@ -573,13 +559,11 @@ function Heatmap({
   cells,
   selectedCell,
   onSelectCell,
-  onBoundsChange,
   onViewDetails,
 }: {
   cells: HeatmapPoint[];
   selectedCell: HeatmapPoint | null;
   onSelectCell: (cell: HeatmapPoint) => void;
-  onBoundsChange?: (bounds: { x: number; y: number; width: number; height: number }) => void;
   onViewDetails?: (cell: HeatmapPoint) => void;
 }) {
   const heatmapRef = useRef<View>(null);
@@ -612,19 +596,7 @@ function Heatmap({
 
   const dayLabels = ["S", "M", "T", "W", "T", "F", "S"];
 
-  useEffect(() => {
-    if (!onBoundsChange) {
-      return;
-    }
 
-    const handle = requestAnimationFrame(() => {
-      heatmapRef.current?.measureInWindow((x, y, width, height) => {
-        onBoundsChange({ x, y, width, height });
-      });
-    });
-
-    return () => cancelAnimationFrame(handle);
-  }, [weekCount, onBoundsChange]);
 
   return (
     <View
@@ -733,12 +705,10 @@ function CategoryRing({
   categories,
   selectedCategory,
   onSelectCategory,
-  onBoundsChange,
 }: {
   categories: CategoryPoint[];
   selectedCategory: CategoryPoint | null;
   onSelectCategory: (category: CategoryPoint | null) => void;
-  onBoundsChange?: (bounds: { x: number; y: number; width: number; height: number }) => void;
 }) {
   const total = categories.reduce((sum, category) => sum + category.value, 0);
   const colors = ["#7dffa2", "#38bdf8", "#fbbf24", "#f43f5e", "#a855f7", "#34d399", "#f97316", "#6366f1"];
@@ -784,6 +754,13 @@ function CategoryRing({
 
     const dx = locationX - center;
     const dy = locationY - center;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    if (dist < 48 || dist > 85) {
+      onSelectCategory(null);
+      return;
+    }
+
     const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
     const normalizedAngle = (angle + 450) % 360;
 
@@ -822,27 +799,17 @@ function CategoryRing({
     Animated.parallel(animations).start();
   }, [selectedIndex]);
 
-  const cardRef = useRef<View>(null);
 
-  useEffect(() => {
-    if (!onBoundsChange) {
-      return;
-    }
-
-    const handle = requestAnimationFrame(() => {
-      cardRef.current?.measureInWindow((x, y, width, height) => {
-        onBoundsChange({ x, y, width, height });
-      });
-    });
-
-    return () => cancelAnimationFrame(handle);
-  }, [categories.length, onBoundsChange]);
 
   const activePercentage = selectedCategory && total > 0 ? Math.round((selectedCategory.value / total) * 100) : 0;
   const activeColor = selectedIndex >= 0 ? colors[selectedIndex % colors.length] : "#7dffa2";
 
   return (
-    <View ref={cardRef} style={styles.categoryCard}>
+    <Pressable
+      style={styles.categoryCard}
+      onTouchStart={(e) => e.stopPropagation()}
+      onPress={() => onSelectCategory(null)}
+    >
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", height: 24 }}>
         <Text style={styles.carouselEyebrow}>CATEGORY BREAKDOWN</Text>
       </View>
@@ -915,7 +882,7 @@ function CategoryRing({
           );
         })}
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -1067,11 +1034,8 @@ export default function Index() {
   const [error, setError] = useState<string | null>(null);
   const [cashflowSelection, setCashflowSelection] = useState<number | null>(null);
   const [cashflowPeriod, setCashflowPeriod] = useState<ChartPeriod>(6);
-  const [cashflowChartBounds, setCashflowChartBounds] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const [heatmapSelection, setHeatmapSelection] = useState<HeatmapPoint | null>(null);
-  const [heatmapBounds, setHeatmapBounds] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const [categorySelection, setCategorySelection] = useState<CategoryPoint | null>(null);
-  const [categoryBounds, setCategoryBounds] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const [advisorScrollX] = useState(() => new Animated.Value(0));
   const [dynamicsScrollX] = useState(() => new Animated.Value(0));
   const [patternsScrollX] = useState(() => new Animated.Value(0));
@@ -1100,37 +1064,14 @@ export default function Index() {
     load();
   }, []);
 
-  const handleDashboardTouchStart = (event: { nativeEvent: { pageX: number; pageY: number } }) => {
-    const { pageX, pageY } = event.nativeEvent;
-    const insideCashflowChart =
-      cashflowChartBounds !== null &&
-      pageX >= cashflowChartBounds.x &&
-      pageX <= cashflowChartBounds.x + cashflowChartBounds.width &&
-      pageY >= cashflowChartBounds.y &&
-      pageY <= cashflowChartBounds.y + cashflowChartBounds.height;
-    const insideHeatmap =
-      heatmapBounds !== null &&
-      pageX >= heatmapBounds.x &&
-      pageX <= heatmapBounds.x + heatmapBounds.width &&
-      pageY >= heatmapBounds.y &&
-      pageY <= heatmapBounds.y + heatmapBounds.height;
-
-    if (!insideCashflowChart) {
+  const handleDashboardTouchStart = () => {
+    if (cashflowSelection !== null) {
       setCashflowSelection(null);
     }
-
-    if (!insideHeatmap) {
+    if (heatmapSelection !== null) {
       setHeatmapSelection(null);
     }
-
-    const insideCategoryRing =
-      categoryBounds !== null &&
-      pageX >= categoryBounds.x &&
-      pageX <= categoryBounds.x + categoryBounds.width &&
-      pageY >= categoryBounds.y &&
-      pageY <= categoryBounds.y + categoryBounds.height;
-
-    if (!insideCategoryRing) {
+    if (categorySelection !== null) {
       setCategorySelection(null);
     }
   };
@@ -1348,7 +1289,6 @@ export default function Index() {
                 width={cardWidth}
                 selectedIndex={cashflowSelection}
                 onSelectIndex={setCashflowSelection}
-                onBoundsChange={setCashflowChartBounds}
                 period={cashflowPeriod}
                 onPeriodChange={(p) => {
                   setCashflowPeriod(p);
@@ -1363,7 +1303,6 @@ export default function Index() {
                 cells={dashboard.heatmap}
                 selectedCell={heatmapSelection}
                 onSelectCell={setHeatmapSelection}
-                onBoundsChange={setHeatmapBounds}
                 onViewDetails={(cell) => {
                   router.push({
                     pathname: "/transactions",
@@ -1385,7 +1324,6 @@ export default function Index() {
           categories={dashboard.categories}
           selectedCategory={categorySelection}
           onSelectCategory={setCategorySelection}
-          onBoundsChange={setCategoryBounds}
         />
 
         <SectionHeading title="Spending Patterns" />
