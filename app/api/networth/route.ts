@@ -21,8 +21,8 @@ export async function GET() {
                 'creditCard', (SELECT COALESCE(json_agg(t), '[]'::json) FROM (SELECT "id", "currentOutstanding" FROM "CreditCardLiability") t),
                 'bnpl', (SELECT COALESCE(json_agg(t), '[]'::json) FROM (SELECT "id", "currentOutstanding" FROM "BnplLiability") t),
                 'borrowed', (SELECT COALESCE(json_agg(t), '[]'::json) FROM (SELECT "id", "outstandingAmount" FROM "BorrowedLiability") t),
-                'mutualFund', (SELECT COALESCE(json_agg(t), '[]'::json) FROM (SELECT "id", "currentWorth", "currentUnits", "currentNav" FROM "MutualFund") t),
-                'stock', (SELECT COALESCE(json_agg(t), '[]'::json) FROM (SELECT "id", "currentWorth", "currentQuantity", "currentPrice" FROM "Stock") t),
+                'mutualFund', (SELECT COALESCE(json_agg(t), '[]'::json) FROM (SELECT "id", "schemeName", "schemeCode", "isin", "planType", "option", "currentWorth", "currentUnits", "currentNav" FROM "MutualFund") t),
+                'stock', (SELECT COALESCE(json_agg(t), '[]'::json) FROM (SELECT "id", "symbol", "exchange", "currentWorth", "currentQuantity", "currentPrice" FROM "Stock") t),
                 'balance', (SELECT COALESCE((SELECT "balance" FROM "FinancialProfile" LIMIT 1), 0))
             ) as data;
         `;

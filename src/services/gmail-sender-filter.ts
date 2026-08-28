@@ -1,5 +1,19 @@
 import { prisma } from "../lib/prisma";
 
+export const DEFAULT_FINANCIAL_DOMAINS = [
+    "cdslindia.co.in",
+    "nsdl.co.in",
+    "camsonline.com",
+    "kfintech.com"
+];
+
+export const DEFAULT_FINANCIAL_SENDERS = [
+    "services@cdslindia.co.in",
+    "alerts@nsdl.co.in",
+    "donotreply@camsonline.com",
+    "enq_k@kfintech.com"
+];
+
 export function normalizeSenderEmail(email: string) {
     return String(email || "")
         .trim()
@@ -22,11 +36,21 @@ export async function getConfiguredFinancialSenders() {
     }
 
     const rows = await senderModel.findMany({ orderBy: { createdAt: "asc" } });
-    return rows.map((row: { email: string }) => normalizeSenderEmail(row.email)).filter(Boolean);
+    const configured = rows.map((row: { email: string }) => normalizeSenderEmail(row.email)).filter(Boolean);
+    
+    // Combine configured senders with default financial senders
+    return Array.from(new Set([...configured, ...DEFAULT_FINANCIAL_SENDERS]));
 }
 
 export async function isApprovedFinancialSender(fromHeader?: string | null, configuredSenders?: string[]) {
-    const allowed = configuredSenders ?? await getConfiguredFinancialSenders();
     const sender = extractSenderEmailAddress(fromHeader);
-    return Boolean(sender && allowed.includes(sender));
+    if (!sender) return false;
+
+    // Check if domain is in default financial domains (e.g. @cdslindia.co.in)
+    if (DEFAULT_FINANCIAL_DOMAINS.some(domain => sender.endsWith(`@${domain}`) || sender.includes(domain))) {
+        return true;
+    }
+
+    const allowed = configuredSenders ?? await getConfiguredFinancialSenders();
+    return Boolean(allowed.includes(sender));
 }

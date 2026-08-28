@@ -226,6 +226,7 @@ model MutualFund {
   id                  String   @id @default(cuid())
   schemeName          String
   schemeCode          String?
+  isin                String?
   planType            String
   option              String
   currentUnits        Float

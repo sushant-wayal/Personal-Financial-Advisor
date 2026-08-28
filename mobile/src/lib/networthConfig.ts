@@ -25,6 +25,7 @@ export const NETWORTH_CONFIG: Record<string, NetWorthConstructConfig> = {
     icon: "pie-chart",
     fields: [
       { name: "schemeName", label: "Scheme Name", type: "text", required: true },
+      { name: "isin", label: "ISIN Code", type: "text" },
       { name: "schemeCode", label: "Scheme Code", type: "text" },
       { name: "planType", label: "Plan Type", type: "select", options: [{ label: "Direct", value: "DIRECT" }, { label: "Regular", value: "REGULAR" }], required: true },
       { name: "option", label: "Option", type: "select", options: [{ label: "Growth", value: "GROWTH" }, { label: "Dividend", value: "DIVIDEND" }], required: true },

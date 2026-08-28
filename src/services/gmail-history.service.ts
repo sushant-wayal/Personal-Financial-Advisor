@@ -3,6 +3,8 @@ import { extractEmailBody, fetchGmailMessage, getHeaderValue, listGmailHistory, 
 import { getConfiguredFinancialSenders, isApprovedFinancialSender } from "./gmail-sender-filter";
 import { ingestTransaction } from "./transactionIngestion";
 import { getStoredGmailWatch, renewGmailWatch, startGmailWatch } from "./gmail-watch.service";
+import { isDepositorySender, parseDepositoryEmail } from "./depository-parser";
+import { ingestMutualFundDepositoryAlert } from "./mutual-fund-webhook.service";
 
 const HISTORY_FALLBACK_DAYS = Number(process.env.GMAIL_HISTORY_FALLBACK_DAYS || 7);
 
@@ -66,6 +68,17 @@ async function processMessage(accessToken: string, messageId: string, configured
         if (!content) {
             console.warn("[gmail-history] empty message content", { messageId });
             return { messageId, skipped: true, reason: "empty-message" };
+        }
+
+        // If email is a depository transaction alert (CDSL / NSDL / MF), process mutual funds
+        if (isDepositorySender(fromHeader) || parseDepositoryEmail(content).isDepositoryAlert) {
+            console.info("[gmail-history] detected depository transaction email, ingesting mutual fund alert", { messageId });
+            const mfRes = await ingestMutualFundDepositoryAlert({
+                messageId,
+                content,
+                timestamp: message.internalDate ? new Date(Number(message.internalDate)) : undefined
+            });
+            console.info("[gmail-history] mutual fund depository ingestion result", { messageId, result: mfRes });
         }
 
         const result = await ingestTransaction({

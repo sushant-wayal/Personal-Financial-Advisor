@@ -87,8 +87,8 @@ export default function NetWorthScreen() {
       const config = NETWORTH_CONFIG[item._type];
       const title = config ? config.label : item._type;
       
-      // Try to find a reasonable subtitle from fields like bankName, provider, etc.
-      const subtitle = item.bankName || item.provider || item.brand || item.name || item.lenderName || "Active";
+      // Try to find a reasonable subtitle from fields like schemeName, symbol, bankName, provider, etc.
+      const subtitle = item.schemeName || item.symbol || item.bankName || item.provider || item.brand || item.name || item.lenderName || "Active";
       const value = category === "asset" 
         ? (item.currentWorth ?? item.currentBalance ?? item.principalAmount ?? item.purchasePrice ?? 0)
         : (item.currentOutstanding ?? item.outstandingBalance ?? item.outstandingAmount ?? 0);

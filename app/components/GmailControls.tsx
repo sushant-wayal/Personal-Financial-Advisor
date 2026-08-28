@@ -14,6 +14,8 @@ type GmailStatusResponse = {
 export default function GmailControls() {
     const [status, setStatus] = useState<Status>("idle");
     const [message, setMessage] = useState("");
+    const [syncing, setSyncing] = useState(false);
+    const [syncResult, setSyncResult] = useState<string | null>(null);
 
     useEffect(() => {
         let cancelled = false;
@@ -41,6 +43,24 @@ export default function GmailControls() {
         };
     }, []);
 
+    const handleSync = async () => {
+        setSyncing(true);
+        setSyncResult(null);
+        try {
+            const res = await fetch("/api/gmail/sync", { method: "POST" });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Sync failed");
+            const count = data.processed?.length ?? data.messageIds?.length ?? 0;
+            setSyncResult(`Synced (${count} msgs)`);
+            setTimeout(() => setSyncResult(null), 4000);
+        } catch (e: any) {
+            setSyncResult(e.message || "Sync failed");
+            setTimeout(() => setSyncResult(null), 4000);
+        } finally {
+            setSyncing(false);
+        }
+    };
+
     if (status === "idle" || status === "error") {
         return (
             <div className="flex items-center gap-2">
@@ -60,8 +80,17 @@ export default function GmailControls() {
     }
 
     return (
-        <div className="flex items-center gap-2">
-            <span className="text-xs text-emerald-400">{message || "Gmail connected. Automatic sync is active."}</span>
+        <div className="flex items-center gap-3">
+            <span className="text-xs text-emerald-400">{syncResult || message || "Gmail connected. Automatic sync is active."}</span>
+            <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSync}
+                disabled={syncing}
+                className="h-7 px-2.5 text-xs rounded-md bg-zinc-900/50 border-zinc-700 hover:bg-zinc-800 text-zinc-200"
+            >
+                {syncing ? "Syncing..." : "Sync Now"}
+            </Button>
         </div>
     );
 }

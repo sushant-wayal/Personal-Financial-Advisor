@@ -100,6 +100,28 @@ export default function SendersSettingsScreen() {
     }
   };
 
+  const [syncing, setSyncing] = useState(false);
+
+  const handleManualSync = async () => {
+    setSyncing(true);
+    try {
+      const res = await fetch(apiUrl("/api/gmail/sync"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Sync failed");
+
+      clearClientCache();
+      const count = data.processed?.length ?? data.messageIds?.length ?? 0;
+      Alert.alert("Sync Complete", `Successfully synced Gmail inbox. Processed ${count} recent messages.`);
+    } catch (e: any) {
+      Alert.alert("Sync Failed", e.message || String(e));
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
       <StatusBar barStyle="light-content" backgroundColor="#131313" />
@@ -125,17 +147,33 @@ export default function SendersSettingsScreen() {
           extraScrollHeight={24}
         >
           <View style={styles.headerBlock}>
-            <Text style={styles.eyebrow}>Bank Alert Integration</Text>
+            <Text style={styles.eyebrow}>Bank & Depository Alert Integration</Text>
             <Text style={styles.screenTitle}>Gmail Senders</Text>
             <Text style={styles.screenSub}>
-              Authorized email addresses for auto-parsing bank notifications and transaction alerts.
+              Authorized email addresses for auto-parsing bank notifications, mutual funds, and depository transaction alerts.
             </Text>
+          </View>
+
+          {/* Quick Manual Sync Action Card */}
+          <View style={styles.syncCard}>
+            <View style={styles.syncLeft}>
+              <MaterialIcons name="sync" size={24} color="#818cf8" />
+              <View style={styles.syncCopy}>
+                <Text style={styles.syncTitle}>On-Demand Gmail Sync</Text>
+                <Text style={styles.syncSub}>Scan recent bank & mutual fund emails immediately.</Text>
+              </View>
+            </View>
+            <Pressable onPress={handleManualSync} disabled={syncing} style={[styles.syncBtn, syncing && styles.syncBtnDisabled]}>
+              <Text style={styles.syncBtnText}>{syncing ? "Syncing..." : "Sync Now"}</Text>
+            </Pressable>
           </View>
 
           <View style={styles.panelCard}>
             <View style={styles.cardHeader}>
               <Text style={styles.sectionKicker}>Allowed Bank Email Addresses</Text>
-              <Text style={styles.sectionSubtext}>Bank alerts from these senders will be parsed automatically.</Text>
+              <Text style={styles.sectionSubtext}>
+                Central depositories (CDSL, NSDL, CAMS, KFintech) are auto-approved by default. Add custom bank emails below.
+              </Text>
             </View>
 
             <View style={styles.senderChips}>
@@ -147,7 +185,7 @@ export default function SendersSettingsScreen() {
                   </Pressable>
                 </View>
               ))}
-              {!senders.length ? <Text style={styles.mutedText}>No senders configured yet.</Text> : null}
+              {!senders.length ? <Text style={styles.mutedText}>No custom bank senders added yet.</Text> : null}
             </View>
 
             <View style={styles.addSenderRow}>
@@ -247,4 +285,51 @@ const styles = StyleSheet.create({
   },
   saveBtnDisabled: { opacity: 0.5 },
   saveBtnText: { color: "#ffffff", fontFamily: "Hanken Grotesk", fontSize: fs(15), fontWeight: "700" },
+  syncCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#0e0e0e",
+    borderWidth: 1,
+    borderColor: "rgba(129,140,248,0.3)",
+    borderRadius: 16,
+    padding: 18,
+    gap: 12,
+  },
+  syncLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    flex: 1,
+  },
+  syncCopy: {
+    flex: 1,
+    gap: 2,
+  },
+  syncTitle: {
+    color: "#ffffff",
+    fontFamily: "Hanken Grotesk",
+    fontSize: fs(15),
+    fontWeight: "700",
+  },
+  syncSub: {
+    color: "#8e9192",
+    fontFamily: "Inter",
+    fontSize: fs(12),
+  },
+  syncBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: "#818cf8",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  syncBtnDisabled: { opacity: 0.5 },
+  syncBtnText: {
+    color: "#ffffff",
+    fontFamily: "Hanken Grotesk",
+    fontSize: fs(13),
+    fontWeight: "700",
+  },
 });
