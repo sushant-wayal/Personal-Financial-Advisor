@@ -8,6 +8,7 @@ import { fetchNetWorth, NetWorthData } from "../../lib/networthApi";
 import { NETWORTH_CONFIG } from "../../lib/networthConfig";
 import { getClientCache, setClientCache } from "../../lib/clientCache";
 import { NetWorthSkeleton } from "../../components/LoadingSkeleton";
+import { beginHorizontalScroll, endHorizontalScroll, updateHorizontalScroll } from "../../lib/horizontalScrollPriority";
 
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -237,7 +238,7 @@ export default function NetWorthScreen() {
 
   const { assets, liabilities, totals } = data;
 
-  // Extract Bank Balance as a distinct standalone card
+  // Extract Bank Balance as a clean minimal pill
   const bankBalanceItem = assets["Bank Balance"]?.[0];
   const bankBalanceValue = Number(bankBalanceItem?.currentWorth ?? 0);
 
@@ -335,24 +336,35 @@ export default function NetWorthScreen() {
           </View>
         </View>
 
-        {/* Liquid Cash Dedicated Standalone Card */}
+        {/* Minimal Clean Liquid Cash Card */}
         {showLiquidCash && (
           <View style={styles.liquidCashCard}>
             <View style={styles.liquidCashLeft}>
-              <View style={styles.liquidCashIconBox}>
-                <MaterialIcons name="account-balance-wallet" size={22} color="#34d399" />
-              </View>
-              <View style={styles.liquidCashCopy}>
-                <Text style={styles.liquidCashTitle}>Liquid Cash & Bank Balance</Text>
-                <Text style={styles.liquidCashSub}>Available funds in primary accounts</Text>
-              </View>
+              <View style={styles.liquidCashDot} />
+              <Text style={styles.liquidCashTitle}>Liquid Cash</Text>
             </View>
             <Text style={styles.liquidCashValue}>{formatCurrency(bankBalanceValue)}</Text>
           </View>
         )}
 
-        {/* Filter Pills Grid (Wrap mode to prevent swipe conflicts with tab gestures) */}
-        <View style={styles.filterWrapContainer}>
+        {/* Inline Horizontal Filter ScrollView with gesture protection */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.filterScroll}
+          contentContainerStyle={styles.filterContainer}
+          nestedScrollEnabled={true}
+          onTouchStart={beginHorizontalScroll}
+          onTouchEnd={endHorizontalScroll}
+          onTouchCancel={endHorizontalScroll}
+          onScrollBeginDrag={beginHorizontalScroll}
+          onScrollEndDrag={endHorizontalScroll}
+          onMomentumScrollEnd={endHorizontalScroll}
+          onScroll={({ nativeEvent: { contentOffset, layoutMeasurement, contentSize } }) => {
+            updateHorizontalScroll(contentOffset.x, layoutMeasurement.width, contentSize.width);
+          }}
+          scrollEventThrottle={16}
+        >
           {(["ALL", "INVESTMENTS", "DEPOSITS", "REAL_ASSETS", "LIABILITIES"] as FilterTab[]).map(tab => {
             const isActive = activeFilter === tab;
             const labels: Record<FilterTab, string> = {
@@ -374,7 +386,7 @@ export default function NetWorthScreen() {
               </Pressable>
             );
           })}
-        </View>
+        </ScrollView>
 
         {/* Grouped Asset & Liability Accordions (Collapsed by default) */}
         <View style={styles.groupsContainer}>
@@ -535,57 +547,49 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "rgba(52, 211, 153, 0.08)",
+    backgroundColor: "#161618",
     borderWidth: 1,
-    borderColor: "rgba(52, 211, 153, 0.25)",
-    borderRadius: 16,
-    padding: 16,
+    borderColor: "rgba(52, 211, 153, 0.2)",
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     marginBottom: 16
   },
   liquidCashLeft: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    flex: 1
+    gap: 10
   },
-  liquidCashIconBox: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: "rgba(52, 211, 153, 0.15)",
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  liquidCashCopy: {
-    flex: 1,
-    gap: 2
+  liquidCashDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#34d399"
   },
   liquidCashTitle: {
     color: "#ffffff",
     fontSize: 15,
-    fontWeight: "700"
-  },
-  liquidCashSub: {
-    color: "#8e9192",
-    fontSize: 12
+    fontWeight: "600"
   },
   liquidCashValue: {
     color: "#7dffa2",
     fontSize: 16,
-    fontWeight: "700",
-    marginLeft: 8
+    fontWeight: "700"
   },
   
-  filterWrapContainer: { 
-    flexDirection: "row", 
-    flexWrap: "wrap", 
-    gap: 8, 
+  filterScroll: { 
     marginBottom: 16 
   },
+  filterContainer: { 
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8, 
+    paddingRight: 16 
+  },
   filterPill: { 
-    paddingHorizontal: 13, 
-    paddingVertical: 7, 
-    borderRadius: 18, 
+    paddingHorizontal: 15, 
+    paddingVertical: 8, 
+    borderRadius: 20, 
     backgroundColor: "rgba(255,255,255,0.05)", 
     borderWidth: 1, 
     borderColor: "rgba(255,255,255,0.08)" 
@@ -594,7 +598,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(129,140,248,0.2)", 
     borderColor: "#818cf8" 
   },
-  filterPillText: { color: "rgba(255,255,255,0.6)", fontSize: 12, fontWeight: "600" },
+  filterPillText: { color: "rgba(255,255,255,0.6)", fontSize: 13, fontWeight: "600" },
   filterPillTextActive: { color: "#818cf8", fontWeight: "700" },
 
   groupsContainer: { gap: 12 },
