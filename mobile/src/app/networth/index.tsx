@@ -37,8 +37,7 @@ const GROUP_METAS: Record<string, GroupMeta> = {
   mutualFund: { type: "mutualFund", title: "Mutual Funds", category: "asset", icon: "pie-chart", color: "#818cf8", filter: "INVESTMENTS" },
   stock: { type: "stock", title: "Stocks & Equities", category: "asset", icon: "trending-up", color: "#38bdf8", filter: "INVESTMENTS" },
   
-  // Cash & Deposits
-  "Bank Balance": { type: "Bank Balance", title: "Liquid Cash", category: "asset", icon: "account-balance-wallet", color: "#34d399", filter: "DEPOSITS" },
+  // Deposits & Receivables
   pPFAccount: { type: "pPFAccount", title: "PPF Accounts", category: "asset", icon: "account-balance", color: "#a78bfa", filter: "DEPOSITS" },
   ePFAccount: { type: "ePFAccount", title: "EPF Accounts", category: "asset", icon: "work", color: "#f472b6", filter: "DEPOSITS" },
   fDAccount: { type: "fDAccount", title: "Fixed Deposits", category: "asset", icon: "savings", color: "#fbbf24", filter: "DEPOSITS" },
@@ -65,28 +64,26 @@ function getItemTitle(item: any, type: string): string {
       return item.schemeName || "Mutual Fund Scheme";
     case "stock":
       return `${item.symbol || "Stock"} (${item.exchange || "NSE"})`;
-    case "Bank Balance":
-      return item.bankName || "Liquid Cash";
     case "pPFAccount":
-      return "Public Provident Fund";
+      return "Public Provident Fund (PPF)";
     case "ePFAccount":
-      return "Employee Provident Fund";
+      return "Employee Provident Fund (EPF)";
     case "fDAccount":
       return `${item.bankName || "Bank"} Fixed Deposit`;
     case "rDAccount":
       return `${item.bankName || "Bank"} Recurring Deposit`;
     case "receivableAsset":
-      return item.name || "Debtor";
+      return item.name || "Money Owed";
     case "jewelleryAsset":
-      return `${item.metalType || "Gold"} (${item.purity ? `${item.purity}K` : ""})`;
+      return `${item.metalType || "Gold"} (${item.purity ? `${item.purity}K` : "Pure"})`;
     case "vehicleAsset":
       return `${item.brand || ""} ${item.modelName || "Vehicle"}`.trim();
     case "apartmentAsset":
-      return item.projectName || `${item.locality || ""}, ${item.city || "Apartment"}`.trim();
+      return item.projectName || `${item.locality ? `${item.locality}, ` : ""}${item.city || "Apartment"}`.trim();
     case "plotAsset":
-      return `${item.locality || ""}, ${item.city || "Plot"}`.trim();
+      return `${item.locality ? `${item.locality}, ` : ""}${item.city || "Plot / Land"}`.trim();
     case "independentPropertyAsset":
-      return `${item.locality || ""}, ${item.city || "Property"}`.trim();
+      return `${item.locality ? `${item.locality}, ` : ""}${item.city || "Property"}`.trim();
     case "loanLiability":
       return `${item.loanType || "Personal"} Loan`;
     case "creditCardLiability":
@@ -94,7 +91,7 @@ function getItemTitle(item: any, type: string): string {
     case "bnplLiability":
       return item.provider || "Pay Later";
     case "borrowedLiability":
-      return item.lenderName || "Lender";
+      return item.lenderName || "Borrowed Money";
     default:
       return item.name || item.brand || item.provider || "Holding";
   }
@@ -131,25 +128,37 @@ function getItemSubtitle(item: any, type: string): string {
       return item.currentInterestRate ? `${item.currentInterestRate}% interest rate` : "EPF Corpus";
     case "receivableAsset": {
       const category = item.category ? item.category.replace(/_/g, " ") : "Receivable";
-      const date = item.expectedReturnDate ? `Due: ${new Date(item.expectedReturnDate).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" })}` : null;
-      return [category, date].filter(Boolean).join(" • ");
+      const date = item.expectedReturnDate 
+        ? `Due: ${new Date(item.expectedReturnDate).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" })}` 
+        : null;
+      const intRate = item.interestRate && item.interestRate > 0 ? `${item.interestRate}% interest` : null;
+      return [category, date, intRate].filter(Boolean).join(" • ");
+    }
+    case "plotAsset": {
+      const area = item.area ? `${item.area} ${item.areaUnit || "sqft"}` : "";
+      const location = [item.state, item.country].filter(Boolean).join(", ");
+      return [area, location].filter(Boolean).join(" • ") || "Land Property";
     }
     case "jewelleryAsset":
-      return `${item.netWeight || 0}${item.weightUnit || "g"}`;
+      return `${item.netWeight || 0} ${item.weightUnit || "g"}`;
     case "vehicleAsset":
       return `${item.manufacturingYear || ""} ${item.fuelType || ""}`.trim() || "Vehicle";
-    case "apartmentAsset":
-      return `${item.bhk || ""} • ${item.builtUpArea || ""} sqft`;
-    case "plotAsset":
-      return `${item.area || ""} ${item.areaUnit || "sqft"}`;
-    case "independentPropertyAsset":
-      return `${item.builtUpArea || ""} sqft built-up`;
+    case "apartmentAsset": {
+      const bhk = item.bhk ? `${item.bhk}` : "";
+      const area = item.builtUpArea ? `${item.builtUpArea} sqft` : "";
+      return [bhk, area].filter(Boolean).join(" • ") || "Apartment";
+    }
+    case "independentPropertyAsset": {
+      const builtUp = item.builtUpArea ? `${item.builtUpArea} sqft built-up` : "";
+      const land = item.landArea ? `${item.landArea} ${item.landAreaUnit || "sqft"} land` : "";
+      return [builtUp, land].filter(Boolean).join(" • ") || "Independent House";
+    }
     case "loanLiability":
       return item.emiAmount ? `₹${item.emiAmount}/mo EMI • ${item.interestRate || 0}%` : "Loan Account";
     case "creditCardLiability":
-      return `Due day: ${item.paymentDueDay || 1}th of month`;
+      return `Due day: ${item.paymentDueDay || 1}th of month • ${item.annualInterestRate || 0}% APR`;
     case "bnplLiability":
-      return `₹${item.monthlyInstallment || 0}/mo installment`;
+      return `₹${item.monthlyInstallment || 0}/mo installment • Due ${item.paymentDueDay || 1}th`;
     case "borrowedLiability":
       return `${item.repaymentFrequency || "Monthly"} • ${item.interestRate || 0}% interest`;
     default:
@@ -172,7 +181,8 @@ export default function NetWorthScreen() {
   const [isLoading, setIsLoading] = useState(!initialCache);
   const [isError, setIsError] = useState(false);
   const [activeFilter, setActiveFilter] = useState<FilterTab>("ALL");
-  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+  // All accordions collapsed by default
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
 
   useFocusEffect(
     useCallback(() => {
@@ -201,7 +211,7 @@ export default function NetWorthScreen() {
 
   const toggleGroup = (groupKey: string) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setCollapsedGroups(prev => ({
+    setExpandedGroups(prev => ({
       ...prev,
       [groupKey]: !prev[groupKey]
     }));
@@ -227,22 +237,28 @@ export default function NetWorthScreen() {
 
   const { assets, liabilities, totals } = data;
 
-  // Build structured groups with items and totals
+  // Extract Bank Balance as a distinct standalone card
+  const bankBalanceItem = assets["Bank Balance"]?.[0];
+  const bankBalanceValue = Number(bankBalanceItem?.currentWorth ?? 0);
+
+  // Build structured groups for other constructs
   const allGroups = [
-    ...Object.entries(assets).map(([type, items]) => ({
-      type,
-      category: "asset" as const,
-      meta: GROUP_METAS[type] || {
+    ...Object.entries(assets)
+      .filter(([type]) => type !== "Bank Balance")
+      .map(([type, items]) => ({
         type,
-        title: NETWORTH_CONFIG[type]?.label || type,
-        category: "asset",
-        icon: "account-balance" as const,
-        color: "#34d399",
-        filter: "INVESTMENTS" as FilterTab
-      },
-      items: (items || []) as any[],
-      total: (items || []).reduce((sum, item) => sum + getItemValue(item, "asset"), 0)
-    })),
+        category: "asset" as const,
+        meta: GROUP_METAS[type] || {
+          type,
+          title: NETWORTH_CONFIG[type]?.label || type,
+          category: "asset",
+          icon: "account-balance" as const,
+          color: "#34d399",
+          filter: "INVESTMENTS" as FilterTab
+        },
+        items: (items || []) as any[],
+        total: (items || []).reduce((sum, item) => sum + getItemValue(item, "asset"), 0)
+      })),
     ...Object.entries(liabilities).map(([type, items]) => ({
       type,
       category: "liability" as const,
@@ -265,6 +281,8 @@ export default function NetWorthScreen() {
     if (activeFilter === "LIABILITIES") return g.category === "liability";
     return g.meta.filter === activeFilter;
   });
+
+  const showLiquidCash = activeFilter === "ALL" || activeFilter === "DEPOSITS";
 
   const assetPercentage = totals.assets + totals.liabilities > 0 
     ? Math.round((totals.assets / (totals.assets + totals.liabilities)) * 100) 
@@ -317,16 +335,32 @@ export default function NetWorthScreen() {
           </View>
         </View>
 
-        {/* Filter Pills */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll} contentContainerStyle={styles.filterContainer}>
+        {/* Liquid Cash Dedicated Standalone Card */}
+        {showLiquidCash && (
+          <View style={styles.liquidCashCard}>
+            <View style={styles.liquidCashLeft}>
+              <View style={styles.liquidCashIconBox}>
+                <MaterialIcons name="account-balance-wallet" size={22} color="#34d399" />
+              </View>
+              <View style={styles.liquidCashCopy}>
+                <Text style={styles.liquidCashTitle}>Liquid Cash & Bank Balance</Text>
+                <Text style={styles.liquidCashSub}>Available funds in primary accounts</Text>
+              </View>
+            </View>
+            <Text style={styles.liquidCashValue}>{formatCurrency(bankBalanceValue)}</Text>
+          </View>
+        )}
+
+        {/* Filter Pills Grid (Wrap mode to prevent swipe conflicts with tab gestures) */}
+        <View style={styles.filterWrapContainer}>
           {(["ALL", "INVESTMENTS", "DEPOSITS", "REAL_ASSETS", "LIABILITIES"] as FilterTab[]).map(tab => {
             const isActive = activeFilter === tab;
             const labels: Record<FilterTab, string> = {
-              ALL: "All Holdings",
-              INVESTMENTS: "Mutual Funds & Stocks",
-              DEPOSITS: "Deposits & Cash",
-              REAL_ASSETS: "Real Estate & Gold",
-              LIABILITIES: "Liabilities & Debt"
+              ALL: "All",
+              INVESTMENTS: "Investments",
+              DEPOSITS: "Deposits & Owed",
+              REAL_ASSETS: "Real Assets",
+              LIABILITIES: "Liabilities"
             };
             return (
               <Pressable 
@@ -340,11 +374,11 @@ export default function NetWorthScreen() {
               </Pressable>
             );
           })}
-        </ScrollView>
+        </View>
 
-        {/* Grouped Asset & Liability Sections */}
+        {/* Grouped Asset & Liability Accordions (Collapsed by default) */}
         <View style={styles.groupsContainer}>
-          {filteredGroups.length === 0 ? (
+          {filteredGroups.length === 0 && !showLiquidCash ? (
             <View style={styles.emptyContainer}>
               <MaterialIcons name="account-balance-wallet" size={48} color="#333" />
               <Text style={styles.emptyTitle}>No holdings found in this category</Text>
@@ -352,7 +386,7 @@ export default function NetWorthScreen() {
             </View>
           ) : (
             filteredGroups.map(group => {
-              const isCollapsed = collapsedGroups[group.type] ?? false;
+              const isExpanded = Boolean(expandedGroups[group.type]);
               const countLabel = group.items.length === 1 
                 ? "1 holding" 
                 : `${group.items.length} holdings`;
@@ -381,20 +415,19 @@ export default function NetWorthScreen() {
                       </View>
                     </View>
                     <MaterialIcons 
-                      name={isCollapsed ? "keyboard-arrow-down" : "keyboard-arrow-up"} 
+                      name={isExpanded ? "keyboard-arrow-up" : "keyboard-arrow-down"} 
                       size={24} 
                       color="#8e9192" 
                     />
                   </Pressable>
 
-                  {/* Group Holdings List */}
-                  {!isCollapsed && (
+                  {/* Group Holdings List (Shown only when expanded) */}
+                  {isExpanded && (
                     <View style={styles.groupItemsList}>
                       {group.items.map((item, idx) => {
                         const title = getItemTitle(item, group.type);
                         const subtitle = getItemSubtitle(item, group.type);
                         const value = getItemValue(item, group.category);
-                        const isBankBalance = group.type === "Bank Balance";
 
                         return (
                           <Pressable
@@ -404,9 +437,7 @@ export default function NetWorthScreen() {
                               idx < group.items.length - 1 && styles.itemRowBorder
                             ]}
                             onPress={() => {
-                              if (!isBankBalance) {
-                                router.push({ pathname: "/networth/form", params: { type: group.type, id: item.id } } as any);
-                              }
+                              router.push({ pathname: "/networth/form", params: { type: group.type, id: item.id } } as any);
                             }}
                           >
                             <View style={styles.itemCopy}>
@@ -421,9 +452,7 @@ export default function NetWorthScreen() {
                               <Text style={[styles.itemValue, group.category === "asset" ? styles.assetColor : styles.liabilityColor]}>
                                 {formatCurrency(value)}
                               </Text>
-                              {!isBankBalance && (
-                                <MaterialIcons name="chevron-right" size={18} color="#555" />
-                              )}
+                              <MaterialIcons name="chevron-right" size={18} color="#555" />
                             </View>
                           </Pressable>
                         );
@@ -472,7 +501,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#161618", 
     borderRadius: 20, 
     padding: 22, 
-    marginBottom: 20, 
+    marginBottom: 16, 
     borderWidth: 1, 
     borderColor: "rgba(255,255,255,0.08)",
     shadowColor: "#000",
@@ -501,13 +530,62 @@ const styles = StyleSheet.create({
   heroAssetValue: { color: "#7dffa2", fontSize: 18, fontWeight: "700" },
   heroLiabilityValue: { color: "#ffb4ab", fontSize: 18, fontWeight: "700" },
   heroDivider: { width: 1, backgroundColor: "rgba(255,255,255,0.08)", marginHorizontal: 16 },
+
+  liquidCashCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "rgba(52, 211, 153, 0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(52, 211, 153, 0.25)",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16
+  },
+  liquidCashLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    flex: 1
+  },
+  liquidCashIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: "rgba(52, 211, 153, 0.15)",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  liquidCashCopy: {
+    flex: 1,
+    gap: 2
+  },
+  liquidCashTitle: {
+    color: "#ffffff",
+    fontSize: 15,
+    fontWeight: "700"
+  },
+  liquidCashSub: {
+    color: "#8e9192",
+    fontSize: 12
+  },
+  liquidCashValue: {
+    color: "#7dffa2",
+    fontSize: 16,
+    fontWeight: "700",
+    marginLeft: 8
+  },
   
-  filterScroll: { marginBottom: 18 },
-  filterContainer: { gap: 8, paddingRight: 16 },
+  filterWrapContainer: { 
+    flexDirection: "row", 
+    flexWrap: "wrap", 
+    gap: 8, 
+    marginBottom: 16 
+  },
   filterPill: { 
-    paddingHorizontal: 14, 
-    paddingVertical: 8, 
-    borderRadius: 20, 
+    paddingHorizontal: 13, 
+    paddingVertical: 7, 
+    borderRadius: 18, 
     backgroundColor: "rgba(255,255,255,0.05)", 
     borderWidth: 1, 
     borderColor: "rgba(255,255,255,0.08)" 
@@ -519,7 +597,7 @@ const styles = StyleSheet.create({
   filterPillText: { color: "rgba(255,255,255,0.6)", fontSize: 12, fontWeight: "600" },
   filterPillTextActive: { color: "#818cf8", fontWeight: "700" },
 
-  groupsContainer: { gap: 14 },
+  groupsContainer: { gap: 12 },
   groupCard: { 
     backgroundColor: "#161618", 
     borderRadius: 16, 
