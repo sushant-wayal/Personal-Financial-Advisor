@@ -443,9 +443,18 @@ function isCreditTransaction(tx: Transaction) {
 export default function TransactionsScreen() {
   useCurrency();
   const router = useRouter();
-  const params = useLocalSearchParams<{ category?: string; categoryId?: string; dateRange?: string; timeRange?: string }>();
+  const params = useLocalSearchParams<{
+    category?: string;
+    categoryId?: string;
+    dateRange?: string;
+    timeRange?: string;
+    dateFrom?: string;
+    dateTo?: string;
+  }>();
   const initialCategory = params.category || params.categoryId || null;
-  const initialTimeRange = params.dateRange || params.timeRange || "all";
+  const initialDateFrom = params.dateFrom || null;
+  const initialDateTo = params.dateTo || null;
+  const initialTimeRange = params.dateRange || params.timeRange || (initialDateFrom || initialDateTo ? "custom" : "all");
   const statusBarHeight = Platform.OS === "android" ? StatusBar.currentHeight ?? 0 : 0;
   const [items, setItems] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -469,8 +478,8 @@ export default function TransactionsScreen() {
   const [filterMin, setFilterMin] = useState("");
   const [filterMax, setFilterMax] = useState("");
   const [customModalVisible, setCustomModalVisible] = useState(false);
-  const [customFrom, setCustomFrom] = useState(toDateKey(new Date(new Date().getFullYear(), new Date().getMonth(), 1)));
-  const [customTo, setCustomTo] = useState(toDateKey(new Date()));
+  const [customFrom, setCustomFrom] = useState(initialDateFrom || toDateKey(new Date(new Date().getFullYear(), new Date().getMonth(), 1)));
+  const [customTo, setCustomTo] = useState(initialDateTo || toDateKey(new Date()));
   const [visibleMonth, setVisibleMonth] = useState(new Date());
   const [addVisible, setAddVisible] = useState(false);
   const [addPicker, setAddPicker] = useState<AddPickerName>(null);
@@ -643,6 +652,8 @@ export default function TransactionsScreen() {
         setOptions(opts);
         const initialFilters: TransactionFilters = {
           dateRange: initialTimeRange,
+          dateFrom: initialTimeRange === "custom" ? (initialDateFrom || customFrom) : undefined,
+          dateTo: initialTimeRange === "custom" ? (initialDateTo || customTo) : undefined,
           category: initialCategory || undefined,
         };
         const data = await fetchTransactions(1, pageSize, initialFilters);
@@ -665,22 +676,33 @@ export default function TransactionsScreen() {
 
   useEffect(() => {
     const paramCat = params.category || params.categoryId || null;
-    const paramTime = params.dateRange || params.timeRange || null;
-    if (!paramCat && !paramTime) return;
+    const paramFrom = params.dateFrom || null;
+    const paramTo = params.dateTo || null;
+    const paramTime = params.dateRange || params.timeRange || (paramFrom || paramTo ? "custom" : null);
+    if (!paramCat && !paramTime && !paramFrom && !paramTo) return;
 
     let active = true;
     const timer = setTimeout(() => {
       if (!active) return;
       if (paramCat) setSelectedCategory(paramCat);
+      if (paramFrom) setCustomFrom(paramFrom);
+      if (paramTo) setCustomTo(paramTo);
       if (paramTime) setTimeRange(paramTime);
-      void reload(buildFilters({ category: paramCat ?? undefined, dateRange: paramTime ?? undefined }));
+      void reload(
+        buildFilters({
+          category: paramCat ?? undefined,
+          dateRange: paramTime ?? undefined,
+          dateFrom: paramFrom ?? (paramTime === "custom" ? customFrom : undefined),
+          dateTo: paramTo ?? (paramTime === "custom" ? customTo : undefined),
+        }),
+      );
     }, 0);
 
     return () => {
       active = false;
       clearTimeout(timer);
     };
-  }, [buildFilters, params.category, params.categoryId, params.dateRange, params.timeRange, reload]);
+  }, [buildFilters, customFrom, customTo, params.category, params.categoryId, params.dateFrom, params.dateRange, params.dateTo, params.timeRange, reload]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);

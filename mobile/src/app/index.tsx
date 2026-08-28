@@ -574,11 +574,13 @@ function Heatmap({
   selectedCell,
   onSelectCell,
   onBoundsChange,
+  onViewDetails,
 }: {
   cells: HeatmapPoint[];
   selectedCell: HeatmapPoint | null;
   onSelectCell: (cell: HeatmapPoint) => void;
   onBoundsChange?: (bounds: { x: number; y: number; width: number; height: number }) => void;
+  onViewDetails?: (cell: HeatmapPoint) => void;
 }) {
   const heatmapRef = useRef<View>(null);
 
@@ -625,7 +627,11 @@ function Heatmap({
   }, [weekCount, onBoundsChange]);
 
   return (
-    <View ref={heatmapRef} style={styles.heatmapCard}>
+    <View
+      ref={heatmapRef}
+      style={styles.heatmapCard}
+      onTouchStart={(e) => e.stopPropagation()}
+    >
       <Text style={styles.carouselEyebrow}>SPENDING HEATMAP (30 DAYS)</Text>
       <View style={styles.heatmapGrid}>
         {dayLabels.map((label, i) => (
@@ -645,7 +651,7 @@ function Heatmap({
             return (
               <Pressable
                 key={cell.date}
-                onPress={() => onSelectCell(cell)}
+                onPress={() => onSelectCell(selectedCell?.date === cell.date ? (null as unknown as HeatmapPoint) : cell)}
                 style={[
                   styles.heatmapCell,
                   normalized === 0 ? styles.heatmapCellEmpty : null,
@@ -662,8 +668,16 @@ function Heatmap({
         )}
       </View>
       {selectedCell ? (
-        <View style={styles.heatmapTooltip} pointerEvents="none">
-          <Text style={styles.heatmapTooltipLabel}>{formatHeatmapDate(selectedCell.date)}</Text>
+        <View style={styles.heatmapTooltip} onTouchStart={(e) => e.stopPropagation()}>
+          <View style={styles.heatmapTooltipHeader}>
+            <Text style={styles.heatmapTooltipLabel}>{formatHeatmapDate(selectedCell.date)}</Text>
+            <Pressable
+              onPress={() => onSelectCell(null as unknown as HeatmapPoint)}
+              hitSlop={8}
+            >
+              <MaterialIcons name="close" size={14} color="#c4c7c8" />
+            </Pressable>
+          </View>
           <View style={styles.chartTooltipRow}>
             <View style={styles.chartTooltipKeyRow}>
               <View style={styles.chartTooltipDotSuccess} />
@@ -671,6 +685,15 @@ function Heatmap({
             </View>
             <Text style={styles.chartTooltipValue}>{formatCompactCurrency(selectedCell.amount)}</Text>
           </View>
+          <Pressable
+            style={styles.heatmapDetailsButton}
+            onPress={() => {
+              onViewDetails?.(selectedCell);
+            }}
+          >
+            <Text style={styles.heatmapDetailsButtonText}>Details</Text>
+            <MaterialIcons name="arrow-forward" size={12} color="#7dffa2" />
+          </Pressable>
         </View>
       ) : null}
       <View style={styles.legendFooter}>
@@ -1341,6 +1364,16 @@ export default function Index() {
                 selectedCell={heatmapSelection}
                 onSelectCell={setHeatmapSelection}
                 onBoundsChange={setHeatmapBounds}
+                onViewDetails={(cell) => {
+                  router.push({
+                    pathname: "/transactions",
+                    params: {
+                      dateRange: "custom",
+                      dateFrom: cell.date,
+                      dateTo: cell.date,
+                    },
+                  });
+                }}
               />
             </View>
           </View>
@@ -1962,22 +1995,48 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.08)",
-    backgroundColor: "rgba(18, 18, 18, 0.92)",
+    backgroundColor: "rgba(18, 18, 18, 0.95)",
     paddingHorizontal: 12,
     paddingVertical: 10,
     shadowColor: "#000000",
     shadowOpacity: 0.32,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 8 },
-    elevation: 4,
+    elevation: 6,
+    zIndex: 10,
+  },
+  heatmapTooltipHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+    marginBottom: 6,
   },
   heatmapTooltipLabel: {
     color: "#ffffff",
     fontSize: fs(12),
     fontWeight: "700",
     letterSpacing: 1,
-    marginBottom: 8,
     textTransform: "uppercase",
+  },
+  heatmapDetailsButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    marginTop: 8,
+    paddingVertical: 5,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    backgroundColor: "rgba(125,255,162,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(125,255,162,0.24)",
+  },
+  heatmapDetailsButtonText: {
+    color: "#7dffa2",
+    fontSize: fs(11),
+    fontFamily: "JetBrains Mono",
+    fontWeight: "600",
   },
   categoryCard: {
     borderWidth: 1,

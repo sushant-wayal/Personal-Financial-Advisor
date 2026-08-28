@@ -52,8 +52,9 @@ export async function ingestMutualFundDepositoryAlert(input: IngestDepositoryAle
             if (input.messageId) {
                 const alreadyProcessed = await prisma.mutualFund.findFirst({
                     where: {
+                        isin: item.isin,
                         OR: [
-                            { isin: item.isin, processedMessageIds: { has: input.messageId } },
+                            { processedMessageIds: { has: input.messageId } },
                             { processedMessageIds: { has: `${input.messageId}:${item.isin}` } }
                         ]
                     }
