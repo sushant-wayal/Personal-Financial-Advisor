@@ -19,6 +19,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { useWebAlert } from "@/src/providers/AlertProvider";
 
 type Tx = {
     id: string;
@@ -322,22 +323,42 @@ export default function TransactionsAdminClient() {
         });
     }
 
-    function deleteTransaction(id: string) {
-        if (window.confirm("Delete this transaction? This cannot be undone.")) {
+    const { showConfirm } = useWebAlert();
+
+    async function deleteTransaction(id: string) {
+        const ok = await showConfirm({
+            title: "Delete Transaction",
+            description: "Are you sure you want to delete this transaction? This cannot be undone.",
+            confirmText: "Delete",
+            variant: "destructive",
+        });
+        if (ok) {
             deleteMutation.mutate(id);
         }
     }
 
-    function deleteSelectedTransactions() {
+    async function deleteSelectedTransactions() {
         const ids = [...selectedIds];
         if (!ids.length) return;
-        if (window.confirm(`Delete ${ids.length} selected transaction${ids.length === 1 ? "" : "s"}? This cannot be undone.`)) {
+        const ok = await showConfirm({
+            title: "Delete Selected Transactions",
+            description: `Delete ${ids.length} selected transaction${ids.length === 1 ? "" : "s"}? This cannot be undone.`,
+            confirmText: "Delete Selected",
+            variant: "destructive",
+        });
+        if (ok) {
             bulkDeleteMutation.mutate({ ids });
         }
     }
 
-    function deleteAllTransactions() {
-        if (window.confirm("Delete ALL transactions in the database? This cannot be undone.")) {
+    async function deleteAllTransactions() {
+        const ok = await showConfirm({
+            title: "Delete All Transactions",
+            description: "Are you sure you want to delete ALL transactions in the database? This cannot be undone.",
+            confirmText: "Delete All",
+            variant: "destructive",
+        });
+        if (ok) {
             bulkDeleteMutation.mutate({ all: true });
         }
     }

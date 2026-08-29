@@ -3,11 +3,13 @@
 import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { useWebAlert } from "@/src/providers/AlertProvider";
 
 export default function SubscriptionsClient() {
     const [subs, setSubs] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const { showConfirm } = useWebAlert();
 
     async function load() {
         setLoading(true);
@@ -46,7 +48,13 @@ export default function SubscriptionsClient() {
     }
 
     async function remove(id: string) {
-        if (!confirm("Delete this subscription?")) return;
+        const ok = await showConfirm({
+            title: "Delete Subscription",
+            description: "Are you sure you want to delete this subscription? This cannot be undone.",
+            confirmText: "Delete",
+            variant: "destructive",
+        });
+        if (!ok) return;
         try {
             await fetch(`/api/subscriptions`, { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
             await load();

@@ -7,7 +7,6 @@ import {
   Pressable,
   RefreshControl,
   TextInput,
-  Alert,
   Animated,
   TouchableWithoutFeedback,
   Modal,
@@ -17,6 +16,7 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view
 import { MaterialIcons } from "@expo/vector-icons";
 import { API_BASE_URL } from "../../lib/apiBaseUrl";
 import { useCurrency, formatCurrencyAmount, formatIndianAmountInput, parseIndianAmountInput } from "../../providers/CurrencyProvider";
+import { useAlert } from "../../providers/AlertProvider";
 import { beginHorizontalScroll, endHorizontalScroll } from "../../lib/horizontalScrollPriority";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ConfirmModal } from "../ConfirmModal";
@@ -165,6 +165,8 @@ export function BudgetsView() {
     openSheet();
   };
 
+  const { showError } = useAlert();
+
   const saveBudget = async () => {
     if (!limit || !selectedCategory) return;
     try {
@@ -184,10 +186,10 @@ export function BudgetsView() {
         closeSheet();
         await onRefresh();
       } else {
-        Alert.alert("Error", data.error);
+        showError("Error", data.error);
       }
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      showError("Error", err?.message || String(err));
     }
   };
 

@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
 import {
-  Alert,
   Pressable,
   RefreshControl,
   StatusBar,
@@ -14,6 +13,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { API_BASE_URL } from "../lib/apiBaseUrl";
+import { useAlert } from "../providers/AlertProvider";
 import { SettingsSkeleton } from "../components/LoadingSkeleton";
 import { clearClientCache } from "../lib/clientCache";
 
@@ -63,11 +63,13 @@ export default function SendersSettingsScreen() {
     loadData();
   };
 
+  const { showWarning, showSuccess, showError } = useAlert();
+
   const addSender = () => {
     const s = normalizeSender(newSender);
     if (!s) return;
     if (senders.includes(s)) {
-      Alert.alert("Already Added", "This email address is already in your allowed list.");
+      showWarning("Already Added", "This email address is already in your allowed list.");
       return;
     }
     setSenders((current) => [...current, s]);
@@ -91,10 +93,10 @@ export default function SendersSettingsScreen() {
       if (!res.ok) throw new Error(data.error || "Failed to save senders");
 
       clearClientCache();
-      Alert.alert("Senders Saved", "Allowed bank senders list updated successfully.");
+      showSuccess("Senders Saved", "Allowed bank senders list updated successfully.");
       loadData();
     } catch (e: any) {
-      Alert.alert("Error", e.message || String(e));
+      showError("Error", e.message || String(e));
     } finally {
       setSaving(false);
     }
@@ -114,9 +116,9 @@ export default function SendersSettingsScreen() {
 
       clearClientCache();
       const count = data.processed?.length ?? data.messageIds?.length ?? 0;
-      Alert.alert("Sync Complete", `Successfully synced Gmail inbox. Processed ${count} recent messages.`);
+      showSuccess("Sync Complete", `Successfully synced Gmail inbox. Processed ${count} recent messages.`);
     } catch (e: any) {
-      Alert.alert("Sync Failed", e.message || String(e));
+      showError("Sync Failed", e.message || String(e));
     } finally {
       setSyncing(false);
     }

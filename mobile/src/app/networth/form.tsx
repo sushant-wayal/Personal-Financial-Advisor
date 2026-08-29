@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, Pressable, TextInput, ActivityIndicator, Alert, Animated, Modal, StatusBar } from "react-native";
+import { View, Text, StyleSheet, Pressable, TextInput, ActivityIndicator, Animated, Modal, StatusBar } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
@@ -9,6 +9,7 @@ import { fetchNetWorth, createNetWorth, updateNetWorth, deleteNetWorth, NetWorth
 import { DatePickerModal, fullDateLabel } from "../../components/DatePickerModal";
 import { formatIndianAmountInput, parseIndianAmountInput } from "../../providers/CurrencyProvider";
 import { ConfirmModal } from "../../components/ConfirmModal";
+import { useAlert } from "../../providers/AlertProvider";
 
 function CustomSwitch({ value, onValueChange }: { value: boolean; onValueChange: (v: boolean) => void }) {
   const [animValue] = useState(() => new Animated.Value(value ? 1 : 0));
@@ -19,7 +20,7 @@ function CustomSwitch({ value, onValueChange }: { value: boolean; onValueChange:
       duration: 200,
       useNativeDriver: false,
     }).start();
-  }, [value]);
+  }, [value, animValue]);
 
   const translateX = animValue.interpolate({
     inputRange: [0, 1],
@@ -64,6 +65,7 @@ export default function NetWorthFormScreen() {
   const [datePickerField, setDatePickerField] = useState<string | null>(null);
   
   const [pulseAnim] = useState(() => new Animated.Value(1));
+  const { showWarning, showError } = useAlert();
 
   useEffect(() => {
     if (loading) {
@@ -77,7 +79,7 @@ export default function NetWorthFormScreen() {
       pulseAnim.stopAnimation();
       pulseAnim.setValue(1);
     }
-  }, [loading]);
+  }, [loading, pulseAnim]);
 
   useEffect(() => {
     if (id) {
@@ -86,10 +88,10 @@ export default function NetWorthFormScreen() {
   }, [id]);
 
   useEffect(() => {
-    if (id && networthData) {
+    if (id && networthData && config) {
       // Find the existing item
       const category = config.category === "asset" ? "assets" : "liabilities";
-      const items = (networthData as any)[category][type] || [];
+      const items = (networthData as any)[category]?.[type] || [];
       const item = items.find((i: any) => i.id === id);
       if (item) {
         // Parse dates into YYYY-MM-DD for the form if they are strings
@@ -103,7 +105,7 @@ export default function NetWorthFormScreen() {
         setForm(initForm);
       }
     }
-  }, [id, networthData, config]);
+  }, [id, networthData, config, type]);
 
   if (!config) {
     return (
@@ -128,7 +130,7 @@ export default function NetWorthFormScreen() {
         
         if (val === undefined || val === "") {
           if (field.required) {
-            Alert.alert("Missing Field", `${field.label} is required.`);
+            showWarning("Missing Field", `${field.label} is required.`);
             setLoading(false);
             return;
           }
@@ -152,7 +154,7 @@ export default function NetWorthFormScreen() {
       
       router.back();
     } catch (e: any) {
-      Alert.alert("Error", e.message || "Failed to save");
+      showError("Error", e.message || "Failed to save");
     } finally {
       setLoading(false);
     }
@@ -169,7 +171,7 @@ export default function NetWorthFormScreen() {
       setDeleteConfirmVisible(false);
       router.back();
     } catch (e: any) {
-      Alert.alert("Error", e.message || "Failed to delete");
+      showError("Error", e.message || "Failed to delete");
       setDeleteConfirmVisible(false);
     } finally {
       setLoading(false);
@@ -299,68 +301,189 @@ export default function NetWorthFormScreen() {
 
           {id && (
             <Pressable style={styles.deleteBtn} onPress={handleDelete} disabled={loading}>
-              <MaterialIcons name="delete-outline" size={18} color="#FF453A" />
               <Text style={styles.deleteBtnText}>Delete</Text>
             </Pressable>
           )}
         </KeyboardAwareScrollView>
 
-        <DatePickerModal 
-          visible={!!datePickerField}
-          initialDate={datePickerField ? form[datePickerField] : null}
-          disableFuture={datePickerField ? ["startDate", "purchaseDate", "setupDate", "borrowDate", "annualInterestCreditDate"].includes(datePickerField) : false}
-          disablePast={datePickerField ? ["maturityDate", "expectedReturnDate", "nextRepaymentDate"].includes(datePickerField) : false}
+        <DatePickerModal
+          visible={datePickerField !== null}
+          initialDate={datePickerField && form[datePickerField] ? String(form[datePickerField]) : ""}
           onClose={() => setDatePickerField(null)}
-          onSelect={(date) => {
-            if (datePickerField) handleChange(datePickerField, date);
+          onSelect={(selectedDate: string) => {
+            if (datePickerField) {
+              handleChange(datePickerField, selectedDate);
+            }
+            setDatePickerField(null);
           }}
         />
-        {renderLoadingOverlay()}
-        
+
         <ConfirmModal
           visible={deleteConfirmVisible}
-          title="Delete Asset"
-          description="Are you sure you want to delete this? This action cannot be undone."
-          onCancel={() => setDeleteConfirmVisible(false)}
-          onConfirm={() => void confirmDelete()}
+          title={`Delete ${config.label}`}
+          description="Are you sure you want to delete this record? This action cannot be undone."
+          confirmText="Delete"
+          cancelText="Cancel"
           loading={loading}
+          onConfirm={confirmDelete}
+          onCancel={() => setDeleteConfirmVisible(false)}
         />
+
+        {renderLoadingOverlay()}
       </SafeAreaView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#131313" },
-  center: { flex: 1, justifyContent: "center", alignItems: "center" },
-  errorText: { color: "#ffb4ab", fontSize: 16 },
-  header: { height: 96, paddingTop: 14, paddingHorizontal: 24, borderBottomWidth: 1, borderBottomColor: "rgba(68,71,72,0.20)", backgroundColor: "rgba(19,19,19,0.94)", flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  backButton: { width: 40, height: 40, marginLeft: -8, borderRadius: 20, alignItems: "center", justifyContent: "center" },
-  headerTitle: { flex: 1, textAlign: "center", color: "#ffffff", fontFamily: "Hanken Grotesk", fontSize: 20, fontWeight: "700", paddingHorizontal: 12 },
+  container: { flex: 1, backgroundColor: "#0A0A0A" },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderColor: "rgba(255,255,255,0.06)",
+  },
+  headerTitle: { fontSize: 18, fontWeight: "700", color: "#fff", flex: 1, textAlign: "center" },
+  backButton: { padding: 8, marginLeft: -8 },
   scroll: { flex: 1 },
-  scrollContent: { padding: 24 },
-  formCard: { borderRadius: 16, borderWidth: 1, borderColor: "rgba(68,71,72,0.35)", backgroundColor: "#0e0e0e", padding: 22, gap: 20, marginBottom: 32 },
-  fieldBlock: {},
-  label: { color: "#8e9192", fontFamily: "JetBrains Mono", fontSize: 12, letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 10 },
-  description: { color: "rgba(196,199,200,0.6)", fontSize: 13, lineHeight: 18, marginBottom: 12 },
-  input: { minHeight: 54, borderRadius: 12, borderWidth: 1, borderColor: "rgba(255,255,255,0.10)", backgroundColor: "#1A1A1A", color: "#ffffff", paddingHorizontal: 16, fontSize: 16 },
-  dateInputWrap: { minHeight: 54, borderRadius: 12, borderWidth: 1, borderColor: "rgba(255,255,255,0.10)", backgroundColor: "#1A1A1A", paddingHorizontal: 16, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  dateInputText: { color: "#ffffff", fontSize: 16 },
-  switchRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  customSwitchContainer: { padding: 4 },
-  switchTrack: { width: 44, height: 24, borderRadius: 12, borderWidth: 1, justifyContent: "center" },
-  switchThumb: { width: 18, height: 18, borderRadius: 9, position: "absolute" },
-  optionsRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  optionPill: { height: 38, flexDirection: "row", alignItems: "center", paddingHorizontal: 16, borderRadius: 999, backgroundColor: "#1A1A1A", borderWidth: 1, borderColor: "#333333" },
-  optionPillActive: { backgroundColor: "rgba(5,231,119,0.14)", borderColor: "#05e777" },
-  optionText: { color: "#e5e2e1", fontSize: 14, letterSpacing: 0.7, fontWeight: "500", fontFamily: "JetBrains Mono" },
-  optionTextActive: { color: "#7dffa2" },
-  saveBtn: { height: 50, borderRadius: 8, backgroundColor: "#ffffff", alignItems: "center", justifyContent: "center" },
-  saveBtnText: { color: "#000000", fontFamily: "JetBrains Mono", fontSize: 14, letterSpacing: 1.6, textTransform: "uppercase", fontWeight: "700" },
-  deleteBtn: { marginTop: 16, height: 50, borderRadius: 8, backgroundColor: "transparent", borderWidth: 1, borderColor: "rgba(255, 69, 58, 0.4)", alignItems: "center", justifyContent: "center", flexDirection: "row" },
-  deleteBtnText: { color: "#FF453A", fontFamily: "JetBrains Mono", fontSize: 14, letterSpacing: 1.2, textTransform: "uppercase", fontWeight: "700", marginLeft: 8 },
-  loadingOverlayContainer: { flex: 1, backgroundColor: "rgba(0,0,0,0.85)", justifyContent: "center", alignItems: "center" },
-  loadingOverlayBox: { width: "80%", backgroundColor: "#1A1A1A", borderRadius: 20, padding: 32, alignItems: "center", borderWidth: 1, borderColor: "rgba(5,231,119,0.3)" },
-  loadingOverlayTitle: { color: "#ffffff", fontFamily: "Hanken Grotesk", fontSize: 22, fontWeight: "700", marginBottom: 12, textAlign: "center" },
-  loadingOverlayDesc: { color: "rgba(255,255,255,0.7)", fontSize: 14, lineHeight: 22, textAlign: "center", fontFamily: "JetBrains Mono" },
+  scrollContent: { padding: 20, paddingBottom: 40 },
+  formCard: {
+    backgroundColor: "#121212",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.06)",
+    padding: 18,
+    marginBottom: 20,
+    gap: 16,
+  },
+  fieldBlock: { gap: 6 },
+  label: { color: "#c4c7c8", fontSize: 13, fontWeight: "600" },
+  description: { color: "rgba(255,255,255,0.4)", fontSize: 11, marginBottom: 2 },
+  input: {
+    backgroundColor: "rgba(255,255,255,0.04)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    color: "#fff",
+    fontSize: 15,
+  },
+  dateInputWrap: {
+    backgroundColor: "rgba(255,255,255,0.04)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  dateInputText: {
+    color: "#fff",
+    fontSize: 15,
+  },
+  switchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 4,
+  },
+  customSwitchContainer: {
+    paddingVertical: 4,
+  },
+  switchTrack: {
+    width: 48,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1,
+    justifyContent: "center",
+  },
+  switchThumb: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+  },
+  optionsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 4,
+  },
+  optionPill: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: "rgba(255,255,255,0.04)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+  optionPillActive: {
+    backgroundColor: "rgba(5,231,119,0.15)",
+    borderColor: "rgba(5,231,119,0.4)",
+  },
+  optionText: {
+    color: "#8e9192",
+    fontSize: 13,
+    fontWeight: "500",
+  },
+  optionTextActive: {
+    color: "#05e777",
+    fontWeight: "600",
+  },
+  saveBtn: {
+    backgroundColor: "#05e777",
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 8,
+  },
+  saveBtnText: { color: "#000", fontSize: 15, fontWeight: "700" },
+  deleteBtn: {
+    borderWidth: 1,
+    borderColor: "rgba(255,75,75,0.3)",
+    backgroundColor: "rgba(255,75,75,0.08)",
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 12,
+  },
+  deleteBtnText: { color: "#ff4b4b", fontSize: 14, fontWeight: "600" },
+  errorText: { color: "#ff4b4b", textAlign: "center", marginTop: 40 },
+  loadingOverlayContainer: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.85)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  loadingOverlayBox: {
+    backgroundColor: "#161616",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+    borderRadius: 20,
+    padding: 28,
+    alignItems: "center",
+    width: "100%",
+    maxWidth: 320,
+  },
+  loadingOverlayTitle: {
+    color: "#fff",
+    fontSize: 17,
+    fontWeight: "700",
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  loadingOverlayDesc: {
+    color: "#8e9192",
+    fontSize: 13,
+    textAlign: "center",
+    lineHeight: 18,
+  }
 });

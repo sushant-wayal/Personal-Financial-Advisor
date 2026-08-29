@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
 import {
-  Alert,
   Pressable,
   RefreshControl,
   StatusBar,
@@ -15,6 +14,7 @@ import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { API_BASE_URL } from "../lib/apiBaseUrl";
 import { formatCurrencyAmount, useCurrency } from "../providers/CurrencyProvider";
+import { useAlert } from "../providers/AlertProvider";
 import { SettingsSkeleton } from "../components/LoadingSkeleton";
 import { clearClientCache } from "../lib/clientCache";
 
@@ -87,6 +87,8 @@ export default function EFSettingsScreen() {
     setProfile((current) => ({ ...current, ...patch }));
   };
 
+  const { showSuccess, showError } = useAlert();
+
   const handleSave = async () => {
     setSaving(true);
     try {
@@ -104,10 +106,10 @@ export default function EFSettingsScreen() {
       if (!res.ok || payload.ok === false) throw new Error(payload.error || "Failed to save EF settings");
 
       clearClientCache();
-      Alert.alert("Emergency Reserve Saved", "Emergency Fund coverage target and strategy updated.");
+      showSuccess("Emergency Reserve Saved", "Emergency Fund coverage target and strategy updated.");
       loadData();
     } catch (e: any) {
-      Alert.alert("Error", e.message || String(e));
+      showError("Error", e.message || String(e));
     } finally {
       setSaving(false);
     }

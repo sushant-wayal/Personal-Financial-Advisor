@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
 import {
-  Alert,
   Pressable,
   RefreshControl,
   StatusBar,
@@ -14,6 +13,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { API_BASE_URL } from "../lib/apiBaseUrl";
+import { useAlert } from "../providers/AlertProvider";
 import { SettingsSkeleton } from "../components/LoadingSkeleton";
 import { clearClientCache } from "../lib/clientCache";
 
@@ -132,6 +132,8 @@ export default function InvestmentSettingsScreen() {
   const midcap = profile.equityMidcapPct ?? 20;
   const eqSum = nifty50 + niftyNext50 + midcap;
 
+  const { showSuccess, showError } = useAlert();
+
   const handleSave = async () => {
     setSaving(true);
     try {
@@ -140,8 +142,7 @@ export default function InvestmentSettingsScreen() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...profile,
-          salaryCycleDays: Math.max(30, Math.min(33, Number(profile.salaryCycleDays ?? 33))),
-          efBuildingInvestableRate: Math.max(0, Math.min(100, Number(profile.efBuildingInvestableRate ?? 15))),
+          efBuildingInvestableRate: Math.max(0, Math.min(100, Number(profile.efBuildingInvestableRate ?? 20))),
           goalSprintInvestableRate: Math.max(0, Math.min(100, Number(profile.goalSprintInvestableRate ?? 40))),
           wealthBuildingInvestableRate: Math.max(0, Math.min(100, Number(profile.wealthBuildingInvestableRate ?? 100))),
           crisisInvestableRate: Math.max(0, Math.min(100, Number(profile.crisisInvestableRate ?? 0))),
@@ -161,10 +162,10 @@ export default function InvestmentSettingsScreen() {
       if (!res.ok || payload.ok === false) throw new Error(payload.error || "Failed to save investment settings");
 
       clearClientCache();
-      Alert.alert("Settings Saved", "Your investment strategy configuration has been updated!");
+      showSuccess("Settings Saved", "Your investment strategy configuration has been updated!");
       loadData();
     } catch (e: any) {
-      Alert.alert("Error", e.message || String(e));
+      showError("Error", e.message || String(e));
     } finally {
       setSaving(false);
     }

@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
 import {
-  Alert,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -15,6 +14,7 @@ import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { API_BASE_URL } from "../lib/apiBaseUrl";
 import { formatCurrencyAmount, useCurrency } from "../providers/CurrencyProvider";
+import { useAlert } from "../providers/AlertProvider";
 
 import { InvestmentsSkeleton } from "../components/LoadingSkeleton";
 
@@ -97,10 +97,12 @@ export default function InvestmentsScreen() {
 
   const phaseColor = isCrisis ? "#ffb4ab" : isInvested ? "#6ee7b7" : suggestion?.phase === "WEALTH_BUILDING" ? "#05e777" : suggestion?.phase === "EF_BUILDING" ? "#ffd54f" : "#b0c6ff";
 
+  const { showSuccess, showError, showWarning } = useAlert();
+
   // Handle Save
   const handleSave = async () => {
     if (isOverCap) {
-      Alert.alert("Cap Exceeded", `Total allocation (${formatCurrencyAmount(totalAllocated, "INR")}) cannot exceed liquid balance (${formatCurrencyAmount(maxAllowed, "INR")}).`);
+      showWarning("Cap Exceeded", `Total allocation (${formatCurrencyAmount(totalAllocated, "INR")}) cannot exceed liquid balance (${formatCurrencyAmount(maxAllowed, "INR")}).`);
       return;
     }
 
@@ -113,10 +115,10 @@ export default function InvestmentsScreen() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Save failed");
-      Alert.alert("Allocations Saved", "Your custom investment amounts have been saved!");
+      showSuccess("Allocations Saved", "Your custom investment amounts have been saved!");
       loadData();
     } catch (e: any) {
-      Alert.alert("Error", e.message || String(e));
+      showError("Error", e.message || String(e));
     } finally {
       setActionLoading(false);
     }
@@ -125,7 +127,7 @@ export default function InvestmentsScreen() {
   // Handle Mark as Invested
   const handleInvest = async () => {
     if (isOverCap) {
-      Alert.alert("Cap Exceeded", "Please resolve allocation overflow before marking as invested.");
+      showWarning("Cap Exceeded", "Please resolve allocation overflow before marking as invested.");
       return;
     }
 
@@ -140,10 +142,10 @@ export default function InvestmentsScreen() {
       const res = await fetch(apiUrl("/api/investments/invest"), { method: "POST" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Record failed");
-      Alert.alert("Investment Recorded!", "Marked as invested. Your streak has been updated! 🔥");
+      showSuccess("Investment Recorded!", "Marked as invested. Your streak has been updated! 🔥");
       loadData();
     } catch (e: any) {
-      Alert.alert("Error", e.message || String(e));
+      showError("Error", e.message || String(e));
     } finally {
       setActionLoading(false);
     }
@@ -156,10 +158,10 @@ export default function InvestmentsScreen() {
       const res = await fetch(apiUrl("/api/investments/reset"), { method: "POST" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Reset failed");
-      Alert.alert("Reset Complete", "Allocations restored to system suggested defaults.");
+      showSuccess("Reset Complete", "Allocations restored to system suggested defaults.");
       loadData();
     } catch (e: any) {
-      Alert.alert("Error", e.message || String(e));
+      showError("Error", e.message || String(e));
     } finally {
       setActionLoading(false);
     }
