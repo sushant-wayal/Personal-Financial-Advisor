@@ -3,6 +3,15 @@
     "name": "North",
     "slug": "north",
     "version": "1.0.0",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/307c8512-73eb-4e2e-bb6b-6f9bf6b73ebf",
+      "enabled": true,
+      "fallbackToCacheTimeout": 0,
+      "checkAutomatically": "ON_LOAD"
+    },
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "north",
