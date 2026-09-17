@@ -14,6 +14,7 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     "mobile/node_modules/**",
     "mobile/.expo/**",
+    "mobile/dist/**",
   ]),
   // Configure rules to clean up framework warning noise
   {

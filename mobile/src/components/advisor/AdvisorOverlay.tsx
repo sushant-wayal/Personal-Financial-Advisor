@@ -663,18 +663,17 @@ export default function AdvisorOverlay() {
                         <MaterialIcons name="support-agent" size={22} color="#e5e2e1" />
                         <Text style={styles.topBarTitle}>AI ADVISOR</Text>
                     </Pressable>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                         <Pressable
                             style={({ pressed }) => [
-                                (styles as any).newChatButton,
+                                styles.headerIconButton,
                                 pressed ? { opacity: 0.7 } : null
                             ]}
                             onPress={() => setHistoryOpen(true)}
                             accessibilityRole="button"
                             accessibilityLabel="Past conversations"
                         >
-                            <MaterialIcons name="history" size={16} color="#a78bfa" />
-                            <Text style={(styles as any).newChatText}>History</Text>
+                            <MaterialIcons name="history" size={20} color="#a78bfa" />
                         </Pressable>
                         <Pressable
                             style={({ pressed }) => [
@@ -1130,6 +1129,16 @@ const styles = StyleSheet.create({
         letterSpacing: 2,
     },
     closeButton: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
+    headerIconButton: {
+        width: 34,
+        height: 34,
+        borderRadius: 17,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: "rgba(167, 139, 250, 0.14)",
+        borderWidth: 1,
+        borderColor: "rgba(167, 139, 250, 0.28)",
+    },
     newChatButton: {
         flexDirection: "row",
         alignItems: "center",
