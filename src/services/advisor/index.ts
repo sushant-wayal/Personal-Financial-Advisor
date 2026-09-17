@@ -15,3 +15,4 @@ export * from "../advisorDbTools";
 export * from "../advisorArtifacts";
 export * from "../aiContext";
 export * from "../AIGoalAdvisorService";
+export * from "../aiConversation";

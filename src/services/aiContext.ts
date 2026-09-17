@@ -6,6 +6,7 @@ import { getEnrichedBudgets } from "./budgets";
 import { getOrGenerateInvestmentSuggestion } from "./investmentEngine";
 import { formatCurrency } from "./shared/formatting";
 import { monthsUntil } from "./shared/dates";
+import { extractConversationDialogueText } from "./aiConversation";
 
 
 
@@ -72,7 +73,16 @@ export async function buildFinancialContext(limit = 24) {
         listGoals(),
         prisma.financialProfile.findFirst(),
         prisma.subscription.findMany({ orderBy: { updatedAt: "desc" } }),
-        prisma.aIMemory.findMany({ orderBy: { updatedAt: "desc" }, take: 20 }),
+        prisma.aIMemory.findMany({
+            where: {
+                OR: [
+                    { expiresAt: null },
+                    { expiresAt: { gt: new Date() } },
+                ],
+            },
+            orderBy: { updatedAt: "desc" },
+            take: 20,
+        }),
         monthlyTrend(6),
         categoryBreakdown(30),
         calculateMonthlySavingsRate(),
@@ -230,13 +240,27 @@ export async function buildFinancialContext(limit = 24) {
         },
         merchants: topMerchants,
         recentTransactions: transactions.slice(0, Math.max(12, Math.min(limit, 20))).map((tx: any) => compactTransaction(tx, currency)),
-        memories: memories.map((memory: any) => ({
-            id: memory.id,
-            key: memory.key,
-            value: memory.value,
-            tags: memory.tags,
-            updatedAt: memory.updatedAt,
-        })),
+        memories: memories.map((memory: any) => {
+            const isChat = memory.key.startsWith("chat:") || (memory.tags && memory.tags.includes("chat"));
+            if (isChat) {
+                const dialogue = extractConversationDialogueText(memory.value, 4);
+                return {
+                    id: memory.id,
+                    key: memory.key,
+                    name: memory.name || "AI Conversation",
+                    isConversation: true,
+                    summary: dialogue || (memory.name ? `Conversation about ${memory.name}` : ""),
+                    updatedAt: memory.updatedAt,
+                };
+            }
+            return {
+                id: memory.id,
+                key: memory.key,
+                value: memory.value,
+                tags: memory.tags,
+                updatedAt: memory.updatedAt,
+            };
+        }),
         insights: recentInsights.map((insight: any) => ({
             id: insight.id,
             type: insight.type,

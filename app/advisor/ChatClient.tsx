@@ -6,6 +6,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import ArtifactRenderer from "../components/advisor/ArtifactRenderer";
 import type { AdvisorResponse } from "@/src/types/advisor";
+import { History, Plus } from "lucide-react";
+import ConversationSidebar from "./components/ConversationSidebar";
+import { parseConversationTurns, type EnrichedConversation } from "@/src/services/aiConversation";
 
 type ChatTurn = { question: string; response: AdvisorResponse | null };
 
@@ -252,6 +255,8 @@ function useStatusPoller(requestId: string | null, active: boolean): LiveStatus 
 }
 
 export default function ChatClient() {
+    const [conversationId, setConversationId] = useState<string>(() => `chat_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`);
+    const [sidebarOpen, setSidebarOpen] = useState(false);
     const [q, setQ] = useState("");
     const [threads, setThreads] = useState<ChatTurn[]>([]);
     const [loading, setLoading] = useState(false);
@@ -260,6 +265,13 @@ export default function ChatClient() {
     const inFlightRef = useRef(false);
 
     const liveStatus = useStatusPoller(activeRequestId, loading);
+
+    const handleSelectConversation = useCallback((conv: EnrichedConversation) => {
+        const turns = parseConversationTurns(conv.value);
+        setThreads(turns);
+        setConversationId(conv.key.replace(/^chat:/, ""));
+        setQ("");
+    }, []);
 
     useEffect(() => {
         if (liveRef.current) liveRef.current.scrollTop = liveRef.current.scrollHeight;
@@ -318,10 +330,20 @@ export default function ChatClient() {
             });
 
             if (reply.narrative.trim()) {
+                const nextThreads = [
+                    ...threads,
+                    { question: user, response: reply },
+                ];
                 fetch("/api/ai/memory", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ key: `chat:${Date.now()}`, value: reply.narrative.trim(), tags: ["chat"] }),
+                    body: JSON.stringify({
+                        conversationId,
+                        question: user,
+                        response: reply,
+                        value: JSON.stringify(nextThreads),
+                        tags: ["chat"],
+                    }),
                 }).catch(() => { });
             }
         } catch (error) {
@@ -339,7 +361,7 @@ export default function ChatClient() {
             setActiveRequestId(null);
             inFlightRef.current = false;
         }
-    }, [q, threads]);
+    }, [q, threads, conversationId]);
 
     // ── Dynamic AI suggestions (cached for 12 h) ──────────────────────────────
     const SUGGESTIONS_CACHE_KEY = "web_advisor_suggestions_v1";
@@ -396,8 +418,46 @@ export default function ChatClient() {
     }, []);
 
     return (
-        <Card aria-label="AI financial chat" className="flex h-[70vh] flex-col px-10">
-            <div ref={liveRef} className="flex-1 overflow-auto" aria-live="polite">
+        <>
+            <Card aria-label="AI financial chat" className="flex h-[70vh] flex-col px-6 sm:px-10">
+                {/* Top toolbar */}
+                <div className="flex items-center justify-between border-b border-zinc-800/80 pb-3 pt-2 mb-2">
+                    <div className="flex items-center gap-2">
+                        <span className="flex h-2 w-2 rounded-full bg-emerald-400" />
+                        <span className="text-xs font-medium text-zinc-400">
+                            {threads.length ? `${threads.length} turn${threads.length > 1 ? "s" : ""}` : "New Session"}
+                        </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setSidebarOpen(true)}
+                            className="h-8 gap-1.5 rounded-lg border-zinc-800 bg-zinc-900/60 text-xs text-zinc-300 hover:border-purple-500/50 hover:bg-purple-950/20 hover:text-purple-200"
+                            type="button"
+                        >
+                            <History className="h-3.5 w-3.5 text-purple-400" />
+                            Past Conversations
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                                setThreads([]);
+                                setQ("");
+                                setConversationId(`chat_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`);
+                            }}
+                            disabled={loading}
+                            className="h-8 gap-1.5 rounded-lg border-zinc-800 bg-zinc-900/60 text-xs text-zinc-300 hover:text-zinc-100"
+                            type="button"
+                        >
+                            <Plus className="h-3.5 w-3.5" />
+                            New Chat
+                        </Button>
+                    </div>
+                </div>
+
+                <div ref={liveRef} className="flex-1 overflow-auto" aria-live="polite">
                 <div className="prose prose-invert max-w-none text-sm">
                     {!threads.length && (
                         <div className="my-6 rounded-2xl border border-zinc-800/80 bg-zinc-900/40 p-5 shadow-inner">
@@ -507,6 +567,7 @@ export default function ChatClient() {
                         onClick={() => {
                             setThreads([]);
                             setQ("");
+                            setConversationId(`chat_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`);
                         }}
                         disabled={loading}
                         className="flex-none rounded-lg"
@@ -526,5 +587,18 @@ export default function ChatClient() {
                 </div>
             </div>
         </Card>
+
+            <ConversationSidebar
+                isOpen={sidebarOpen}
+                onClose={() => setSidebarOpen(false)}
+                onSelectConversation={handleSelectConversation}
+                activeConversationId={conversationId}
+                onNewChat={() => {
+                    setThreads([]);
+                    setQ("");
+                    setConversationId(`chat_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`);
+                }}
+            />
+        </>
     );
 }

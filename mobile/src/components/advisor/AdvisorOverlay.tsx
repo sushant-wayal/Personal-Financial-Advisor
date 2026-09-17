@@ -1,10 +1,13 @@
 /* eslint-disable react-hooks/refs, react-hooks/set-state-in-effect */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+    ActivityIndicator,
     Animated,
     Easing,
+    FlatList,
     Keyboard,
     KeyboardAvoidingView,
+    Modal,
     Platform,
     Pressable,
     ScrollView,
@@ -22,6 +25,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAdvisorContext } from "../../providers/AdvisorProvider";
 import ArtifactRenderer from "./ArtifactRenderer";
+import { ConfirmModal } from "../ConfirmModal";
 import { API_BASE_URL } from "../../lib/apiBaseUrl";
 import type { AdvisorResponse } from "../../types/advisor";
 
@@ -296,12 +300,112 @@ export default function AdvisorOverlay() {
     const scrollRef = useRef<ScrollView>(null);
     const inFlightRef = useRef(false);
 
+    const [conversationId, setConversationId] = useState<string>(() => `chat_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`);
     const [q, setQ] = useState("");
     const [threads, setThreads] = useState<ChatTurn[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [inputHeight, setInputHeight] = useState(56);
     const [activeRequestId, setActiveRequestId] = useState<string | null>(null);
+
+    // Past conversations history state
+    const [historyOpen, setHistoryOpen] = useState(false);
+    const [historySearch, setHistorySearch] = useState("");
+    const [debouncedHistorySearch, setDebouncedHistorySearch] = useState("");
+    const [historyItems, setHistoryItems] = useState<any[]>([]);
+    const [historyPage, setHistoryPage] = useState(1);
+    const [historyHasMore, setHistoryHasMore] = useState(false);
+    const [historyTotal, setHistoryTotal] = useState(0);
+    const [historyLoading, setHistoryLoading] = useState(false);
+    const [historyLoadingMore, setHistoryLoadingMore] = useState(false);
+    const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedHistorySearch(historySearch.trim());
+        }, 350);
+        return () => clearTimeout(timer);
+    }, [historySearch]);
+
+    const fetchHistory = useCallback(async (q: string, targetPage: number, append = false) => {
+        try {
+            if (append) setHistoryLoadingMore(true);
+            else setHistoryLoading(true);
+
+            const params = new URLSearchParams();
+            if (q) params.set("q", q);
+            params.set("page", String(targetPage));
+            params.set("limit", "10");
+
+            const res = await fetch(apiUrl(`/api/ai/conversations?${params.toString()}`));
+            const data = await res.json();
+            if (data?.ok) {
+                if (append) {
+                    setHistoryItems((prev) => [...prev, ...data.conversations]);
+                } else {
+                    setHistoryItems(data.conversations);
+                }
+                setHistoryPage(data.pagination.page);
+                setHistoryHasMore(data.pagination.hasMore);
+                setHistoryTotal(data.pagination.total);
+            }
+        } catch (e) {
+            console.error("[AdvisorOverlay] Error fetching conversation history:", e);
+        } finally {
+            setHistoryLoading(false);
+            setHistoryLoadingMore(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (historyOpen) {
+            void fetchHistory(debouncedHistorySearch, 1, false);
+        }
+    }, [historyOpen, debouncedHistorySearch, fetchHistory]);
+
+    const handleSelectHistoryConversation = useCallback((item: any) => {
+        let restoredTurns: ChatTurn[] = [];
+        try {
+            const parsed = JSON.parse(item.value);
+            if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].question) {
+                restoredTurns = parsed.map((t: any) => ({
+                    question: String(t.question || ""),
+                    response: {
+                        narrative: String(t.response?.narrative || t.response || ""),
+                        artifacts: Array.isArray(t.response?.artifacts) ? t.response.artifacts : [],
+                    },
+                    runAt: t.runAt || undefined,
+                }));
+            }
+        } catch {
+            // fallback
+        }
+        if (restoredTurns.length === 0) {
+            restoredTurns = [
+                {
+                    question: item.name || "Past Conversation",
+                    response: { narrative: item.value, artifacts: [] },
+                },
+            ];
+        }
+
+        setThreads(restoredTurns);
+        setConversationId(item.key.replace(/^chat:/, ""));
+        setQ("");
+        setHistoryOpen(false);
+    }, []);
+
+    const deleteHistoryItem = useCallback(async (id: string) => {
+        try {
+            await fetch(apiUrl(`/api/ai/memory?id=${encodeURIComponent(id)}`), { method: "DELETE" });
+            setHistoryItems((prev) => prev.filter((it) => it.id !== id));
+            setHistoryTotal((prev) => Math.max(0, prev - 1));
+        } catch (e) {
+            console.error("[AdvisorOverlay] Error deleting conversation:", e);
+        } finally {
+            setConfirmDeleteId(null);
+        }
+    }, []);
 
     const contentWidth = useMemo(() => Math.min(width, 980), [width]);
 
@@ -379,14 +483,24 @@ export default function AdvisorOverlay() {
                 return next;
             });
 
-            // Fire-and-forget memory write
+            // Fire-and-forget memory write with LLM-evaluated metadata and turn history
             if (reply.narrative.trim()) {
+                const nextThreads = [
+                    ...threads,
+                    {
+                        question: user,
+                        response: reply,
+                        runAt: new Date().toISOString(),
+                    },
+                ];
                 fetch(apiUrl("/api/ai/memory"), {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        key: `chat:${Date.now()}`,
-                        value: reply.narrative.trim(),
+                        conversationId,
+                        question: user,
+                        response: reply,
+                        value: JSON.stringify(nextThreads),
                         tags: ["chat", "advisor"],
                     }),
                 }).catch(() => { });
@@ -408,7 +522,7 @@ export default function AdvisorOverlay() {
             setActiveRequestId(null);
             inFlightRef.current = false;
         }
-    }, [q, threads]);
+    }, [q, threads, conversationId]);
 
     // ── Dynamic AI suggestions (cached for 12 h) ──────────────────────────────
     const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -549,7 +663,19 @@ export default function AdvisorOverlay() {
                         <MaterialIcons name="support-agent" size={22} color="#e5e2e1" />
                         <Text style={styles.topBarTitle}>AI ADVISOR</Text>
                     </Pressable>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 20 }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                        <Pressable
+                            style={({ pressed }) => [
+                                (styles as any).newChatButton,
+                                pressed ? { opacity: 0.7 } : null
+                            ]}
+                            onPress={() => setHistoryOpen(true)}
+                            accessibilityRole="button"
+                            accessibilityLabel="Past conversations"
+                        >
+                            <MaterialIcons name="history" size={16} color="#a78bfa" />
+                            <Text style={(styles as any).newChatText}>History</Text>
+                        </Pressable>
                         <Pressable
                             style={({ pressed }) => [
                                 (styles as any).newChatButton,
@@ -559,6 +685,7 @@ export default function AdvisorOverlay() {
                                 setThreads([]);
                                 setQ("");
                                 setInputHeight(56);
+                                setConversationId(`chat_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`);
                             }}
                             accessibilityRole="button"
                             accessibilityLabel="New chat"
@@ -724,6 +851,167 @@ export default function AdvisorOverlay() {
             </KeyboardAvoidingView>
                 </SafeAreaView>
             </Animated.View>
+
+            {/* Past Conversations History Modal */}
+            <Modal
+                visible={historyOpen}
+                animationType="slide"
+                transparent
+                onRequestClose={() => setHistoryOpen(false)}
+            >
+                <View style={styles.historyOverlay}>
+                    <SafeAreaView style={styles.historyModalContent} edges={["top", "bottom"]}>
+                        {/* Header */}
+                        <View style={styles.historyHeader}>
+                            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                                <MaterialIcons name="history" size={20} color="#a78bfa" />
+                                <Text style={styles.historyTitle}>Past Conversations</Text>
+                                {historyTotal > 0 && (
+                                    <View style={styles.historyCountBadge}>
+                                        <Text style={styles.historyCountText}>{historyTotal}</Text>
+                                    </View>
+                                )}
+                            </View>
+                            <Pressable
+                                onPress={() => setHistoryOpen(false)}
+                                style={({ pressed }) => [styles.historyCloseBtn, pressed ? { opacity: 0.7 } : null]}
+                                accessibilityRole="button"
+                                accessibilityLabel="Close history"
+                            >
+                                <MaterialIcons name="close" size={22} color="#e5e2e1" />
+                            </Pressable>
+                        </View>
+
+                        {/* Search Input with Debouncing */}
+                        <View style={styles.historySearchRow}>
+                            <MaterialIcons name="search" size={18} color="#8e9192" />
+                            <TextInput
+                                value={historySearch}
+                                onChangeText={setHistorySearch}
+                                placeholder="Search all conversations…"
+                                placeholderTextColor="#5f6368"
+                                style={styles.historySearchInput}
+                            />
+                            {historySearch ? (
+                                <Pressable onPress={() => setHistorySearch("")}>
+                                    <MaterialIcons name="close" size={16} color="#8e9192" />
+                                </Pressable>
+                            ) : historyLoading ? (
+                                <ActivityIndicator size="small" color="#a78bfa" />
+                            ) : null}
+                        </View>
+
+                        {/* Lazy Loaded List */}
+                        {historyLoading && historyItems.length === 0 ? (
+                            <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 10 }}>
+                                <ActivityIndicator size="large" color="#a78bfa" />
+                                <Text style={{ color: "#8e9192", fontFamily: "Inter", fontSize: 13 }}>
+                                    Loading conversations…
+                                </Text>
+                            </View>
+                        ) : (
+                            <FlatList
+                                data={historyItems}
+                                keyExtractor={(item) => item.id}
+                                showsVerticalScrollIndicator={false}
+                                contentContainerStyle={{ paddingBottom: 24, gap: 10 }}
+                                onEndReached={() => {
+                                    if (historyHasMore && !historyLoadingMore && !historyLoading) {
+                                        void fetchHistory(debouncedHistorySearch, historyPage + 1, true);
+                                    }
+                                }}
+                                onEndReachedThreshold={0.3}
+                                ListEmptyComponent={
+                                    <View style={{ paddingVertical: 48, alignItems: "center" }}>
+                                        <Text style={{ color: "#5f6368", fontFamily: "Inter", fontSize: 13 }}>
+                                            {debouncedHistorySearch
+                                                ? `No conversations matching "${debouncedHistorySearch}"`
+                                                : "No saved conversations found."}
+                                        </Text>
+                                    </View>
+                                }
+                                renderItem={({ item }) => {
+                                    const displayName = item.name || "AI Conversation";
+                                    const dateStr = item.updatedAt ? new Date(item.updatedAt).toLocaleDateString(undefined, {
+                                        month: "short",
+                                        day: "numeric",
+                                    }) : "";
+                                    const isActive = item.key === `chat:${conversationId}` || item.key === conversationId;
+
+                                    return (
+                                        <Pressable
+                                            onPress={() => handleSelectHistoryConversation(item)}
+                                            style={({ pressed }) => [
+                                                styles.historyCard,
+                                                isActive ? styles.historyCardActive : null,
+                                                pressed ? { opacity: 0.8 } : null,
+                                            ]}
+                                        >
+                                            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                                                <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flex: 1 }}>
+                                                    <MaterialIcons name="chat" size={15} color="#a78bfa" />
+                                                    <Text style={styles.historyCardTitle} numberOfLines={1}>
+                                                        {displayName}
+                                                    </Text>
+                                                </View>
+                                                {dateStr ? (
+                                                    <Text style={styles.historyDateText}>{dateStr}</Text>
+                                                ) : null}
+                                            </View>
+
+                                            <Text style={styles.historyCardSnippet} numberOfLines={2}>
+                                                {item.value ? (
+                                                    item.value.startsWith("[{") ? "Saved conversation turns" : item.value
+                                                ) : "No preview"}
+                                            </Text>
+
+                                            <View style={styles.historyCardFooter}>
+                                                {item.expiresAt ? (
+                                                    <View style={styles.historyExpiryBadge}>
+                                                        <MaterialIcons name="schedule" size={11} color="#a1a1aa" />
+                                                        <Text style={styles.historyExpiryText}>
+                                                            {item.expiryLabel || "Expires"}
+                                                        </Text>
+                                                    </View>
+                                                ) : (
+                                                    <Text style={styles.historyExpiryText}>Permanent</Text>
+                                                )}
+
+                                                <Pressable
+                                                    onPress={() => setConfirmDeleteId(item.id)}
+                                                    hitSlop={8}
+                                                    style={{ padding: 4 }}
+                                                >
+                                                    <MaterialIcons name="delete-outline" size={16} color="#ef4444" />
+                                                </Pressable>
+                                            </View>
+                                        </Pressable>
+                                    );
+                                }}
+                                ListFooterComponent={
+                                    historyLoadingMore ? (
+                                        <View style={{ paddingVertical: 12, alignItems: "center" }}>
+                                            <ActivityIndicator size="small" color="#a78bfa" />
+                                        </View>
+                                    ) : null
+                                }
+                            />
+                        )}
+                    </SafeAreaView>
+                </View>
+            </Modal>
+
+            <ConfirmModal
+                visible={!!confirmDeleteId}
+                title="Delete Conversation"
+                description="Are you sure you want to delete this conversation from history?"
+                confirmText="Delete"
+                cancelText="Cancel"
+                onConfirm={() => {
+                    if (confirmDeleteId) void deleteHistoryItem(confirmDeleteId);
+                }}
+                onCancel={() => setConfirmDeleteId(null)}
+            />
         </Animated.View>
     );
 }
@@ -1015,4 +1303,118 @@ const styles = StyleSheet.create({
     sendDisabled: { opacity: 0.72 },
     errorText: { marginTop: 10, color: "#ffb4ab", fontSize: 12, lineHeight: 18, fontFamily: "Inter" },
     pressed: { opacity: 0.85 },
+    // Past Conversations History Modal Styles
+    historyOverlay: {
+        flex: 1,
+        backgroundColor: "rgba(0,0,0,0.85)",
+        justifyContent: "flex-end",
+    },
+    historyModalContent: {
+        height: "85%",
+        backgroundColor: "#171819",
+        borderTopLeftRadius: 20,
+        borderTopRightRadius: 20,
+        borderWidth: 1,
+        borderColor: "#444748",
+        padding: 16,
+    },
+    historyHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        paddingBottom: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: "rgba(68,71,72,0.3)",
+    },
+    historyTitle: {
+        color: "#ffffff",
+        fontFamily: "Hanken Grotesk",
+        fontSize: 18,
+        fontWeight: "700",
+    },
+    historyCountBadge: {
+        backgroundColor: "rgba(167,139,250,0.15)",
+        paddingHorizontal: 7,
+        paddingVertical: 2,
+        borderRadius: 8,
+    },
+    historyCountText: {
+        color: "#a78bfa",
+        fontFamily: "JetBrains Mono",
+        fontSize: 11,
+        fontWeight: "600",
+    },
+    historyCloseBtn: {
+        padding: 4,
+    },
+    historySearchRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: "#0e0e0e",
+        borderWidth: 1,
+        borderColor: "rgba(68,71,72,0.4)",
+        borderRadius: 12,
+        paddingHorizontal: 12,
+        height: 42,
+        marginVertical: 12,
+        gap: 8,
+    },
+    historySearchInput: {
+        flex: 1,
+        color: "#ffffff",
+        fontFamily: "Inter",
+        fontSize: 13,
+    },
+    historyCard: {
+        backgroundColor: "#131313",
+        borderWidth: 1,
+        borderColor: "rgba(68,71,72,0.3)",
+        borderRadius: 12,
+        padding: 12,
+        marginBottom: 8,
+        gap: 6,
+    },
+    historyCardActive: {
+        borderColor: "rgba(167,139,250,0.6)",
+        backgroundColor: "rgba(167,139,250,0.08)",
+    },
+    historyCardTitle: {
+        color: "#ffffff",
+        fontFamily: "Hanken Grotesk",
+        fontSize: 14,
+        fontWeight: "600",
+        flex: 1,
+    },
+    historyCardSnippet: {
+        color: "#8e9192",
+        fontFamily: "Inter",
+        fontSize: 12,
+        lineHeight: 16,
+    },
+    historyCardFooter: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        marginTop: 4,
+    },
+    historyExpiryBadge: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 4,
+        backgroundColor: "rgba(255,255,255,0.06)",
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 6,
+    },
+    historyExpiryText: {
+        color: "#a1a1aa",
+        fontFamily: "Inter",
+        fontSize: 10,
+        fontWeight: "500",
+    },
+    historyDateText: {
+        color: "#71717a",
+        fontFamily: "Inter",
+        fontSize: 10,
+    },
 });

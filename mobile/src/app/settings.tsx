@@ -32,6 +32,11 @@ type Memory = {
   id: string;
   key: string;
   value: string;
+  name?: string | null;
+  expiresAt?: string | null;
+  isExpired?: boolean;
+  expiresInDays?: number | null;
+  expiryLabel?: string;
   tags?: string | null;
   updatedAt?: string;
 };
@@ -112,6 +117,22 @@ function prettyMemoryValue(value: string) {
   } catch {
     return value;
   }
+}
+
+function formatMemoryPreview(value: string, isChat: boolean): string {
+  if (!isChat) return value;
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      const last = parsed[parsed.length - 1];
+      const q = last?.question || "";
+      const ans = typeof last?.response === "string" ? last.response : last?.response?.narrative || "";
+      return `${parsed.length} turn${parsed.length > 1 ? "s" : ""}: "${q}" → ${ans.slice(0, 80)}`;
+    }
+  } catch {
+    // fallback
+  }
+  return value;
 }
 
 function fs(size: number) {
@@ -426,15 +447,56 @@ export default function ProfileScreen() {
             </View>
 
             <View style={styles.memoryList}>
-              {memories.map((memory) => (
-                <Pressable key={memory.id} style={styles.memoryItem} onPress={() => setSelectedMemory(memory)}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.memoryKeyText} numberOfLines={1}>{memory.key}</Text>
-                    <Text style={styles.memoryValText} numberOfLines={1}>{memory.value}</Text>
-                  </View>
-                  <MaterialIcons name="chevron-right" size={20} color="#8e9192" />
-                </Pressable>
-              ))}
+              {memories.map((memory) => {
+                const isChat = memory.key.startsWith("chat:") || (memory.tags && memory.tags.includes("chat"));
+                const displayName = memory.name || (isChat ? "AI Advisor Conversation" : memory.key);
+
+                return (
+                  <Pressable key={memory.id} style={styles.memoryItem} onPress={() => setSelectedMemory(memory)}>
+                    <View style={{ flex: 1, gap: 4 }}>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                        <MaterialIcons
+                          name={isChat ? "chat" : "psychology"}
+                          size={16}
+                          color={isChat ? "#c084fc" : "#818cf8"}
+                        />
+                        <Text style={styles.memoryKeyText} numberOfLines={1}>
+                          {displayName}
+                        </Text>
+                        {memory.expiresAt ? (
+                          <View style={[
+                            styles.expiryBadge,
+                            memory.isExpired ? styles.expiryBadgeExpired : null
+                          ]}>
+                            <MaterialIcons
+                              name="schedule"
+                              size={11}
+                              color={memory.isExpired ? "#f87171" : "#a1a1aa"}
+                            />
+                            <Text style={[
+                              styles.expiryBadgeText,
+                              memory.isExpired ? styles.expiryBadgeTextExpired : null
+                            ]}>
+                              {memory.expiryLabel || "Expires"}
+                            </Text>
+                          </View>
+                        ) : null}
+                      </View>
+
+                      {isChat || memory.name ? (
+                        <Text style={styles.memorySubKeyText} numberOfLines={1}>
+                          key: {memory.key}
+                        </Text>
+                      ) : null}
+
+                      <Text style={styles.memoryValText} numberOfLines={2}>
+                        {formatMemoryPreview(memory.value, Boolean(isChat))}
+                      </Text>
+                    </View>
+                    <MaterialIcons name="chevron-right" size={20} color="#8e9192" />
+                  </Pressable>
+                );
+              })}
               {!memories.length ? <Text style={styles.mutedText}>No custom AI memories stored yet.</Text> : null}
             </View>
           </View>
@@ -445,7 +507,22 @@ export default function ProfileScreen() {
       <Modal visible={!!selectedMemory} transparent animationType="fade" onRequestClose={() => setSelectedMemory(null)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>{selectedMemory?.key}</Text>
+            <View style={{ gap: 4 }}>
+              <Text style={styles.modalTitle}>
+                {selectedMemory?.name || selectedMemory?.key}
+              </Text>
+              <Text style={styles.memorySubKeyText}>
+                key: {selectedMemory?.key}
+              </Text>
+              {selectedMemory?.expiresAt ? (
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}>
+                  <MaterialIcons name="schedule" size={13} color="#a1a1aa" />
+                  <Text style={{ color: "#a1a1aa", fontFamily: "Inter", fontSize: fs(12) }}>
+                    {selectedMemory.expiryLabel || new Date(selectedMemory.expiresAt).toLocaleDateString()}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
             <Text style={styles.modalBody}>{selectedMemory ? prettyMemoryValue(selectedMemory.value) : ""}</Text>
             <View style={styles.modalActions}>
               <Pressable style={styles.modalDeleteBtn} onPress={() => setConfirmDeleteMemoryVisible(true)}>
@@ -582,8 +659,21 @@ const styles = StyleSheet.create({
     borderColor: "rgba(68,71,72,0.35)",
     backgroundColor: "#131313",
   },
-  memoryKeyText: { color: "#ffffff", fontFamily: "JetBrains Mono", fontSize: fs(13), fontWeight: "600" },
+  memoryKeyText: { color: "#ffffff", fontFamily: "Hanken Grotesk", fontSize: fs(14), fontWeight: "600" },
+  memorySubKeyText: { color: "#71717a", fontFamily: "JetBrains Mono", fontSize: fs(11) },
   memoryValText: { color: "#8e9192", fontFamily: "Inter", fontSize: fs(12), marginTop: 2 },
+  expiryBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  expiryBadgeExpired: { backgroundColor: "rgba(239,68,68,0.12)" },
+  expiryBadgeText: { color: "#a1a1aa", fontFamily: "Inter", fontSize: fs(10), fontWeight: "500" },
+  expiryBadgeTextExpired: { color: "#f87171" },
   mutedText: { color: "#5f6368", fontFamily: "Inter", fontSize: fs(13) },
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.75)", justifyContent: "center", alignItems: "center", padding: 24 },
   modalContent: { width: "100%", borderRadius: 16, backgroundColor: "#171819", borderWidth: 1, borderColor: "rgba(68,71,72,0.4)", padding: 22, gap: 14 },

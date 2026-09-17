@@ -62,6 +62,36 @@ export async function executeAdvisorTool(
                 data = { suggestion };
                 break;
             }
+            case "queryMemories": {
+                const limit = clamp(args.limit, 1, 50, 15);
+                const tag = typeof args.tag === "string" ? args.tag : undefined;
+                const where: Record<string, unknown> = {
+                    OR: [
+                        { expiresAt: null },
+                        { expiresAt: { gt: new Date() } },
+                    ],
+                };
+                if (tag) {
+                    where.tags = { contains: tag };
+                }
+                const memories = await prisma.aIMemory.findMany({
+                    where,
+                    take: limit,
+                    orderBy: { updatedAt: "desc" },
+                });
+                data = {
+                    memories: memories.map((m) => ({
+                        id: m.id,
+                        key: m.key,
+                        name: m.name,
+                        value: m.value,
+                        tags: m.tags,
+                        updatedAt: m.updatedAt,
+                    })),
+                    total: memories.length,
+                };
+                break;
+            }
             default:
                 data = { message: `Tool ${name} executed successfully.` };
         }
