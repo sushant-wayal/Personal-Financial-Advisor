@@ -853,6 +853,42 @@ You can copy and paste the following tool definitions directly into Jarvis (Open
       "properties": {},
       "required": []
     }
+  },
+  {
+    "name": "pfa_search_conversations",
+    "description": "Search, filter, and lazy-load past AI advisor conversations with human-readable titles and expiry dates.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "q": { "type": "string", "description": "Search keyword across conversation title, questions, or responses" },
+        "page": { "type": "integer", "description": "Page number (default 1)" },
+        "limit": { "type": "integer", "description": "Items per page (default 10, max 50)" }
+      }
+    }
+  },
+  {
+    "name": "pfa_query_memories",
+    "description": "Retrieve stored user memories, preferences, and conversations with calculated expiry metadata.",
+    "parameters": {
+      "type": "object",
+      "properties": {},
+      "required": []
+    }
+  },
+  {
+    "name": "pfa_save_memory",
+    "description": "Store or update a financial memory, preference, or advisor conversation with automatic title and expiry evaluation.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "key": { "type": "string", "description": "Unique key or identifier (optional if conversationId provided)" },
+        "conversationId": { "type": "string", "description": "Conversation ID for chat threads (e.g. 'chat_171892348574')" },
+        "question": { "type": "string", "description": "User question for conversation thread" },
+        "response": { "type": "string", "description": "AI response content or summary" },
+        "value": { "type": "string", "description": "Generic value or payload for preference memory" },
+        "tags": { "type": "array", "items": { "type": "string" }, "description": "Tags associated with memory (e.g. ['chat', 'advisor'])" }
+      }
+    }
   }
 ]
 ```
@@ -924,6 +960,18 @@ def execute_pfa_tool(tool_name: str, arguments: dict):
 
     elif tool_name == "pfa_trigger_gmail_sync":
         res = requests.post(f"{PFA_BASE}/api/gmail/sync")
+        return res.json()
+
+    elif tool_name == "pfa_search_conversations":
+        res = requests.get(f"{PFA_BASE}/api/ai/conversations", params=arguments)
+        return res.json()
+
+    elif tool_name == "pfa_query_memories":
+        res = requests.get(f"{PFA_BASE}/api/ai/memory")
+        return res.json()
+
+    elif tool_name == "pfa_save_memory":
+        res = requests.post(f"{PFA_BASE}/api/ai/memory", json=arguments)
         return res.json()
 
     else:

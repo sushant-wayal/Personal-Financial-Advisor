@@ -189,6 +189,14 @@ export default function InvestmentsScreen() {
 
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
           <Pressable
+            onPress={() => router.push("/stock-intelligence")}
+            style={({ pressed }) => [styles.topHistoryPill, pressed ? styles.cardPressed : null, { backgroundColor: "rgba(6,182,212,0.15)", borderColor: "rgba(6,182,212,0.3)" }]}
+          >
+            <MaterialIcons name="trending-up" size={16} color="#22d3ee" />
+            <Text style={[styles.topHistoryPillText, { color: "#22d3ee" }]}>Stocks</Text>
+          </Pressable>
+
+          <Pressable
             onPress={() => router.push("/investment-history")}
             style={({ pressed }) => [styles.topHistoryPill, pressed ? styles.cardPressed : null]}
           >

@@ -489,3 +489,191 @@ model CategoryBudget {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// NORTH STOCK INTELLIGENCE — Market Data, Signals, Recommendations, Paper Trading
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// Daily OHLCV candle for a stock. Unique on (symbol, date, provider).
+model StockMarketBar {
+  id            String   @id @default(cuid())
+  symbol        String
+  exchange      String   @default("NSE")
+  date          DateTime @db.Date
+  open          Float
+  high          Float
+  low           Float
+  close         Float
+  adjustedClose Float?
+  volume        Float
+  provider      String   @default("YAHOO")
+  quality       String   @default("VALID") // VALID, STALE, PARTIAL, INVALID, MISSING
+  retrievedAt   DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([symbol, date, provider])
+  @@index([symbol, date])
+  @@index([date])
+}
+
+/// Computed indicator snapshot for a stock on a given date.
+model StockSignal {
+  id             String   @id @default(cuid())
+  symbol         String
+  date           DateTime @db.Date
+  /// JSON blob of all computed indicators (StockIndicators type)
+  indicators     String   @default("{}")
+  /// JSON blob of scoring result (StockScore type)
+  score          String   @default("{}")
+  /// JSON blob of strategy signals (StrategySignal[] type)
+  signals        String   @default("[]")
+  /// Market regime at computation time
+  marketRegime   String   @default("DATA_UNRELIABLE")
+  /// Eligibility status
+  eligible       Boolean  @default(false)
+  eligibilityReasons String @default("[]")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([symbol, date])
+  @@index([date])
+}
+
+/// A single daily recommendation run — the top-level record for one pipeline execution.
+model StockRecommendationRun {
+  id                   String   @id @default(cuid())
+  marketSessionDate    DateTime @db.Date
+  marketRegime         String
+  financialPhase       String
+  /// JSON blob of CapitalAllocation
+  capitalAllocation    String   @default("{}")
+  dataQuality          String   @default("VALID")
+  /// JSON blob of strategy versions used
+  strategyVersions     String   @default("{}")
+  candidateCount       Int      @default(0)
+  eligibleCount        Int      @default(0)
+  /// JSON blob of rejection reasons
+  rejections           String   @default("[]")
+  warnings             String   @default("[]")
+  aiExplanation        String?
+  status               String   @default("COMPLETE") // COMPLETE, PARTIAL, FAILED
+  pipelineDurationMs   Int      @default(0)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  items                StockRecommendationItem[]
+
+  @@unique([marketSessionDate])
+  @@index([marketSessionDate])
+}
+
+/// Individual recommendation within a run (Buy, Hold, or Sell).
+model StockRecommendationItem {
+  id                  String   @id @default(cuid())
+  runId               String
+  run                 StockRecommendationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  symbol              String
+  exchange            String   @default("NSE")
+  type                String   // BUY, HOLD, SELL
+  /// JSON blob of full recommendation detail
+  detail              String   @default("{}")
+  createdAt           DateTime @default(now())
+
+  @@index([runId])
+  @@index([symbol])
+}
+
+/// Paper trading portfolio state (one active portfolio at a time).
+model StockPaperPortfolio {
+  id              String   @id @default(cuid())
+  virtualCash     Float    @default(100000)
+  initialCash     Float    @default(100000)
+  equityPeak      Float    @default(100000)
+  isActive        Boolean  @default(true)
+  startDate       DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  trades          StockPaperTrade[]
+}
+
+/// Individual paper trade record.
+model StockPaperTrade {
+  id              String   @id @default(cuid())
+  portfolioId     String
+  portfolio       StockPaperPortfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  symbol          String
+  exchange        String   @default("NSE")
+  strategy        String
+  side            String   // BUY, SELL
+  quantity        Int
+  entryPrice      Float
+  entryDate       DateTime
+  exitPrice       Float?
+  exitDate        DateTime?
+  stopLoss        Float
+  targetPrice     Float?
+  status          String   @default("OPEN") // OPEN, CLOSED, STOPPED, EXPIRED
+  pnl             Float    @default(0)
+  pnlPct          Float    @default(0)
+  costs           Float    @default(0)
+  holdingDays     Int      @default(0)
+  exitReason      String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([portfolioId])
+  @@index([symbol])
+  @@index([status])
+}
+
+/// Backtest result persistence (one per strategy + date range).
+model StockBacktestResult {
+  id               String   @id @default(cuid())
+  strategyName     String
+  strategyVersion  String
+  startDate        DateTime @db.Date
+  endDate          DateTime @db.Date
+  initialCapital   Float
+  /// JSON blob of full BacktestResult
+  result           String   @default("{}")
+  createdAt        DateTime @default(now())
+
+  @@index([strategyName])
+}
+
+/// Market data fetch log for provider health tracking.
+model StockDataFetchLog {
+  id              String   @id @default(cuid())
+  provider        String
+  symbolCount     Int      @default(0)
+  successCount    Int      @default(0)
+  failureCount    Int      @default(0)
+  durationMs      Int      @default(0)
+  errors          String   @default("[]")
+  fetchedAt       DateTime @default(now())
+
+  @@index([fetchedAt])
+  @@index([provider])
+}
+
+/// Portfolio risk snapshot for drawdown tracking.
+model StockPortfolioRiskSnapshot {
+  id                          String   @id @default(cuid())
+  equityPeak                  Float
+  currentEquity               Float
+  drawdownPct                 Float
+  drawdownStatus              String   @default("NORMAL") // NORMAL, WARNING, RESTRICTED, HALTED
+  directEquityExposurePct     Float    @default(0)
+  totalEstEquityExposurePct   Float    @default(0)
+  /// JSON blob of sector concentrations
+  sectorConcentration         String   @default("{}")
+  /// JSON blob of position concentrations
+  positionConcentration       String   @default("{}")
+  openPositionCount           Int      @default(0)
+  cashPct                     Float    @default(100)
+  snapshotAt                  DateTime @default(now())
+
+  @@index([snapshotAt])
+}
