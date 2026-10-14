@@ -59,12 +59,17 @@ INSTRUCTIONS:
 5. Strictly do NOT guarantee profits or promise returns.
 `;
 
-  const response = await generateText(prompt, {
-    complexity: "simple",
-    temperature: 0.2,
-  });
+  try {
+    const response = await generateText(prompt, {
+      complexity: "simple",
+      temperature: 0.2,
+    });
 
-  return response.text || generateFallbackExplanation(params);
+    return response.text || generateFallbackExplanation(params);
+  } catch (err: unknown) {
+    console.warn("[aiAdvisor] Gemini failed, using deterministic fallback:", err);
+    return generateFallbackExplanation(params);
+  }
 }
 
 function generateFallbackExplanation(params: {

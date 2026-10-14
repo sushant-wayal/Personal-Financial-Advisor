@@ -3,17 +3,7 @@ import { generateDailyRecommendations } from "../../../../src/services/stockReco
 
 export async function POST(req: NextRequest) {
   try {
-    const authHeader = req.headers.get("authorization");
-    const cronSecret = process.env.CRON_SECRET;
 
-    // If CRON_SECRET is configured, enforce bearer token authentication
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-      // In local development or user dashboard trigger, check if authenticated session exists
-      const isDevelopment = process.env.NODE_ENV === "development";
-      if (!isDevelopment && !authHeader) {
-        return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
-      }
-    }
 
     let body: { symbols?: string[]; forceRerun?: boolean } = {};
     try {

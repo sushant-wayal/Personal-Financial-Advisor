@@ -25,14 +25,11 @@ async function safeFetchJson(url: string, options?: RequestInit) {
   const res = await fetch(url, options);
   const contentType = res.headers.get("content-type") || "";
   if (!contentType.includes("application/json")) {
-    if (res.status === 404 || !res.ok) {
-      throw new Error(`Backend not deployed yet (HTTP ${res.status}). Deploy changes to ${API_BASE_URL} or test locally.`);
-    }
-    throw new Error(`Expected JSON but received ${contentType || "HTML"}. Backend may not be deployed to ${API_BASE_URL} yet.`);
+    throw new Error("Unable to load data. Please check your network and try again.");
   }
   const data = await res.json();
   if (!res.ok) {
-    throw new Error(data.error || `Request failed with status ${res.status}`);
+    throw new Error(data.error || "Unable to complete request. Please try again.");
   }
   return data;
 }
@@ -44,7 +41,6 @@ export default function StockIntelligenceScreen() {
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [deployWarning, setDeployWarning] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"recs" | "paper" | "risk" | "backtest">("recs");
 
   const [recData, setRecData] = useState<any>(null);
@@ -56,7 +52,6 @@ export default function StockIntelligenceScreen() {
 
   const loadData = useCallback(async () => {
     try {
-      setDeployWarning(null);
       const [dataRec, dataCap, dataPaper] = await Promise.all([
         safeFetchJson(apiUrl("/api/stock-intelligence/recommendations")),
         safeFetchJson(apiUrl("/api/stock-intelligence/capital")),
@@ -67,8 +62,7 @@ export default function StockIntelligenceScreen() {
       if (dataCap.ok) setCapitalData(dataCap);
       if (dataPaper.ok) setPaperData(dataPaper.portfolio);
     } catch (e: any) {
-      console.warn("Stock intelligence fetch warning:", e.message || String(e));
-      setDeployWarning(`Backend endpoints are not deployed to ${API_BASE_URL} yet. Once you push your changes and deploy to Vercel, this screen will load live stock recommendations.`);
+      console.warn("Stock intelligence fetch notice:", e.message || String(e));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -228,17 +222,6 @@ export default function StockIntelligenceScreen() {
             Quantitative swing trading (2–15 day horizon) with ₹0 data cost & 5% drawdown safety limits.
           </Text>
         </View>
-
-        {/* Deploy Warning Banner if backend is not deployed */}
-        {deployWarning && (
-          <View style={styles.deployWarningBanner}>
-            <MaterialIcons name="cloud-off" size={20} color="#fbbf24" style={{ marginTop: 2 }} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.deployWarningTitle}>Backend Not Deployed Yet</Text>
-              <Text style={styles.deployWarningText}>{deployWarning}</Text>
-            </View>
-          </View>
-        )}
 
         {/* Hero KPI Summary Card */}
         <View style={styles.heroCard}>
@@ -574,19 +557,6 @@ const styles = StyleSheet.create({
   actionPillText: { fontSize: 12, fontWeight: "600", color: "#06b6d4" },
   scroll: { flex: 1 },
   scrollContent: { padding: 16, paddingBottom: 180 },
-  deployWarningBanner: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 10,
-    backgroundColor: "rgba(245,158,11,0.12)",
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: "rgba(245,158,11,0.3)",
-    marginBottom: 16,
-  },
-  deployWarningTitle: { fontSize: 12, fontWeight: "700", color: "#fbbf24", marginBottom: 2 },
-  deployWarningText: { fontSize: 11, color: "#fef3c7", lineHeight: 16 },
   headerBlock: { marginBottom: 16 },
   badgeRow: { flexDirection: "row", gap: 8, marginBottom: 8 },
   regimeBadge: {

@@ -5,11 +5,11 @@ function getApiKey() {
 }
 
 function getFlashModel() {
-    return process.env.GEMINI_FLASH_MODEL || "gemini-3.5-flash";
+    return process.env.GEMINI_FLASH_MODEL || "gemini-3-flash-preview";
 }
 
 function getProModel() {
-    return process.env.GEMINI_PRO_MODEL || "gemini-3.5-flash";
+    return process.env.GEMINI_PRO_MODEL || "gemini-3-flash-preview";
 }
 
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
@@ -135,11 +135,15 @@ export async function generateText(
                 );
             }
 
-            // Automatic fallback to flashModel on 404 or 429 quota exhaustion
-            if ((status === 404 || status === 429) && model !== flashModel) {
-                console.warn(`[gemini] Falling back from ${model} to ${flashModel}`);
-                model = flashModel;
-                continue;
+            // Automatic fallback to secondary models on 404, 429 quota exhaustion, or 503 spike
+            if (status === 404 || status === 429 || status === 503) {
+                const fallbackModels = ["gemini-3-flash-preview", "gemini-2.5-flash"];
+                const nextModel = fallbackModels.find((m) => m !== model);
+                if (nextModel) {
+                    console.warn(`[gemini] Falling back from ${model} to ${nextModel}`);
+                    model = nextModel;
+                    continue;
+                }
             }
 
             const retryable = status === 429 || status === 503 || !status;
@@ -222,11 +226,15 @@ export async function generateTextWithTools(
                 );
             }
 
-            // Automatic fallback to flashModel on 404 or 429 quota exhaustion
-            if ((status === 404 || status === 429) && model !== flashModel) {
-                console.warn(`[gemini] Falling back from ${model} to ${flashModel}`);
-                model = flashModel;
-                continue;
+            // Automatic fallback to secondary models on 404, 429 quota exhaustion, or 503 spike
+            if (status === 404 || status === 429 || status === 503) {
+                const fallbackModels = ["gemini-3-flash-preview", "gemini-2.5-flash"];
+                const nextModel = fallbackModels.find((m) => m !== model);
+                if (nextModel) {
+                    console.warn(`[gemini] Falling back from ${model} to ${nextModel}`);
+                    model = nextModel;
+                    continue;
+                }
             }
 
             const retryable = status === 429 || status === 503 || !status;
