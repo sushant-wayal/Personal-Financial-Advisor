@@ -43,7 +43,7 @@ CONTEXT:
 
 DETERMINISTIC RECOMMENDATIONS:
 - BUY (${buys.length}):
-${buys.map((b) => `  * ${b.symbol}: Strategy ${b.strategy}, Buy ${b.quantity} shares @ ₹${b.entryPrice.toFixed(2)}, Stop: ₹${b.stopLoss.toFixed(2)}, Target: ₹${b.targetPrice?.toFixed(2) ?? "N/A"}, Reasons: ${b.reasonsFor.join(", ")}`).join("\n") || "  None (Capital preservation or no qualifying setups)"}
+${buys.map((b) => `  * ${b.symbol}${b.isAiDiscovered ? " [AI-Scouted Idea]" : " [Core Index]"}: Strategy ${b.strategy}, Buy ${b.quantity} shares @ ₹${b.entryPrice.toFixed(2)}, Stop: ₹${b.stopLoss.toFixed(2)}, Target: ₹${b.targetPrice?.toFixed(2) ?? "N/A"}${b.aiThesis ? `, AI Thesis: ${b.aiThesis}` : ""}, Technical Reasons: ${b.reasonsFor.join(", ")}`).join("\n") || "  None (Capital preservation or no qualifying setups)"}
 
 - HOLD (${holds.length}):
 ${holds.map((h) => `  * ${h.symbol}: Qty ${h.quantity}, P&L ${h.unrealizedPnlPct > 0 ? "+" : ""}${h.unrealizedPnlPct}%, Stop: ₹${h.updatedStopLoss?.toFixed(2) ?? "N/A"}`).join("\n") || "  None"}

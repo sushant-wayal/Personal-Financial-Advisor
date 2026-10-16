@@ -303,6 +303,8 @@ export type BuyRecommendation = {
   uncertainties: string[];
   cancellationConditions: string[];
   maxChasePrice: number;
+  isAiDiscovered?: boolean;
+  aiThesis?: string;
 };
 
 export type HoldRecommendation = {

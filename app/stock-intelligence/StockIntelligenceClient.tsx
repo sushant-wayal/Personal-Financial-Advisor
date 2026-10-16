@@ -600,11 +600,16 @@ export default function StockIntelligenceClient() {
                     <CardHeader className="pb-3">
                       <div className="flex items-start justify-between">
                         <div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-xl font-bold text-foreground">{buy.symbol}</span>
                             <span className="rounded bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-400 border border-emerald-500/20">
                               BUY {buy.quantity} shares
                             </span>
+                            {buy.isAiDiscovered && (
+                              <span className="rounded bg-purple-500/10 px-2 py-0.5 text-xs font-medium text-purple-300 border border-purple-500/30 flex items-center gap-1">
+                                <Sparkles className="h-3 w-3" /> AI Scouted
+                              </span>
+                            )}
                             <span className="text-xs text-muted-foreground">
                               {buy.exchange}
                             </span>
@@ -645,6 +650,16 @@ export default function StockIntelligenceClient() {
                           </div>
                         </div>
                       </div>
+
+                      {/* AI Catalyst Thesis if AI Scouted */}
+                      {buy.aiThesis && (
+                        <div className="rounded-lg border border-purple-500/20 bg-purple-950/20 p-2.5 text-xs text-purple-200">
+                          <div className="font-semibold text-purple-300 flex items-center gap-1.5 mb-1">
+                            <Sparkles className="h-3.5 w-3.5 text-purple-400" /> AI Discovery Catalyst
+                          </div>
+                          <p className="leading-relaxed">{buy.aiThesis}</p>
+                        </div>
+                      )}
 
                       {/* Reasons */}
                       <div>

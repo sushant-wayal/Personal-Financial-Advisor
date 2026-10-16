@@ -431,11 +431,17 @@ export default function StockIntelligenceScreen() {
                 <View key={buy.symbol} style={styles.card}>
                   <View style={styles.cardHeader}>
                     <View>
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                         <Text style={styles.stockSymbol}>{buy.symbol}</Text>
                         <View style={styles.buyBadge}>
                           <Text style={styles.buyBadgeText}>BUY {buy.quantity} shares</Text>
                         </View>
+                        {buy.isAiDiscovered ? (
+                          <View style={styles.aiScoutBadge}>
+                            <MaterialIcons name="auto-awesome" size={11} color="#c084fc" />
+                            <Text style={styles.aiScoutBadgeText}>AI Scouted</Text>
+                          </View>
+                        ) : null}
                       </View>
                       <Text style={styles.stockSub}>Strategy: {buy.strategy} · ~{buy.expectedHoldingDays}d</Text>
                     </View>
@@ -460,6 +466,17 @@ export default function StockIntelligenceScreen() {
                       <Text style={[styles.limitVal, { color: "#10b981" }]}>₹{buy.targetPrice.toFixed(1)}</Text>
                     </View>
                   </View>
+
+                  {/* AI Catalyst Thesis if AI Scouted */}
+                  {buy.aiThesis ? (
+                    <View style={styles.aiThesisBox}>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 2 }}>
+                        <MaterialIcons name="auto-awesome" size={12} color="#c084fc" />
+                        <Text style={styles.aiThesisTitle}>AI Catalyst Thesis</Text>
+                      </View>
+                      <Text style={styles.aiThesisText}>{buy.aiThesis}</Text>
+                    </View>
+                  ) : null}
 
                   {/* Actions Row */}
                   <View style={{ flexDirection: "row", gap: 8, marginTop: 4 }}>
@@ -1002,6 +1019,28 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   buyBadgeText: { fontSize: 10, fontWeight: "700", color: "#34d399" },
+  aiScoutBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    backgroundColor: "rgba(168,85,247,0.15)",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: "rgba(168,85,247,0.3)",
+  },
+  aiScoutBadgeText: { fontSize: 10, fontWeight: "700", color: "#c084fc" },
+  aiThesisBox: {
+    backgroundColor: "rgba(168,85,247,0.08)",
+    borderRadius: 8,
+    padding: 8,
+    marginTop: 4,
+    borderWidth: 1,
+    borderColor: "rgba(168,85,247,0.2)",
+  },
+  aiThesisTitle: { fontSize: 10, fontWeight: "700", color: "#c084fc" },
+  aiThesisText: { fontSize: 11, color: "#e9d5ff", lineHeight: 15 },
   holdBadge: {
     backgroundColor: "rgba(245,158,11,0.15)",
     paddingHorizontal: 6,

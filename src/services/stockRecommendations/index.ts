@@ -44,6 +44,7 @@ import {
   evaluateExitRules,
 } from "../stockStrategy";
 import { generateAiRecommendationExplanation } from "./aiAdvisor";
+import { scoutAiStockCandidates } from "./aiScout";
 
 /**
  * Run the daily Stock Intelligence recommendation pipeline.
@@ -94,8 +95,35 @@ export async function generateDailyRecommendations(options?: {
   // 4. Portfolio Risk Snapshot
   const riskSnapshot = await calculatePortfolioRiskSnapshot();
 
-  // 5. Stock Universe Screening
-  const symbolsToAnalyze = options?.symbols ?? DEFAULT_UNIVERSE_SYMBOLS.slice(0, 30);
+  // 5. Stock Universe Screening (Base Universe + AI Scouted Equities)
+  const baseSymbols = options?.symbols ?? DEFAULT_UNIVERSE_SYMBOLS.slice(0, 30);
+  const aiScoutedMap = new Map<string, string>();
+
+  // If capital is deployable and regime allows purchases, scout up to 10 additional AI candidate equities
+  if (
+    capitalAllocation.eligibleNewPurchaseBudget > 0 &&
+    riskSnapshot.drawdownStatus !== "HALTED" &&
+    riskSnapshot.drawdownStatus !== "RESTRICTED" &&
+    marketRegime !== "BEARISH" &&
+    marketRegime !== "DATA_UNRELIABLE"
+  ) {
+    try {
+      const aiScouted = await scoutAiStockCandidates({
+        marketRegime,
+        financialPhase: capitalAllocation.financialPhase,
+        deployableBudget: capitalAllocation.eligibleNewPurchaseBudget,
+        existingSymbols: baseSymbols,
+      });
+
+      for (const sc of aiScouted) {
+        aiScoutedMap.set(sc.symbol.toUpperCase(), sc.thesis);
+      }
+    } catch (err) {
+      warnings.push(`AI Stock Scout encountered error: ${String(err)}`);
+    }
+  }
+
+  const symbolsToAnalyze = Array.from(new Set([...baseSymbols, ...Array.from(aiScoutedMap.keys())]));
 
   // Auto-seed initial historical market bars if database is fresh
   const existingBarCount = await prisma.stockMarketBar.count();
@@ -362,6 +390,8 @@ export async function generateDailyRecommendations(options?: {
         ],
         cancellationConditions: item.bestBuy.cancellationConditions,
         maxChasePrice: item.bestBuy.maxChasePrice ?? item.bestBuy.entryPrice * 1.015,
+        isAiDiscovered: aiScoutedMap.has(item.cand.symbol.toUpperCase()),
+        aiThesis: aiScoutedMap.get(item.cand.symbol.toUpperCase()),
       });
     }
   }
