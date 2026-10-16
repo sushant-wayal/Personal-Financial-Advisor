@@ -240,6 +240,8 @@ export const RISK_CONFIG = {
   maxStopLossDistancePct: 8.0,
   /** Slippage assumption (%) */
   slippageAssumptionPct: 0.2,
+  /** Minimum investment amount allowed for a stock purchase (₹) */
+  minStockInvestmentAmount: 500.0,
   /** Gap risk assumption: additional slippage on gap opens (%) */
   gapSlippagePct: 0.5,
 } as const;

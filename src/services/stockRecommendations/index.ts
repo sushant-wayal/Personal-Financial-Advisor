@@ -16,6 +16,7 @@ import {
   DATA_FRESHNESS_CONFIG,
   STRATEGY_CONFIGS,
   RISK_CONFIG,
+  TRADING_COSTS,
   getSector,
 } from "../../config/stockEngineDefaults";
 import type {
@@ -179,11 +180,21 @@ export async function generateDailyRecommendations(options?: {
       `New purchases blocked by safety controls: ${capitalAllocation.bindingConstraint || `Regime is ${marketRegime}`}`,
     );
   } else {
-    let remainingBudget = capitalAllocation.eligibleNewPurchaseBudget;
+    const totalDeployableBudget = capitalAllocation.eligibleNewPurchaseBudget;
+
+    interface BuySetupCandidate {
+      cand: (typeof eligibleCandidates)[0];
+      bestBuy: NonNullable<ReturnType<typeof selectBestBuySignal>> & {
+        entryPrice: number;
+        stopLoss: number;
+      };
+      latestBar: MarketBar;
+      minInvestment: number;
+    }
+
+    const viableCandidates: BuySetupCandidate[] = [];
 
     for (const cand of eligibleCandidates) {
-      if (remainingBudget <= 0) break;
-
       const latestBar = cand.bars[cand.bars.length - 1];
       const signals = evaluateStockStrategies(
         cand.symbol,
@@ -198,67 +209,174 @@ export async function generateDailyRecommendations(options?: {
         continue;
       }
 
-      // Check sector concentration
-      const sector = getSector(cand.symbol);
-      const sectorExposure = riskSnapshot.sectorConcentration[sector] ?? 0;
-
-      // Calculate position sizing
-      const sizing = calculatePositionSize(
-        cand.symbol,
+      // Minimum investment required to buy at least 1 whole share (and meeting minimum trade size)
+      const minInvestment = Math.max(
+        RISK_CONFIG.minStockInvestmentAmount ?? 500,
         bestBuy.entryPrice,
-        bestBuy.stopLoss,
-        remainingBudget,
-        Math.max(10000, riskSnapshot.currentEquity),
-        sectorExposure,
-        riskSnapshot.openPositionCount + buyRecommendations.length,
       );
 
-      if (sizing.finalQuantity <= 0 || sizing.rejectedReason !== null) {
+      // If min investment exceeds the entire deployable budget, it cannot even be afforded standalone
+      if (minInvestment > totalDeployableBudget) {
         rejections.push({
           symbol: cand.symbol,
-          reason: `Position size rejected: ${sizing.rejectedReason ?? "Zero whole-share quantity"}`,
+          reason: `Minimum investment ₹${minInvestment.toFixed(2)} (1 share @ ₹${bestBuy.entryPrice.toFixed(2)}) exceeds total deployable budget ₹${totalDeployableBudget.toFixed(2)}`,
         });
         continue;
       }
 
-      const estimatedCapital = sizing.finalQuantity * bestBuy.entryPrice;
-      remainingBudget -= (estimatedCapital + sizing.estimatedCosts);
+      viableCandidates.push({
+        cand,
+        bestBuy: bestBuy as NonNullable<ReturnType<typeof selectBestBuySignal>> & {
+          entryPrice: number;
+          stopLoss: number;
+        },
+        latestBar,
+        minInvestment,
+      });
+    }
+
+    // Sort viable candidates by score descending and take up to 3 high-conviction setups
+    viableCandidates.sort((a, b) => b.cand.score.totalScore - a.cand.score.totalScore);
+    let activeCandidates = viableCandidates.slice(0, 3);
+
+    // Iterative sizing & redistribution loop:
+    // If any candidate's calculated position cannot meet its minInvestment,
+    // remove it, log rejection, and redistribute its capital across the remaining active candidates!
+    let finalSized: Array<{
+      item: BuySetupCandidate;
+      sizing: ReturnType<typeof calculatePositionSize>;
+    }> = [];
+
+    while (activeCandidates.length > 0) {
+      let allPassed = true;
+      const currentPassSized: typeof finalSized = [];
+      const failedIndices: number[] = [];
+
+      // Evenly divide available budget across active candidates
+      const budgetPerStock = totalDeployableBudget / activeCandidates.length;
+
+      for (let i = 0; i < activeCandidates.length; i++) {
+        const item = activeCandidates[i];
+        const sector = getSector(item.cand.symbol);
+        const sectorExposure = riskSnapshot.sectorConcentration[sector] ?? 0;
+
+        const sizing = calculatePositionSize(
+          item.cand.symbol,
+          item.bestBuy.entryPrice,
+          item.bestBuy.stopLoss,
+          budgetPerStock,
+          Math.max(10000, riskSnapshot.currentEquity),
+          sectorExposure,
+          riskSnapshot.openPositionCount + i,
+        );
+
+        const estimatedCapital = sizing.finalQuantity * item.bestBuy.entryPrice;
+
+        if (
+          sizing.finalQuantity < 1 ||
+          estimatedCapital < item.minInvestment ||
+          sizing.rejectedReason !== null
+        ) {
+          rejections.push({
+            symbol: item.cand.symbol,
+            reason: `Position size ₹${estimatedCapital.toFixed(2)} is less than minimum investment ₹${item.minInvestment.toFixed(2)} (1 share @ ₹${item.bestBuy.entryPrice.toFixed(2)}). Removed from suggestions; capital redistributed to other candidate stocks.`,
+          });
+          failedIndices.push(i);
+          allPassed = false;
+        } else {
+          currentPassSized.push({ item, sizing });
+        }
+      }
+
+      if (allPassed) {
+        finalSized = currentPassSized;
+        break;
+      }
+
+      if (failedIndices.length === activeCandidates.length) {
+        // If ALL active candidates failed, the budget is spread too thin across too many stocks.
+        // Drop the lowest conviction candidate (the last one) and retry with the remaining higher-priority candidates.
+        const dropped = activeCandidates.pop();
+        if (dropped) {
+          rejections.push({
+            symbol: dropped.cand.symbol,
+            reason: `Budget ₹${totalDeployableBudget.toFixed(2)} spread across ${failedIndices.length} stocks could not fund minimum positions. Dropped lowest-conviction candidate to concentrate capital on higher-scoring setups.`,
+          });
+        }
+      } else {
+        // Drop only the specific failing candidates and redistribute among those that passed
+        activeCandidates = activeCandidates.filter((_, idx) => !failedIndices.includes(idx));
+      }
+
+      if (activeCandidates.length === 0) {
+        finalSized = [];
+        break;
+      }
+    }
+
+    // If active candidates were sized and there is leftover budget due to integer share rounding:
+    // Try to top-up whole shares on the highest scoring candidate if within risk constraints
+    if (finalSized.length > 0) {
+      const usedCapital = finalSized.reduce(
+        (sum, s) => sum + s.sizing.finalQuantity * s.item.bestBuy.entryPrice + s.sizing.estimatedCosts,
+        0,
+      );
+      let leftover = totalDeployableBudget - usedCapital;
+
+      for (const s of finalSized) {
+        if (leftover <= 0) break;
+        const price = s.item.bestBuy.entryPrice;
+        if (leftover >= price) {
+          const addShares = Math.floor(leftover / price);
+          if (addShares > 0) {
+            const newQty = s.sizing.finalQuantity + addShares;
+            const maxPosCap = Math.max(10000, riskSnapshot.currentEquity) * (RISK_CONFIG.maxSinglePositionPct / 100);
+            if (newQty * price <= Math.min(totalDeployableBudget, maxPosCap)) {
+              s.sizing.finalQuantity = newQty;
+              s.sizing.estimatedCapital = newQty * price;
+              leftover -= (addShares * price);
+            }
+          }
+        }
+      }
+    }
+
+    for (const { item, sizing } of finalSized) {
+      const estimatedCapital = sizing.finalQuantity * item.bestBuy.entryPrice;
+      const estimatedCosts = TRADING_COSTS.estimateBuyCost(estimatedCapital);
 
       buyRecommendations.push({
         type: "BUY",
-        symbol: cand.symbol,
+        symbol: item.cand.symbol,
         exchange: "NSE",
         timestamp: now,
-        latestPrice: latestBar.close,
-        latestPriceTimestamp: latestBar.retrievedAt,
-        dataSource: latestBar.provider,
-        strategy: bestBuy.strategy,
-        strategyVersion: bestBuy.strategyVersion,
-        score: cand.score,
-        entryPrice: bestBuy.entryPrice,
-        entryCondition: bestBuy.entryCondition,
+        latestPrice: item.latestBar.close,
+        latestPriceTimestamp: item.latestBar.retrievedAt,
+        dataSource: item.latestBar.provider,
+        strategy: item.bestBuy.strategy,
+        strategyVersion: item.bestBuy.strategyVersion,
+        score: item.cand.score,
+        entryPrice: item.bestBuy.entryPrice,
+        entryCondition: item.bestBuy.entryCondition,
         quantity: sizing.finalQuantity,
         estimatedCapital: Number(estimatedCapital.toFixed(2)),
-        estimatedCosts: Number(sizing.estimatedCosts.toFixed(2)),
-        stopLoss: bestBuy.stopLoss,
-        targetPrice: bestBuy.targetPrice,
-        trailingExitRules: `Trail stop to breakeven after +1.8x ATR gain. Hard exit below ₹${bestBuy.stopLoss.toFixed(2)}.`,
-        expectedHoldingDays: bestBuy.expectedHoldingDays,
-        riskRewardRatio: bestBuy.riskRewardRatio ?? 1.6,
+        estimatedCosts: Number(estimatedCosts.toFixed(2)),
+        stopLoss: item.bestBuy.stopLoss,
+        targetPrice: item.bestBuy.targetPrice,
+        trailingExitRules: `Trail stop to breakeven after +1.8x ATR gain. Hard exit below ₹${item.bestBuy.stopLoss.toFixed(2)}.`,
+        expectedHoldingDays: item.bestBuy.expectedHoldingDays,
+        riskRewardRatio: item.bestBuy.riskRewardRatio ?? 1.6,
         portfolioAllocationAfter: sizing.allocationPct,
         sectorExposureAfter: sizing.sectorExposurePct,
-        reasonsFor: bestBuy.reasons,
-        reasonsAgainst: bestBuy.contraReasons,
+        reasonsFor: item.bestBuy.reasons,
+        reasonsAgainst: item.bestBuy.contraReasons,
         uncertainties: [
           `Market regime currently ${marketRegime}`,
           `Overnight gap risk: max allowed slippage ${RISK_CONFIG.gapSlippagePct}%`,
         ],
-        cancellationConditions: bestBuy.cancellationConditions,
-        maxChasePrice: bestBuy.maxChasePrice ?? bestBuy.entryPrice * 1.015,
+        cancellationConditions: item.bestBuy.cancellationConditions,
+        maxChasePrice: item.bestBuy.maxChasePrice ?? item.bestBuy.entryPrice * 1.015,
       });
-
-      // Max 3 new recommendations per day to ensure high conviction
-      if (buyRecommendations.length >= 3) break;
     }
   }
 

@@ -25,6 +25,7 @@ export type InvestmentDefaults = {
         midcap: number;
     };
     minInvestableThreshold: number; // ₹500
+    minMfInvestmentAmount: number; // ₹500 minimum per mutual fund scheme
     staleSuggestionDays: number; // 7 days after cycleDays
     stockPhaseRates: Record<FinancialPhase, number>; // 0 to 100
     defaultStockCarryForwardPct: number;
@@ -36,6 +37,7 @@ export const INVESTMENT_DEFAULTS: InvestmentDefaults = {
         maxDays: 33,
         defaultDays: 33,
     },
+    minMfInvestmentAmount: 500,
     phaseRates: {
         CRISIS: 0,
         EF_BUILDING: 15,

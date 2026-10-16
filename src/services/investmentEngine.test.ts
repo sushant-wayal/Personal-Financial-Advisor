@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { computeSurplus, getOrGenerateInvestmentSuggestion } from "./investmentEngine";
+import { computeSurplus, getOrGenerateInvestmentSuggestion, distributeWithMinimumThreshold } from "./investmentEngine";
 import { prisma } from "../lib/prisma";
 
 vi.mock("../lib/prisma", () => ({
@@ -167,6 +167,97 @@ describe("investmentEngine - surplus & suggestions", () => {
                 niftyNext50: { amount: 4900, pctOfEquity: 20, pctOfTotal: 14 },
                 midcap: { amount: 4900, pctOfEquity: 20, pctOfTotal: 14 },
             });
+        });
+    });
+
+    describe("distributeWithMinimumThreshold", () => {
+        it("returns all zeros when total is strictly below minimum required amount", () => {
+            const result = distributeWithMinimumThreshold(400, [
+                { key: "equity", weight: 70, minAmount: 500 },
+                { key: "debt", weight: 20, minAmount: 500 },
+                { key: "gold", weight: 10, minAmount: 500 },
+            ]);
+
+            expect(result).toEqual({ equity: 0, debt: 0, gold: 0 });
+        });
+
+        it("allocates entire amount to highest-weight fund when splits all fall below threshold but total >= threshold", () => {
+            // ₹800 investable with 70/20/10 weights yields raw 560 / 160 / 80 -> debt & gold fail (< 500), so equity receives all 800
+            const result = distributeWithMinimumThreshold(800, [
+                { key: "equity", weight: 70, minAmount: 500 },
+                { key: "debt", weight: 20, minAmount: 500 },
+                { key: "gold", weight: 10, minAmount: 500 },
+            ]);
+
+            expect(result.debt).toBe(0);
+            expect(result.gold).toBe(0);
+            expect(result.equity).toBe(800);
+            expect(result.equity + result.debt + result.gold).toBe(800);
+        });
+
+        it("redistributes removed bucket amount to remaining active buckets when only one bucket fails", () => {
+            // ₹4000 with 70/20/10 weights -> raw: eq 2800, debt 800, gold 400 (< 500 min).
+            // Gold is removed (0) and its 400 is spread proportionally between equity (70) and debt (20).
+            const result = distributeWithMinimumThreshold(4000, [
+                { key: "equity", weight: 70, minAmount: 500 },
+                { key: "debt", weight: 20, minAmount: 500 },
+                { key: "gold", weight: 10, minAmount: 500 },
+            ]);
+
+            expect(result.gold).toBe(0);
+            expect(result.equity).toBeGreaterThanOrEqual(500);
+            expect(result.debt).toBeGreaterThanOrEqual(500);
+            expect(result.equity).toBe(3112);
+            expect(result.debt).toBe(888);
+            expect(result.equity + result.debt + result.gold).toBe(4000);
+        });
+
+        it("preserves proportional distribution when all allocations exceed threshold", () => {
+            // ₹10,000 with 70/20/10 -> eq 7000, debt 2000, gold 1000
+            const result = distributeWithMinimumThreshold(10000, [
+                { key: "equity", weight: 70, minAmount: 500 },
+                { key: "debt", weight: 20, minAmount: 500 },
+                { key: "gold", weight: 10, minAmount: 500 },
+            ]);
+
+            expect(result).toEqual({ equity: 7000, debt: 2000, gold: 1000 });
+        });
+
+        it("correctly handles equity sub-breakdown redistribution for ₹1000 equity (60/20/20)", () => {
+            // 60% = 600, 20% = 200 (< 500), 20% = 200 (< 500)
+            // niftyNext50 and midcap are removed (0) and shifted to nifty50 (1000)
+            const result = distributeWithMinimumThreshold(1000, [
+                { key: "nifty50", weight: 60, minAmount: 500 },
+                { key: "niftyNext50", weight: 20, minAmount: 500 },
+                { key: "midcap", weight: 20, minAmount: 500 },
+            ]);
+
+            expect(result.nifty50).toBe(1000);
+            expect(result.niftyNext50).toBe(0);
+            expect(result.midcap).toBe(0);
+        });
+
+        it("never outputs any non-zero allocation below the threshold", () => {
+            const totals = [0, 100, 499, 500, 600, 1000, 1499, 1500, 2300, 3750, 5000];
+            for (const total of totals) {
+                const res = distributeWithMinimumThreshold(total, [
+                    { key: "nifty50", weight: 60, minAmount: 500 },
+                    { key: "niftyNext50", weight: 20, minAmount: 500 },
+                    { key: "midcap", weight: 20, minAmount: 500 },
+                ]);
+
+                for (const val of Object.values(res)) {
+                    if (val > 0) {
+                        expect(val).toBeGreaterThanOrEqual(500);
+                    }
+                }
+                const sum = Object.values(res).reduce((a, b) => a + b, 0);
+                if (total >= 500) {
+                    expect(sum).toBe(total);
+                } else {
+                    expect(sum).toBe(0);
+                }
+            }
         });
     });
 });

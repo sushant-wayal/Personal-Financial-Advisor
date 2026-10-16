@@ -130,13 +130,49 @@ export default function InvestmentsClient() {
     const isInvested = suggestion?.status === "INVESTED";
 
     // Equity sub-allocation percentages and amounts
-    const n50Pct = suggestion?.subAllocations?.equityNifty50Pct ?? 60;
-    const nn50Pct = suggestion?.subAllocations?.equityNiftyNext50Pct ?? 20;
-    const mcPct = suggestion?.subAllocations?.equityMidcapPct ?? 20;
+    const serverBreakdown = suggestion?.buckets?.equity?.breakdown;
+    const n50Pct = serverBreakdown?.nifty50?.pctOfEquity ?? 60;
+    const nn50Pct = serverBreakdown?.niftyNext50?.pctOfEquity ?? 20;
+    const mcPct = serverBreakdown?.midcap?.pctOfEquity ?? 20;
 
-    const nifty50 = Math.round(equity * (n50Pct / 100));
-    const niftyNext50 = Math.round(equity * (nn50Pct / 100));
-    const midcap = Math.max(0, equity - nifty50 - niftyNext50);
+    let nifty50 = 0;
+    let niftyNext50 = 0;
+    let midcap = 0;
+
+    if (equity === suggestion?.buckets?.equity?.final && serverBreakdown) {
+        nifty50 = serverBreakdown.nifty50.amount;
+        niftyNext50 = serverBreakdown.niftyNext50.amount;
+        midcap = serverBreakdown.midcap.amount;
+    } else if (equity >= 500) {
+        const rawN50 = Math.floor(equity * (n50Pct / 100));
+        const rawNn50 = Math.floor(equity * (nn50Pct / 100));
+        const rawMc = Math.floor(equity * (mcPct / 100));
+        const rem = equity - (rawN50 + rawNn50 + rawMc);
+
+        const candidates = [
+            { key: "n50", weight: n50Pct, amt: rawN50 + rem },
+            { key: "nn50", weight: nn50Pct, amt: rawNn50 },
+            { key: "mc", weight: mcPct, amt: rawMc },
+        ];
+
+        const viable = candidates.filter(c => c.amt >= 500);
+        if (viable.length === 3) {
+            nifty50 = candidates[0].amt;
+            niftyNext50 = candidates[1].amt;
+            midcap = candidates[2].amt;
+        } else if (viable.length === 2) {
+            const sumViableWeights = viable.reduce((s, c) => s + c.weight, 0);
+            const a0 = Math.floor(equity * (viable[0].weight / sumViableWeights));
+            const a1 = equity - a0;
+            if (viable.some(c => c.key === "n50")) nifty50 = viable[0].key === "n50" ? a0 : a1;
+            if (viable.some(c => c.key === "nn50")) niftyNext50 = viable[0].key === "nn50" ? a0 : a1;
+            if (viable.some(c => c.key === "mc")) midcap = viable[0].key === "mc" ? a0 : a1;
+        } else {
+            nifty50 = equity;
+            niftyNext50 = 0;
+            midcap = 0;
+        }
+    }
 
     return (
         <div className="container max-w-6xl mx-auto space-y-8 p-4 sm:p-6 lg:p-8">
@@ -278,7 +314,11 @@ export default function InvestmentsClient() {
                                                     <div className="h-3 w-3 rounded-md bg-violet-500 flex-shrink-0" />
                                                     <div className="truncate">
                                                         <div className="text-xs font-semibold text-white">Nifty Next 50 Index</div>
-                                                        <div className="text-[10px] text-slate-400">Growth Blend ({nn50Pct}%)</div>
+                                                        {niftyNext50 === 0 && equity >= 500 ? (
+                                                            <div className="text-[10px] text-amber-400 font-mono">Shifted to Core (&lt; ₹500 min)</div>
+                                                        ) : (
+                                                            <div className="text-[10px] text-slate-400">Growth Blend ({nn50Pct}%)</div>
+                                                        )}
                                                     </div>
                                                 </div>
                                                 <div className="text-right font-mono text-xs sm:text-sm font-bold text-violet-300">
@@ -292,7 +332,11 @@ export default function InvestmentsClient() {
                                                     <div className="h-3 w-3 rounded-md bg-cyan-400 flex-shrink-0" />
                                                     <div className="truncate">
                                                         <div className="text-xs font-semibold text-white">Midcap 150 Index</div>
-                                                        <div className="text-[10px] text-slate-400">High Growth Alpha ({mcPct}%)</div>
+                                                        {midcap === 0 && equity >= 500 ? (
+                                                            <div className="text-[10px] text-amber-400 font-mono">Shifted to Core (&lt; ₹500 min)</div>
+                                                        ) : (
+                                                            <div className="text-[10px] text-slate-400">High Growth Alpha ({mcPct}%)</div>
+                                                        )}
                                                     </div>
                                                 </div>
                                                 <div className="text-right font-mono text-xs sm:text-sm font-bold text-cyan-300">
@@ -322,7 +366,12 @@ export default function InvestmentsClient() {
                                             className="pl-7 font-mono text-sm bg-black/40 border-emerald-500/30 text-white"
                                         />
                                     </div>
-                                    <div className="text-[11px] text-slate-500">Suggested: {formatCurrency(suggestion?.buckets.debt.suggested ?? 0)}</div>
+                                    <div className="text-[11px] text-slate-500">
+                                        Suggested: {formatCurrency(suggestion?.buckets.debt.suggested ?? 0)}
+                                        {suggestion?.buckets.debt.suggested === 0 && (suggestion?.totalInvestable ?? 0) >= 500 && (
+                                            <span className="text-amber-400 ml-1">(&lt; ₹500 min, shifted to Equity)</span>
+                                        )}
+                                    </div>
                                 </div>
 
                                 {/* Gold Input */}
@@ -344,7 +393,12 @@ export default function InvestmentsClient() {
                                             className="pl-7 font-mono text-sm bg-black/40 border-amber-500/30 text-white"
                                         />
                                     </div>
-                                    <div className="text-[11px] text-slate-500">Suggested: {formatCurrency(suggestion?.buckets.gold.suggested ?? 0)}</div>
+                                    <div className="text-[11px] text-slate-500">
+                                        Suggested: {formatCurrency(suggestion?.buckets.gold.suggested ?? 0)}
+                                        {suggestion?.buckets.gold.suggested === 0 && (suggestion?.totalInvestable ?? 0) >= 500 && (
+                                            <span className="text-amber-400 ml-1">(&lt; ₹500 min, shifted to Equity/Debt)</span>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
 

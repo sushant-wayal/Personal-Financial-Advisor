@@ -70,6 +70,22 @@ describe("stockRisk — Position Sizing & Hard Constraints", () => {
     expect(size.rejectedReason).toContain("Maximum open positions");
   });
 
+  it("rejects position sizing when available capital cannot fund the minimum investment threshold or 1 whole share", () => {
+    // Available capital ₹400 is less than minimum investment threshold ₹500
+    const size = calculatePositionSize(
+      "ITC",
+      400,
+      380,
+      400, // available capital ₹400
+      200000,
+      5,
+      1,
+    );
+
+    expect(size.finalQuantity).toBe(0);
+    expect(size.rejectedReason).toContain("below minimum investment threshold");
+  });
+
   describe("checkTradeEligibility", () => {
     it("blocks trade when financial phase is CRISIS", () => {
       const size = calculatePositionSize("TCS", 3500, 3350, 50000, 200000, 5, 1);

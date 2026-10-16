@@ -77,6 +77,80 @@ export type InvestmentSuggestionResult = {
     };
 };
 
+/**
+ * Distribute an amount across weighted items with a minimum investment constraint.
+ * If any item's calculated share is strictly less than minAmount, that item is removed (0)
+ * and its amount is spread proportionally across the remaining active items.
+ */
+export function distributeWithMinimumThreshold<T extends string>(
+    total: number,
+    items: Array<{ key: T; weight: number; minAmount: number }>
+): Record<T, number> {
+    const result: Record<string, number> = {};
+    for (const item of items) {
+        result[item.key] = 0;
+    }
+
+    if (total <= 0 || !Number.isFinite(total)) return result as Record<T, number>;
+
+    // Filter items with positive weights and minAmounts
+    let active = items.filter((item) => item.weight > 0 && item.minAmount > 0);
+    if (active.length === 0) return result as Record<T, number>;
+
+    const minRequired = Math.min(...active.map((a) => a.minAmount));
+    if (total < minRequired) {
+        return result as Record<T, number>;
+    }
+
+    while (active.length > 0) {
+        const totalWeight = active.reduce((sum, item) => sum + item.weight, 0);
+        if (totalWeight <= 0) break;
+
+        let allocatedSum = 0;
+        const tentative: Record<string, number> = {};
+
+        for (const item of active) {
+            const rawAmount = Math.floor(total * (item.weight / totalWeight));
+            tentative[item.key] = rawAmount;
+            allocatedSum += rawAmount;
+        }
+
+        // Distribute rounding remainder (total - allocatedSum) to active items sorted by weight
+        let remainder = total - allocatedSum;
+        const sortedActive = [...active].sort((a, b) => b.weight - a.weight);
+        for (const item of sortedActive) {
+            if (remainder <= 0) break;
+            tentative[item.key] += 1;
+            remainder -= 1;
+        }
+
+        // Check if any active item fails its minAmount
+        const failing = active.filter((item) => tentative[item.key] < item.minAmount);
+
+        if (failing.length === 0) {
+            for (const item of active) {
+                result[item.key] = tentative[item.key];
+            }
+            return result as Record<T, number>;
+        }
+
+        // If ALL active items fail, pick highest weight item whose minAmount <= total
+        if (failing.length === active.length) {
+            const candidate = sortedActive.find((item) => total >= item.minAmount);
+            if (candidate) {
+                result[candidate.key] = total;
+            }
+            return result as Record<T, number>;
+        }
+
+        // Remove the failing items and repeat loop so their amounts spread to remaining active items
+        const failingKeys = new Set(failing.map((f) => f.key));
+        active = active.filter((item) => !failingKeys.has(item.key));
+    }
+
+    return result as Record<T, number>;
+}
+
 
 
 /**
@@ -375,9 +449,15 @@ export async function getOrGenerateInvestmentSuggestion(options?: { burnData?: A
     const baseStockInvestable = Math.max(0, Math.round(surplusComp.smoothedSurplus * (stockPhaseRate / 100)));
 
     const subConfig = phase === "EF_BUILDING" ? config.subAllocations.conservative : config.subAllocations.standard;
-    const suggestedEquity = Math.round(baseInvestable * (subConfig.equity / 100));
-    const suggestedDebt = Math.round(baseInvestable * (subConfig.debt / 100));
-    const suggestedGold = Math.max(0, baseInvestable - suggestedEquity - suggestedDebt);
+    const minMfAmount = INVESTMENT_DEFAULTS.minMfInvestmentAmount ?? 500;
+    const distributedBuckets = distributeWithMinimumThreshold(baseInvestable, [
+        { key: "equity", weight: subConfig.equity, minAmount: minMfAmount },
+        { key: "debt", weight: subConfig.debt, minAmount: minMfAmount },
+        { key: "gold", weight: subConfig.gold, minAmount: minMfAmount },
+    ]);
+    const suggestedEquity = distributedBuckets.equity;
+    const suggestedDebt = distributedBuckets.debt;
+    const suggestedGold = distributedBuckets.gold;
 
     if (active) {
         const activeRemainingStock = active.remainingStockBalance != null && active.remainingStockBalance > 0
@@ -500,31 +580,39 @@ function buildSuggestionResult(
     const dbPct = total > 0 ? Math.round((db / total) * 100) : 0;
     const gdPct = total > 0 ? Math.max(0, 100 - eqPct - dbPct) : 0;
 
-    // Calculate Equity Breakdown based on profile config (default 60 / 20 / 20)
+    // Calculate Equity Breakdown based on profile config (default 60 / 20 / 20) with minimum threshold constraint
+    const minMfAmount = INVESTMENT_DEFAULTS.minMfInvestmentAmount ?? 500;
     const n50Pct = config.equityBreakdown?.nifty50 ?? INVESTMENT_DEFAULTS.equityBreakdown.nifty50;
     const nn50Pct = config.equityBreakdown?.niftyNext50 ?? INVESTMENT_DEFAULTS.equityBreakdown.niftyNext50;
     const mcPct = config.equityBreakdown?.midcap ?? INVESTMENT_DEFAULTS.equityBreakdown.midcap;
 
-    const nifty50Amt = Math.round(eq * (n50Pct / 100));
-    const niftyNext50Amt = Math.round(eq * (nn50Pct / 100));
-    const midcapAmt = Math.max(0, eq - nifty50Amt - niftyNext50Amt);
+    const distributedEquity = distributeWithMinimumThreshold(eq, [
+        { key: "nifty50", weight: n50Pct, minAmount: minMfAmount },
+        { key: "niftyNext50", weight: nn50Pct, minAmount: minMfAmount },
+        { key: "midcap", weight: mcPct, minAmount: minMfAmount },
+    ]);
+
+    const nifty50Amt = distributedEquity.nifty50;
+    const niftyNext50Amt = distributedEquity.niftyNext50;
+    const midcapAmt = distributedEquity.midcap;
 
     const calcSubPct = (amt: number) => (total > 0 ? Math.round((amt / total) * 100) : 0);
+    const calcEqPct = (amt: number) => (eq > 0 ? Math.round((amt / eq) * 100) : 0);
 
     const equityBreakdown: EquityBreakdown = {
         nifty50: {
             amount: nifty50Amt,
-            pctOfEquity: n50Pct,
+            pctOfEquity: calcEqPct(nifty50Amt),
             pctOfTotal: calcSubPct(nifty50Amt),
         },
         niftyNext50: {
             amount: niftyNext50Amt,
-            pctOfEquity: nn50Pct,
+            pctOfEquity: calcEqPct(niftyNext50Amt),
             pctOfTotal: calcSubPct(niftyNext50Amt),
         },
         midcap: {
             amount: midcapAmt,
-            pctOfEquity: mcPct,
+            pctOfEquity: calcEqPct(midcapAmt),
             pctOfTotal: calcSubPct(midcapAmt),
         },
     };

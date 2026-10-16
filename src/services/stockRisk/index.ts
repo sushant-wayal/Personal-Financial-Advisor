@@ -591,6 +591,11 @@ export function calculatePositionSize(
   // (This is a basic check; strategies should set target prices for proper R/R calculation)
 
   const estimatedCapital = finalQuantity * entryPrice;
+  const minRequiredCapital = Math.max(RISK_CONFIG.minStockInvestmentAmount ?? 500, entryPrice);
+  if (estimatedCapital < minRequiredCapital) {
+    return rejectedResult(`Position capital ₹${estimatedCapital.toFixed(2)} is below minimum investment threshold ₹${minRequiredCapital.toFixed(2)}`);
+  }
+
   const estimatedCosts = TRADING_COSTS.estimateBuyCost(estimatedCapital);
   const riskAmount = finalQuantity * riskPerShare;
   const allocationPct = totalPortfolioValue > 0
