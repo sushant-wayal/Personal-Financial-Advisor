@@ -26,6 +26,8 @@ export type InvestmentDefaults = {
     };
     minInvestableThreshold: number; // ₹500
     staleSuggestionDays: number; // 7 days after cycleDays
+    stockPhaseRates: Record<FinancialPhase, number>; // 0 to 100
+    defaultStockCarryForwardPct: number;
 };
 
 export const INVESTMENT_DEFAULTS: InvestmentDefaults = {
@@ -40,6 +42,13 @@ export const INVESTMENT_DEFAULTS: InvestmentDefaults = {
         GOAL_SPRINT: 40,
         WEALTH_BUILDING: 100,
     },
+    stockPhaseRates: {
+        CRISIS: 0,
+        EF_BUILDING: 10,
+        GOAL_SPRINT: 25,
+        WEALTH_BUILDING: 40,
+    },
+    defaultStockCarryForwardPct: 50,
     subAllocations: {
         standard: {
             equity: 70,

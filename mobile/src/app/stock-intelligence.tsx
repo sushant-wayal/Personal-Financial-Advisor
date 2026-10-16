@@ -184,6 +184,28 @@ export default function StockIntelligenceScreen() {
     }
   };
 
+  const handleInvestStock = async (buy: any) => {
+    setActionLoading(true);
+    try {
+      const res = await safeFetchJson(apiUrl("/api/stock-intelligence/recommendations/invest"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          symbol: buy.symbol,
+          quantity: buy.quantity,
+          entryPrice: buy.entryPrice,
+          amount: buy.estimatedCapital,
+        }),
+      });
+      showSuccess("Investment Recorded", res.message || `Recorded ₹${buy.estimatedCapital?.toLocaleString("en-IN")} investment in ${buy.symbol}`);
+      loadData();
+    } catch (e: any) {
+      showError("Investment Error", e.message || String(e));
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const buys = (recData?.recommendations?.filter((r: any) => r.type === "BUY") ?? []);
   const holds = (recData?.recommendations?.filter((r: any) => r.type === "HOLD") ?? []);
   const sells = (recData?.recommendations?.filter((r: any) => r.type === "SELL") ?? []);
@@ -261,6 +283,17 @@ export default function StockIntelligenceScreen() {
                 </Text>
               )}
             </View>
+
+            <View style={styles.heroCol}>
+              <Text style={styles.heroLabel}>CYCLE STOCK CREDIT</Text>
+              <Text style={[styles.heroValue, { color: "#22d3ee" }]}>
+                {capital ? formatCurrencyAmount(capital.remainingCycleStockBalance ?? 0, "INR") : "₹0"}
+              </Text>
+              <Text style={[styles.heroSubText, { color: "#888888" }]}>
+                Pool: {capital ? formatCurrencyAmount(capital.cycleStockTradingPool ?? 0, "INR") : "₹0"}
+              </Text>
+            </View>
+
             <View style={styles.heroCol}>
               <Text style={styles.heroLabel}>DRAWDOWN RISK</Text>
               <Text style={[styles.heroValue, { color: (risk?.drawdownPct ?? 0) >= 4.0 ? "#f43f5e" : "#22d3ee" }]}>
@@ -369,15 +402,36 @@ export default function StockIntelligenceScreen() {
                     </View>
                   </View>
 
-                  {/* Simulate Button */}
-                  <Pressable
-                    onPress={() => handlePaperBuy(buy)}
-                    disabled={actionLoading}
-                    style={({ pressed }) => [styles.simulateBtn, pressed ? { opacity: 0.7 } : null]}
-                  >
-                    <MaterialIcons name="play-arrow" size={16} color="#06b6d4" />
-                    <Text style={styles.simulateBtnText}>Simulate in Paper Sandbox</Text>
-                  </Pressable>
+                  {/* Actions Row */}
+                  <View style={{ flexDirection: "row", gap: 8, marginTop: 4 }}>
+                    <Pressable
+                      onPress={() => handleInvestStock(buy)}
+                      disabled={actionLoading || buy.status === "INVESTED"}
+                      style={({ pressed }) => [
+                        styles.investBtn,
+                        buy.status === "INVESTED" ? { backgroundColor: "rgba(16,185,129,0.2)" } : null,
+                        pressed ? { opacity: 0.7 } : null,
+                      ]}
+                    >
+                      <MaterialIcons
+                        name={buy.status === "INVESTED" ? "check-circle" : "check"}
+                        size={16}
+                        color="#10b981"
+                      />
+                      <Text style={styles.investBtnText}>
+                        {buy.status === "INVESTED" ? "Invested" : "Mark as Invested"}
+                      </Text>
+                    </Pressable>
+
+                    <Pressable
+                      onPress={() => handlePaperBuy(buy)}
+                      disabled={actionLoading}
+                      style={({ pressed }) => [styles.simulateBtn, { flex: 1, marginTop: 0 }, pressed ? { opacity: 0.7 } : null]}
+                    >
+                      <MaterialIcons name="play-arrow" size={16} color="#06b6d4" />
+                      <Text style={styles.simulateBtnText}>Simulate</Text>
+                    </Pressable>
+                  </View>
                 </View>
               ))
             )}
@@ -522,6 +576,76 @@ export default function StockIntelligenceScreen() {
               )}
             </View>
 
+            {/* Four-Pillar Capital Allocation (100% Cash Balanced) */}
+            <View style={styles.card}>
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                <Text style={styles.cardSectionTitle}>Four-Pillar Capital Allocation</Text>
+                <Text style={{ fontSize: 11, fontWeight: "700", color: "#22d3ee" }}>100% Balanced</Text>
+              </View>
+              <Text style={{ fontSize: 11, color: "#888888", marginTop: 2 }}>
+                Bank liquidity strictly partitioned into 4 ring-fenced pillars:
+              </Text>
+
+              <View style={{ gap: 6, marginTop: 8 }}>
+                {/* Pillar 1: Emergency Fund */}
+                <View style={styles.pillarItem}>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                    <Text style={{ fontSize: 11, fontWeight: "700", color: "#34d399" }}>1. Emergency Fund</Text>
+                    <Text style={{ fontSize: 12, fontWeight: "800", color: "#ffffff" }}>
+                      {formatCurrencyAmount(capital?.efAllocatedCash ?? 0, "INR")}
+                    </Text>
+                  </View>
+                  <Text style={{ fontSize: 10, color: "#888888" }}>
+                    Target: {formatCurrencyAmount(capital?.efTargetAmount ?? 0, "INR")} · Fully Protected
+                  </Text>
+                </View>
+
+                {/* Pillar 2: Goals & Commitments */}
+                <View style={styles.pillarItem}>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                    <Text style={{ fontSize: 11, fontWeight: "700", color: "#60a5fa" }}>2. Goals & Buffer</Text>
+                    <Text style={{ fontSize: 12, fontWeight: "800", color: "#ffffff" }}>
+                      {formatCurrencyAmount(
+                        (capital?.nearTermGoalCommitments ?? 0) +
+                        (capital?.upcomingObligations ?? 0) +
+                        (capital?.essentialExpensesCash ?? 0),
+                        "INR"
+                      )}
+                    </Text>
+                  </View>
+                  <Text style={{ fontSize: 10, color: "#888888" }}>
+                    Near-term commitments & living buffer
+                  </Text>
+                </View>
+
+                {/* Pillar 3: Monthly Mutual Funds */}
+                <View style={styles.pillarItem}>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                    <Text style={{ fontSize: 11, fontWeight: "700", color: "#c084fc" }}>3. Monthly MF Pool</Text>
+                    <Text style={{ fontSize: 12, fontWeight: "800", color: "#ffffff" }}>
+                      {formatCurrencyAmount(capital?.cycleMfInvestable ?? 0, "INR")}
+                    </Text>
+                  </View>
+                  <Text style={{ fontSize: 10, color: "#888888" }}>
+                    Committed in active monthly suggestion
+                  </Text>
+                </View>
+
+                {/* Pillar 4: Cycle Stock Pool */}
+                <View style={[styles.pillarItem, { borderColor: "rgba(34,211,238,0.3)", backgroundColor: "rgba(34,211,238,0.05)" }]}>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                    <Text style={{ fontSize: 11, fontWeight: "700", color: "#22d3ee" }}>4. Cycle Stock Pool</Text>
+                    <Text style={{ fontSize: 12, fontWeight: "800", color: "#22d3ee" }}>
+                      {formatCurrencyAmount(capital?.cycleStockTradingPool ?? 0, "INR")}
+                    </Text>
+                  </View>
+                  <Text style={{ fontSize: 10, color: "#22d3ee" }}>
+                    Available Credit: {formatCurrencyAmount(capital?.remainingCycleStockBalance ?? 0, "INR")}
+                  </Text>
+                </View>
+              </View>
+            </View>
+
             {/* Liquidity Waterfall Cards */}
             <View style={{ flexDirection: "row", gap: 8 }}>
               <View style={[styles.card, { flex: 1, padding: 10 }]}>
@@ -533,19 +657,19 @@ export default function StockIntelligenceScreen() {
               </View>
 
               <View style={[styles.card, { flex: 1, padding: 10 }]}>
-                <Text style={{ fontSize: 9, fontWeight: "700", color: "#f43f5e", textTransform: "uppercase" }}>Protected</Text>
+                <Text style={{ fontSize: 9, fontWeight: "700", color: "#f43f5e", textTransform: "uppercase" }}>Ring-Fenced</Text>
                 <Text style={{ fontSize: 13, fontWeight: "800", color: "#f43f5e", marginTop: 4 }}>
-                  −{formatCurrencyAmount(Math.max(0, (capital?.verifiedLiquidCash ?? 0) - (capital?.potentiallyDeployableCash ?? 0)), "INR")}
+                  −{formatCurrencyAmount(capital?.totalDeductions ?? 0, "INR")}
                 </Text>
-                <Text style={{ fontSize: 9, color: "#888888", marginTop: 2 }}>Deductions</Text>
+                <Text style={{ fontSize: 9, color: "#888888", marginTop: 2 }}>Protected</Text>
               </View>
 
               <View style={[styles.card, { flex: 1, padding: 10, borderColor: "rgba(34,211,238,0.3)" }]}>
-                <Text style={{ fontSize: 9, fontWeight: "700", color: "#22d3ee", textTransform: "uppercase" }}>Net Deployable</Text>
+                <Text style={{ fontSize: 9, fontWeight: "700", color: "#22d3ee", textTransform: "uppercase" }}>Deployable Cash</Text>
                 <Text style={{ fontSize: 13, fontWeight: "800", color: "#22d3ee", marginTop: 4 }}>
                   {formatCurrencyAmount(capital?.potentiallyDeployableCash ?? 0, "INR")}
                 </Text>
-                <Text style={{ fontSize: 9, color: "#22d3ee", marginTop: 2 }}>Unallocated</Text>
+                <Text style={{ fontSize: 9, color: "#22d3ee", marginTop: 2 }}>Cycle Credit</Text>
               </View>
             </View>
 
@@ -959,6 +1083,27 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   strategyBtnText: { fontSize: 12, fontWeight: "700", color: "#06b6d4" },
+  investBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    backgroundColor: "rgba(16,185,129,0.12)",
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(16,185,129,0.25)",
+  },
+  investBtnText: { fontSize: 12, fontWeight: "700", color: "#34d399" },
+  pillarItem: {
+    backgroundColor: "#161618",
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.06)",
+    gap: 2,
+  },
 });
 
 const aiMarkdownStyles = {

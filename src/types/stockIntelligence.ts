@@ -230,6 +230,12 @@ export type CapitalAllocation = {
   dataTimestamp: Date;
   /** Warnings */
   warnings: string[];
+  /** Active cycle stock trading pool */
+  cycleStockTradingPool?: number;
+  /** Remaining cycle stock balance available */
+  remainingCycleStockBalance?: number;
+  /** Active cycle MF investable carveout */
+  cycleMfInvestable?: number;
 };
 
 // ─── Position Sizing ─────────────────────────────────────────────────────────

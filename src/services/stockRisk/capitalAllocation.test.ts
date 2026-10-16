@@ -46,6 +46,16 @@ vi.mock("../investmentEngine", () => ({
   detectSalaryCycle: vi.fn(),
 }));
 
+
+function mockEf(data: any): emergencyFundService.EmergencyFundStatus {
+  return {
+    investableCarveout: 0,
+    mfInvestableCarveout: 0,
+    stockInvestableCarveout: 0,
+    ...data,
+  } as emergencyFundService.EmergencyFundStatus;
+}
+
 describe("capitalAllocation — Comprehensive Safety & Sizing Tests (17 Requirements)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -95,7 +105,7 @@ describe("capitalAllocation — Comprehensive Safety & Sizing Tests (17 Requirem
       emergencyFundMonths: 6,
     } as any);
 
-    vi.mocked(emergencyFundService.getEmergencyFundStatus).mockResolvedValue({
+    vi.mocked(emergencyFundService.getEmergencyFundStatus).mockResolvedValue(mockEf({
       targetMonths: 6,
       avgMonthlyExpenses: 50000,
       targetAmount: 300000,
@@ -113,7 +123,7 @@ describe("capitalAllocation — Comprehensive Safety & Sizing Tests (17 Requirem
       tier: 1,
       efMonthlyDrip: 0,
       availableGoalCapacity: 0,
-    });
+    }));
 
     const result = await calculateCapitalAllocation("BULLISH");
 
@@ -132,7 +142,7 @@ describe("capitalAllocation — Comprehensive Safety & Sizing Tests (17 Requirem
       emergencyFundMonths: 6,
     } as any);
 
-    vi.mocked(emergencyFundService.getEmergencyFundStatus).mockResolvedValue({
+    vi.mocked(emergencyFundService.getEmergencyFundStatus).mockResolvedValue(mockEf({
       targetMonths: 6,
       avgMonthlyExpenses: 73976,
       targetAmount: 443856,
@@ -150,7 +160,7 @@ describe("capitalAllocation — Comprehensive Safety & Sizing Tests (17 Requirem
       tier: 2,
       efMonthlyDrip: 53216,
       availableGoalCapacity: 22808,
-    });
+    }));
 
     vi.mocked(investmentEngineService.determinePhase).mockReturnValue("EF_BUILDING");
 
@@ -176,7 +186,7 @@ describe("capitalAllocation — Comprehensive Safety & Sizing Tests (17 Requirem
       emergencyFundMonths: 6,
     } as any);
 
-    vi.mocked(emergencyFundService.getEmergencyFundStatus).mockResolvedValue({
+    vi.mocked(emergencyFundService.getEmergencyFundStatus).mockResolvedValue(mockEf({
       targetMonths: 6,
       avgMonthlyExpenses: 50000,
       targetAmount: 300000,
@@ -194,7 +204,7 @@ describe("capitalAllocation — Comprehensive Safety & Sizing Tests (17 Requirem
       tier: 3,
       efMonthlyDrip: 0,
       availableGoalCapacity: 70000,
-    });
+    }));
 
     vi.mocked(investmentEngineService.determinePhase).mockReturnValue("WEALTH_BUILDING");
 
@@ -218,7 +228,7 @@ describe("capitalAllocation — Comprehensive Safety & Sizing Tests (17 Requirem
       emergencyFundMonths: 6,
     } as any);
 
-    vi.mocked(emergencyFundService.getEmergencyFundStatus).mockResolvedValue({
+    vi.mocked(emergencyFundService.getEmergencyFundStatus).mockResolvedValue(mockEf({
       targetMonths: 6,
       avgMonthlyExpenses: 50000,
       targetAmount: 300000,
@@ -236,7 +246,7 @@ describe("capitalAllocation — Comprehensive Safety & Sizing Tests (17 Requirem
       tier: 2,
       efMonthlyDrip: 35000,
       availableGoalCapacity: 15000,
-    });
+    }));
 
     const result = await calculateCapitalAllocation("NEUTRAL");
 
@@ -258,7 +268,7 @@ describe("capitalAllocation — Comprehensive Safety & Sizing Tests (17 Requirem
       emergencyFundMonths: 6,
     } as any);
 
-    vi.mocked(emergencyFundService.getEmergencyFundStatus).mockResolvedValue({
+    vi.mocked(emergencyFundService.getEmergencyFundStatus).mockResolvedValue(mockEf({
       targetMonths: 6,
       avgMonthlyExpenses: 50000,
       targetAmount: 300000,
@@ -276,7 +286,7 @@ describe("capitalAllocation — Comprehensive Safety & Sizing Tests (17 Requirem
       tier: 2,
       efMonthlyDrip: 35000,
       availableGoalCapacity: 15000,
-    });
+    }));
 
     const result = await calculateCapitalAllocation("NEUTRAL");
 
@@ -296,7 +306,7 @@ describe("capitalAllocation — Comprehensive Safety & Sizing Tests (17 Requirem
     } as any);
 
     // Emergency reserve is only ₹20,000 (less than ₹50,000 monthly expenses)
-    vi.mocked(emergencyFundService.getEmergencyFundStatus).mockResolvedValue({
+    vi.mocked(emergencyFundService.getEmergencyFundStatus).mockResolvedValue(mockEf({
       targetMonths: 6,
       avgMonthlyExpenses: 50000,
       targetAmount: 300000,
@@ -314,7 +324,7 @@ describe("capitalAllocation — Comprehensive Safety & Sizing Tests (17 Requirem
       tier: 1,
       efMonthlyDrip: 21000,
       availableGoalCapacity: 9000,
-    });
+    }));
 
     const result = await calculateCapitalAllocation("NEUTRAL");
 
@@ -336,7 +346,7 @@ describe("capitalAllocation — Comprehensive Safety & Sizing Tests (17 Requirem
       emergencyFundMonths: 6,
     } as any);
 
-    vi.mocked(emergencyFundService.getEmergencyFundStatus).mockResolvedValue({
+    vi.mocked(emergencyFundService.getEmergencyFundStatus).mockResolvedValue(mockEf({
       targetMonths: 6,
       avgMonthlyExpenses: 40000,
       targetAmount: 240000,
@@ -354,7 +364,7 @@ describe("capitalAllocation — Comprehensive Safety & Sizing Tests (17 Requirem
       tier: 2,
       efMonthlyDrip: 42000,
       availableGoalCapacity: 18000,
-    });
+    }));
 
     const now = new Date();
     // Goal 1: Immediate (due in 15 days) -> Target ₹20,000, Current ₹5,000 -> commits full shortfall ₹15,000
@@ -399,7 +409,7 @@ describe("capitalAllocation — Comprehensive Safety & Sizing Tests (17 Requirem
       emergencyFundMonths: 6,
     } as any);
 
-    vi.mocked(emergencyFundService.getEmergencyFundStatus).mockResolvedValue({
+    vi.mocked(emergencyFundService.getEmergencyFundStatus).mockResolvedValue(mockEf({
       targetMonths: 6,
       avgMonthlyExpenses: 40000,
       targetAmount: 240000,
@@ -417,7 +427,7 @@ describe("capitalAllocation — Comprehensive Safety & Sizing Tests (17 Requirem
       tier: 2,
       efMonthlyDrip: 42000,
       availableGoalCapacity: 18000,
-    });
+    }));
 
     vi.mocked(prisma.loanLiability.findMany).mockResolvedValue([
       {
@@ -454,7 +464,7 @@ describe("capitalAllocation — Comprehensive Safety & Sizing Tests (17 Requirem
       emergencyFundMonths: 6,
     } as any);
 
-    vi.mocked(emergencyFundService.getEmergencyFundStatus).mockResolvedValue({
+    vi.mocked(emergencyFundService.getEmergencyFundStatus).mockResolvedValue(mockEf({
       targetMonths: 6,
       avgMonthlyExpenses: 30000,
       targetAmount: 180000,
@@ -472,7 +482,7 @@ describe("capitalAllocation — Comprehensive Safety & Sizing Tests (17 Requirem
       tier: 2,
       efMonthlyDrip: 35000,
       availableGoalCapacity: 15000,
-    });
+    }));
 
     // Mock an active advisory investment suggestion
     vi.mocked(prisma.investmentSuggestion.findFirst).mockResolvedValue({
@@ -498,7 +508,7 @@ describe("capitalAllocation — Comprehensive Safety & Sizing Tests (17 Requirem
       emergencyFundMonths: 6,
     } as any);
 
-    vi.mocked(emergencyFundService.getEmergencyFundStatus).mockResolvedValue({
+    vi.mocked(emergencyFundService.getEmergencyFundStatus).mockResolvedValue(mockEf({
       targetMonths: 6,
       avgMonthlyExpenses: 40000,
       targetAmount: 240000,
@@ -516,7 +526,7 @@ describe("capitalAllocation — Comprehensive Safety & Sizing Tests (17 Requirem
       tier: 2,
       efMonthlyDrip: 42000,
       availableGoalCapacity: 18000,
-    });
+    }));
 
     // Existing holding: ₹30,000
     vi.mocked(prisma.stock.findMany).mockResolvedValue([
@@ -549,7 +559,7 @@ describe("capitalAllocation — Comprehensive Safety & Sizing Tests (17 Requirem
       emergencyFundMonths: 6,
     } as any);
 
-    vi.mocked(emergencyFundService.getEmergencyFundStatus).mockResolvedValue({
+    vi.mocked(emergencyFundService.getEmergencyFundStatus).mockResolvedValue(mockEf({
       targetMonths: 6,
       avgMonthlyExpenses: 40000,
       targetAmount: 240000,
@@ -567,7 +577,7 @@ describe("capitalAllocation — Comprehensive Safety & Sizing Tests (17 Requirem
       tier: 2,
       efMonthlyDrip: 42000,
       availableGoalCapacity: 18000,
-    });
+    }));
 
     // Deployable cash = ₹50,000
     // Large existing holdings: ₹300,000
@@ -603,7 +613,7 @@ describe("capitalAllocation — Comprehensive Safety & Sizing Tests (17 Requirem
       emergencyFundMonths: 6,
     } as any);
 
-    vi.mocked(emergencyFundService.getEmergencyFundStatus).mockResolvedValue({
+    vi.mocked(emergencyFundService.getEmergencyFundStatus).mockResolvedValue(mockEf({
       targetMonths: 6,
       avgMonthlyExpenses: 60000,
       targetAmount: 360000,
@@ -621,7 +631,7 @@ describe("capitalAllocation — Comprehensive Safety & Sizing Tests (17 Requirem
       tier: 1,
       efMonthlyDrip: 0,
       availableGoalCapacity: 0,
-    });
+    }));
 
     // Test CRISIS
     vi.mocked(investmentEngineService.determinePhase).mockReturnValue("CRISIS");
@@ -648,7 +658,7 @@ describe("capitalAllocation — Comprehensive Safety & Sizing Tests (17 Requirem
       emergencyFundMonths: 6,
     } as any);
 
-    vi.mocked(emergencyFundService.getEmergencyFundStatus).mockResolvedValue({
+    vi.mocked(emergencyFundService.getEmergencyFundStatus).mockResolvedValue(mockEf({
       targetMonths: 6,
       avgMonthlyExpenses: 50000,
       targetAmount: 300000,
@@ -666,7 +676,7 @@ describe("capitalAllocation — Comprehensive Safety & Sizing Tests (17 Requirem
       tier: 3,
       efMonthlyDrip: 0,
       availableGoalCapacity: 50000,
-    });
+    }));
 
     vi.mocked(investmentEngineService.determinePhase).mockReturnValue("WEALTH_BUILDING");
 
@@ -710,7 +720,7 @@ describe("capitalAllocation — Comprehensive Safety & Sizing Tests (17 Requirem
       emergencyFundMonths: 6,
     } as any);
 
-    vi.mocked(emergencyFundService.getEmergencyFundStatus).mockResolvedValue({
+    vi.mocked(emergencyFundService.getEmergencyFundStatus).mockResolvedValue(mockEf({
       targetMonths: 6,
       avgMonthlyExpenses: 40000,
       targetAmount: 240000,
@@ -728,7 +738,7 @@ describe("capitalAllocation — Comprehensive Safety & Sizing Tests (17 Requirem
       tier: 3,
       efMonthlyDrip: 0,
       availableGoalCapacity: 60000,
-    });
+    }));
 
     const bearishResult = await calculateCapitalAllocation("BEARISH");
     expect(bearishResult.status).toBe("BLOCKED_BY_REGIME");
@@ -750,7 +760,7 @@ describe("capitalAllocation — Comprehensive Safety & Sizing Tests (17 Requirem
       emergencyFundMonths: 6,
     } as any);
 
-    vi.mocked(emergencyFundService.getEmergencyFundStatus).mockResolvedValue({
+    vi.mocked(emergencyFundService.getEmergencyFundStatus).mockResolvedValue(mockEf({
       targetMonths: 6,
       avgMonthlyExpenses: 73976,
       targetAmount: 443856,
@@ -768,7 +778,7 @@ describe("capitalAllocation — Comprehensive Safety & Sizing Tests (17 Requirem
       tier: 2,
       efMonthlyDrip: 53216,
       availableGoalCapacity: 22808,
-    });
+    }));
 
     vi.mocked(investmentEngineService.determinePhase).mockReturnValue("EF_BUILDING");
 

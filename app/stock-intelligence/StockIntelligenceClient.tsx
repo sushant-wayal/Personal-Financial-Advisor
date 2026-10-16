@@ -195,7 +195,35 @@ export default function StockIntelligenceClient() {
     },
   });
 
-  // 7. Backtest Mutation
+  // 7. Live / Cycle Stock Investment Mutation
+  const investStockMutation = useMutation({
+    mutationFn: async (payload: { symbol: string; amount?: number; quantity?: number; entryPrice?: number }) => {
+      const res = await fetch("/api/stock-intelligence/recommendations/invest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error || "Failed to record investment");
+      }
+      return res.json();
+    },
+    onSuccess: (data) => {
+      setStatusMessage({ type: "success", text: data.message || "Stock investment recorded successfully!" });
+      void queryClient.invalidateQueries({ queryKey: ["stockCapitalAllocation"] });
+      void queryClient.invalidateQueries({ queryKey: ["stockRecommendations"] });
+      void queryClient.invalidateQueries({ queryKey: ["emergencyFundStatus"] });
+      setTimeout(() => setStatusMessage(null), 5000);
+    },
+    onError: (err: unknown) => {
+      const msg = err instanceof Error ? err.message : "Stock investment error";
+      setStatusMessage({ type: "error", text: msg });
+      setTimeout(() => setStatusMessage(null), 6000);
+    },
+  });
+
+  // 8. Backtest Mutation
   const [backtestResult, setBacktestResult] = useState<BacktestResult | null>(null);
   const runBacktestMutation = useMutation({
     mutationFn: async () => {
@@ -581,8 +609,8 @@ export default function StockIntelligenceClient() {
                         </ul>
                       </div>
 
-                      {/* Simulation Button */}
-                      <div className="pt-2 border-t border-border flex justify-end">
+                      {/* Action Buttons */}
+                      <div className="pt-2 border-t border-border flex items-center justify-end gap-2">
                         <Button
                           size="sm"
                           variant="secondary"
@@ -602,7 +630,23 @@ export default function StockIntelligenceClient() {
                           disabled={paperOrderMutation.isPending}
                         >
                           <Play className="mr-1.5 h-3 w-3 text-cyan-400" />
-                          Simulate in Paper Sandbox
+                          Simulate
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold"
+                          onClick={() => {
+                            investStockMutation.mutate({
+                              symbol: buy.symbol,
+                              amount: buy.estimatedCapital,
+                              quantity: buy.quantity,
+                              entryPrice: buy.entryPrice,
+                            });
+                          }}
+                          disabled={investStockMutation.isPending}
+                        >
+                          <CheckCircle2 className="mr-1.5 h-3 w-3 text-white" />
+                          Mark as Invested
                         </Button>
                       </div>
                     </CardContent>
@@ -750,7 +794,95 @@ export default function StockIntelligenceClient() {
                 </div>
               )}
 
-              {/* 1. Cash Liquidity Waterfall & Protected Reserves */}
+              {/* 1. Four-Pillar Capital Balance (100% Cash Balanced) */}
+              <Card className="border-border bg-card/60 backdrop-blur overflow-hidden">
+                <CardHeader className="pb-3 border-b border-border/40 bg-muted/20">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <div>
+                      <CardTitle className="text-sm font-semibold flex items-center gap-2 text-foreground">
+                        <ShieldAlert className="h-4 w-4 text-cyan-400" />
+                        Four-Pillar Capital Allocation (100% Cash Balanced)
+                      </CardTitle>
+                      <CardDescription className="text-xs mt-0.5">
+                        Guarantees Emergency Fund, Goals, Mutual Funds, and Stocks strictly partition total bank liquidity.
+                      </CardDescription>
+                    </div>
+                    <div className="text-right sm:self-auto shrink-0">
+                      <span className="text-[11px] text-muted-foreground block uppercase font-medium">Verified Bank Balance</span>
+                      <span className="text-base font-bold text-foreground">{formatInr(capital?.verifiedLiquidCash)}</span>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-4 space-y-4">
+                  {/* Visual 4-Segment Pillar Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    {/* Pillar 1: Emergency Fund */}
+                    <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3 flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center justify-between text-xs font-semibold text-emerald-400">
+                          <span>1. Emergency Fund</span>
+                          <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded font-medium">Safe</span>
+                        </div>
+                        <div className="text-xl font-bold text-foreground mt-2">{formatInr(capital?.efAllocatedCash)}</div>
+                      </div>
+                      <span className="text-[11px] text-muted-foreground mt-2 block">
+                        Target: {formatInr(capital?.efTargetAmount)} ({capital?.efTargetAmount ? Math.min(100, Math.round(((capital.efAllocatedCash ?? 0) / capital.efTargetAmount) * 100)) : 100}% funded)
+                      </span>
+                    </div>
+
+                    {/* Pillar 2: Goals & Commitments */}
+                    <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-3 flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center justify-between text-xs font-semibold text-blue-400">
+                          <span>2. Goals & Buffer</span>
+                          <span className="text-[10px] bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded font-medium">Committed</span>
+                        </div>
+                        <div className="text-xl font-bold text-foreground mt-2">
+                          {formatInr(
+                            (capital?.nearTermGoalCommitments ?? 0) +
+                            (capital?.upcomingObligations ?? 0) +
+                            (capital?.essentialExpensesCash ?? 0)
+                          )}
+                        </div>
+                      </div>
+                      <span className="text-[11px] text-muted-foreground mt-2 block">
+                        Near-term goals & living expenses
+                      </span>
+                    </div>
+
+                    {/* Pillar 3: Monthly Mutual Funds */}
+                    <div className="rounded-lg border border-purple-500/20 bg-purple-500/5 p-3 flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center justify-between text-xs font-semibold text-purple-400">
+                          <span>3. Monthly MF Pool</span>
+                          <span className="text-[10px] bg-purple-500/20 text-purple-300 px-1.5 py-0.5 rounded font-medium">Monthly SIP</span>
+                        </div>
+                        <div className="text-xl font-bold text-foreground mt-2">{formatInr(capital?.cycleMfInvestable)}</div>
+                      </div>
+                      <span className="text-[11px] text-muted-foreground mt-2 block">
+                        Committed in monthly suggestion
+                      </span>
+                    </div>
+
+                    {/* Pillar 4: Cycle Stock Trading Pool */}
+                    <div className="rounded-lg border border-cyan-500/30 bg-cyan-500/10 p-3 flex flex-col justify-between ring-1 ring-cyan-500/30">
+                      <div>
+                        <div className="flex items-center justify-between text-xs font-semibold text-cyan-400">
+                          <span>4. Cycle Stock Pool</span>
+                          <span className="text-[10px] bg-cyan-500/20 text-cyan-300 px-1.5 py-0.5 rounded font-medium">Swing Pool</span>
+                        </div>
+                        <div className="text-xl font-bold text-foreground mt-2">{formatInr(capital?.cycleStockTradingPool)}</div>
+                      </div>
+                      <div className="mt-2 text-[11px]">
+                        <span className="text-cyan-300 font-medium">Available credit: </span>
+                        <span className="font-semibold text-foreground">{formatInr(capital?.remainingCycleStockBalance)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* 2. Cash Liquidity Waterfall & Deductions Breakdown */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 {/* Left Column: Cash Summary */}
                 <Card className="border-border bg-card/60 backdrop-blur lg:col-span-1 flex flex-col justify-between">
@@ -767,18 +899,18 @@ export default function StockIntelligenceClient() {
                       </div>
                     </div>
                     <div className="border-t border-border/60 pt-3">
-                      <span className="text-xs text-rose-400">Total Protected Deductions</span>
+                      <span className="text-xs text-rose-400">Total Ring-Fenced Deductions</span>
                       <div className="text-lg font-semibold text-rose-400 mt-0.5">
                         −{formatInr(capital?.totalDeductions)}
                       </div>
                     </div>
                     <div className="border-t border-border/60 pt-3">
-                      <span className="text-xs text-cyan-400 font-medium">Net Deployable Cash</span>
+                      <span className="text-xs text-cyan-400 font-medium">Deployable Unreserved Cash</span>
                       <div className="text-2xl font-bold text-cyan-400 mt-0.5">
                         {formatInr(capital?.potentiallyDeployableCash)}
                       </div>
                       <span className="text-[11px] text-muted-foreground mt-1 block">
-                        Unreserved liquidity eligible for safety scaling
+                        Governed by remaining cycle stock credit ({formatInr(capital?.remainingCycleStockBalance)})
                       </span>
                     </div>
                   </CardContent>
@@ -788,7 +920,7 @@ export default function StockIntelligenceClient() {
                 <Card className="border-border bg-card/60 backdrop-blur lg:col-span-2">
                   <CardHeader className="pb-3">
                     <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Protected Allocations ({capital?.deductions?.length ?? 0} active)
+                      Itemized Protection Details ({capital?.deductions?.length ?? 0} active)
                     </CardTitle>
                     <CardDescription className="text-xs">
                       Liquid funds ring-fenced to prevent financial compromise.
@@ -802,7 +934,7 @@ export default function StockIntelligenceClient() {
                           <div className="flex items-center gap-2">
                             <span className="font-semibold text-xs text-foreground">Emergency Reserve</span>
                             <span className="text-[10px] rounded bg-emerald-500/10 px-1.5 py-0.5 text-emerald-400 font-medium">
-                              Protected Cash
+                              Pillar 1
                             </span>
                           </div>
                           <span className="text-[11px] text-muted-foreground block mt-0.5">
@@ -811,9 +943,6 @@ export default function StockIntelligenceClient() {
                         </div>
                         <div className="text-right">
                           <span className="font-semibold text-xs text-rose-400">−{formatInr(capital.efAllocatedCash)}</span>
-                          <span className="text-[10px] text-muted-foreground block">
-                            Shortfall ({formatInr(capital.efShortfall)}) funded via future drip
-                          </span>
                         </div>
                       </div>
                     )}

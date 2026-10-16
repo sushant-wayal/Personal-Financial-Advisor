@@ -122,6 +122,13 @@ model FinancialProfile {
   equityNiftyNext50Pct Float    @default(20)
   equityMidcapPct      Float    @default(20)
 
+  // Stock Phase Investable Rates (0-100)
+  crisisStockRate              Float    @default(0)
+  efBuildingStockRate          Float    @default(10)
+  wealthBuildingStockRate      Float    @default(40)
+  goalSprintStockRate          Float    @default(25)
+  stockCarryForwardPct         Float    @default(50)
+
   investmentStreak    Int      @default(0)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
@@ -138,6 +145,13 @@ model InvestmentSuggestion {
   baseInvestable    Float     @default(0)
   spillover         Float     @default(0)
   totalInvestable   Float     @default(0)
+
+  // Stock Trading Cycle Fields
+  stockInvestableRate   Float     @default(0)
+  baseStockInvestable   Float     @default(0)
+  stockSpillover        Float     @default(0)
+  totalStockInvestable  Float     @default(0)
+  remainingStockBalance Float     @default(0)
 
   // Suggested values
   suggestedEquity   Float     @default(0)
@@ -576,6 +590,9 @@ model StockRecommendationItem {
   symbol              String
   exchange            String   @default("NSE")
   type                String   // BUY, HOLD, SELL
+  status              String   @default("PENDING") // PENDING, INVESTED, SKIPPED
+  investedAt          DateTime?
+  investedAmount      Float?
   /// JSON blob of full recommendation detail
   detail              String   @default("{}")
   createdAt           DateTime @default(now())

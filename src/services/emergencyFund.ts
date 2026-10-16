@@ -41,6 +41,12 @@ export type EmergencyFundStatus = {
     efMonthlyDrip: number;
     /** Remaining monthly capacity available for active goals pool */
     availableGoalCapacity: number;
+    /** Active carveout for MF investment suggestion */
+    mfInvestableCarveout: number;
+    /** Active carveout for Stock trading cycle allocation */
+    stockInvestableCarveout: number;
+    /** Combined active investable carveout (MF + Stocks) */
+    investableCarveout: number;
 };
 
 export function getEfStrategyRatios(
@@ -93,16 +99,31 @@ export async function getEmergencyFundStatus(options?: { burnData?: Awaited<Retu
         options?.goals ?? prisma.goal.findMany({ select: { targetAmount: true, currentAmount: true } }),
         prisma.investmentSuggestion.findFirst({
             where: { status: "ACTIVE" },
-            select: { investableRate: true, totalInvestable: true, isManuallyEdited: true, editedEquity: true, editedDebt: true, editedGold: true },
+            select: {
+                investableRate: true,
+                totalInvestable: true,
+                isManuallyEdited: true,
+                editedEquity: true,
+                editedDebt: true,
+                editedGold: true,
+                remainingStockBalance: true,
+                totalStockInvestable: true,
+            },
             orderBy: { createdAt: "desc" },
         }).catch(() => null),
     ]);
 
-    const investableCarveout = activeSuggestion
+    const mfInvestableCarveout = activeSuggestion
         ? (activeSuggestion.isManuallyEdited
             ? (activeSuggestion.editedEquity ?? 0) + (activeSuggestion.editedDebt ?? 0) + (activeSuggestion.editedGold ?? 0)
             : activeSuggestion.totalInvestable)
         : 0;
+
+    const stockInvestableCarveout = activeSuggestion
+        ? Math.max(0, activeSuggestion.remainingStockBalance ?? activeSuggestion.totalStockInvestable ?? 0)
+        : 0;
+
+    const investableCarveout = mfInvestableCarveout + stockInvestableCarveout;
 
     const targetMonths = Math.max(3, profile?.emergencyFundMonths ?? 6);
     const rawBalance = Math.max(0, profile?.balance ?? 0);
@@ -237,5 +258,8 @@ export async function getEmergencyFundStatus(options?: { burnData?: Awaited<Retu
         tier,
         efMonthlyDrip,
         availableGoalCapacity,
+        mfInvestableCarveout: Math.round(mfInvestableCarveout),
+        stockInvestableCarveout: Math.round(stockInvestableCarveout),
+        investableCarveout: Math.round(investableCarveout),
     };
 }

@@ -103,6 +103,9 @@ export async function calculateCapitalAllocation(
       tier: verifiedLiquidCash >= fallbackTarget ? 3 : 2,
       efMonthlyDrip: 0,
       availableGoalCapacity: 0,
+      investableCarveout: 0,
+      mfInvestableCarveout: 0,
+      stockInvestableCarveout: 0,
     };
     warnings.push("Authoritative emergency fund status unavailable; using profile fallback.");
   }
@@ -216,13 +219,39 @@ export async function calculateCapitalAllocation(
     });
   }
 
-  // 6. Other protected cash (active investment suggestions are advisory recommendations, not cash locks)
-  const otherProtectedCash = 0;
+  // 6. Active Mutual Fund Carveout from monthly cycle
+  const activeSuggestion = await prisma.investmentSuggestion.findFirst({
+    where: { status: "ACTIVE" },
+    orderBy: { createdAt: "desc" },
+  });
 
-  // Calculate potentially deployable cash
+  const activeMfInvestable = (activeSuggestion && typeof activeSuggestion.totalStockInvestable === "number")
+    ? (activeSuggestion.isManuallyEdited
+        ? (activeSuggestion.editedEquity ?? 0) + (activeSuggestion.editedDebt ?? 0) + (activeSuggestion.editedGold ?? 0)
+        : (activeSuggestion.totalInvestable ?? 0))
+    : 0;
+
+  if (activeMfInvestable > 0) {
+    deductions.push({
+      label: "Active monthly mutual fund allocation",
+      amount: activeMfInvestable,
+      source: "investmentEngine",
+      basis: "Committed for current monthly cycle SIP/mutual fund investments",
+    });
+  }
+
+  const otherProtectedCash = activeMfInvestable;
+
+  // Calculate liquid cash remaining after ALL protected deductions
   const totalDeductions = protectedEmergencyReserve + essentialExpensesCash +
     nearTermGoalCommitments + upcomingObligations + otherProtectedCash;
-  const potentiallyDeployableCash = Math.max(0, verifiedLiquidCash - totalDeductions);
+  const liquidFreeCash = Math.max(0, verifiedLiquidCash - totalDeductions);
+
+  // Cycle Stock Trading Balance from active monthly suggestion
+  const cycleStockTradingPool = activeSuggestion?.totalStockInvestable ?? 0;
+  const remainingCycleStockBalance = activeSuggestion?.remainingStockBalance != null
+    ? activeSuggestion.remainingStockBalance
+    : cycleStockTradingPool;
 
   // 7. Financial phase restriction
   const cycleInfo = await detectSalaryCycle();
@@ -241,8 +270,16 @@ export async function calculateCapitalAllocation(
 
   const phasePolicy = PHASE_TRADING_POLICY[financialPhase];
   const phaseMaxPct = phasePolicy.maxTradingCapitalPct;
+
+  // Potentially deployable cash: bounded by the cycle stock allocation AND available liquid cash
+  const potentiallyDeployableCash = cycleStockTradingPool > 0
+    ? Math.min(liquidFreeCash, remainingCycleStockBalance)
+    : liquidFreeCash;
+
   const phaseLimitedCapital = phasePolicy.newPurchasesAllowed
-    ? Math.round(potentiallyDeployableCash * (phaseMaxPct / 100))
+    ? (cycleStockTradingPool > 0
+        ? potentiallyDeployableCash
+        : Math.round(potentiallyDeployableCash * (phaseMaxPct / 100)))
     : 0;
 
   if (!phasePolicy.newPurchasesAllowed) {
@@ -353,6 +390,9 @@ export async function calculateCapitalAllocation(
     deductions,
     dataTimestamp: now,
     warnings,
+    cycleStockTradingPool,
+    remainingCycleStockBalance,
+    cycleMfInvestable: activeMfInvestable,
   };
 }
 
@@ -392,6 +432,9 @@ function createBlockedAllocation(
     deductions: [],
     dataTimestamp: now,
     warnings: [reason],
+    cycleStockTradingPool: 0,
+    remainingCycleStockBalance: 0,
+    cycleMfInvestable: 0,
   };
 }
 

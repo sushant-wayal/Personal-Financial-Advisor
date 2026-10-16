@@ -60,11 +60,20 @@ export type InvestmentSuggestionResult = {
         streak: number;
         surplusTrend: string;
         belowMinThreshold: boolean;
+        stockCycle?: {
+            investableRate: number;
+            baseInvestable: number;
+            spillover: number;
+            totalInvestable: number;
+            remainingStockBalance: number;
+        };
     };
     computation: SurplusComputation & {
         phaseInvestableRate: number;
         baseInvestable: number;
         spillover: number;
+        stockPhaseInvestableRate?: number;
+        baseStockInvestable?: number;
     };
 };
 
@@ -278,6 +287,13 @@ export async function getEffectiveProfileConfig() {
             niftyNext50: (profile as any)?.equityNiftyNext50Pct ?? INVESTMENT_DEFAULTS.equityBreakdown.niftyNext50,
             midcap: (profile as any)?.equityMidcapPct ?? INVESTMENT_DEFAULTS.equityBreakdown.midcap,
         },
+        stockPhaseRates: {
+            CRISIS: (profile as any)?.crisisStockRate ?? INVESTMENT_DEFAULTS.stockPhaseRates.CRISIS,
+            EF_BUILDING: (profile as any)?.efBuildingStockRate ?? INVESTMENT_DEFAULTS.stockPhaseRates.EF_BUILDING,
+            GOAL_SPRINT: (profile as any)?.goalSprintStockRate ?? INVESTMENT_DEFAULTS.stockPhaseRates.GOAL_SPRINT,
+            WEALTH_BUILDING: (profile as any)?.wealthBuildingStockRate ?? INVESTMENT_DEFAULTS.stockPhaseRates.WEALTH_BUILDING,
+        },
+        stockCarryForwardPct: (profile as any)?.stockCarryForwardPct ?? INVESTMENT_DEFAULTS.defaultStockCarryForwardPct,
         streak,
     };
 }
@@ -355,12 +371,19 @@ export async function getOrGenerateInvestmentSuggestion(options?: { burnData?: A
     const phaseRate = config.phaseRates[phase];
     const baseInvestable = Math.max(0, Math.round(surplusComp.smoothedSurplus * (phaseRate / 100)));
 
+    const stockPhaseRate = config.stockPhaseRates[phase] ?? 0;
+    const baseStockInvestable = Math.max(0, Math.round(surplusComp.smoothedSurplus * (stockPhaseRate / 100)));
+
     const subConfig = phase === "EF_BUILDING" ? config.subAllocations.conservative : config.subAllocations.standard;
     const suggestedEquity = Math.round(baseInvestable * (subConfig.equity / 100));
     const suggestedDebt = Math.round(baseInvestable * (subConfig.debt / 100));
     const suggestedGold = Math.max(0, baseInvestable - suggestedEquity - suggestedDebt);
 
     if (active) {
+        const activeRemainingStock = active.remainingStockBalance != null && active.remainingStockBalance > 0
+            ? active.remainingStockBalance
+            : (active.totalStockInvestable || baseStockInvestable);
+
         const liveActive = {
             ...active,
             phase,
@@ -372,6 +395,11 @@ export async function getOrGenerateInvestmentSuggestion(options?: { burnData?: A
             totalInvestable: active.isManuallyEdited
                 ? (active.editedEquity ?? 0) + (active.editedDebt ?? 0) + (active.editedGold ?? 0)
                 : baseInvestable,
+            stockInvestableRate: stockPhaseRate,
+            baseStockInvestable,
+            stockSpillover: active.stockSpillover ?? 0,
+            totalStockInvestable: active.totalStockInvestable || baseStockInvestable,
+            remainingStockBalance: activeRemainingStock,
             suggestedEquity,
             suggestedDebt,
             suggestedGold,
@@ -388,6 +416,11 @@ export async function getOrGenerateInvestmentSuggestion(options?: { burnData?: A
                 investableRate: phaseRate,
                 baseInvestable,
                 totalInvestable: liveActive.totalInvestable,
+                stockInvestableRate: stockPhaseRate,
+                baseStockInvestable,
+                stockSpillover: active.stockSpillover ?? 0,
+                totalStockInvestable: liveActive.totalStockInvestable,
+                remainingStockBalance: activeRemainingStock,
                 suggestedEquity,
                 suggestedDebt,
                 suggestedGold,
@@ -411,7 +444,16 @@ export async function getOrGenerateInvestmentSuggestion(options?: { burnData?: A
         }
     }
 
-    // Generate NEW Suggestion
+    // Generate NEW Suggestion: calculate carry-forward from previous cycle if any
+    const previousSuggestion = await prisma.investmentSuggestion.findFirst({
+        orderBy: { createdAt: "desc" },
+    });
+    const prevRemainingStock = previousSuggestion ? Math.max(0, previousSuggestion.remainingStockBalance ?? 0) : 0;
+    const carryForwardPct = config.stockCarryForwardPct ?? 50;
+    const stockSpillover = Math.round(prevRemainingStock * (carryForwardPct / 100));
+    const totalStockInvestable = baseStockInvestable + stockSpillover;
+    const remainingStockBalance = totalStockInvestable;
+
     const created = await prisma.investmentSuggestion.create({
         data: {
             status: "ACTIVE",
@@ -423,6 +465,11 @@ export async function getOrGenerateInvestmentSuggestion(options?: { burnData?: A
             baseInvestable,
             spillover: 0,
             totalInvestable: baseInvestable,
+            stockInvestableRate: stockPhaseRate,
+            baseStockInvestable,
+            stockSpillover,
+            totalStockInvestable,
+            remainingStockBalance,
             suggestedEquity,
             suggestedDebt,
             suggestedGold,
@@ -514,6 +561,13 @@ function buildSuggestionResult(
             streak: config.streak,
             surplusTrend: surplusComp?.surplusTrend ?? "stable",
             belowMinThreshold: record.smoothedSurplus < INVESTMENT_DEFAULTS.minInvestableThreshold,
+            stockCycle: {
+                investableRate: record.stockInvestableRate ?? 0,
+                baseInvestable: record.baseStockInvestable ?? 0,
+                spillover: record.stockSpillover ?? 0,
+                totalInvestable: record.totalStockInvestable ?? (record.baseStockInvestable ?? 0),
+                remainingStockBalance: record.remainingStockBalance ?? (record.totalStockInvestable ?? 0),
+            },
         },
         computation: {
             rawSurplus: surplusComp?.rawSurplus ?? record.rawSurplus,
@@ -525,6 +579,8 @@ function buildSuggestionResult(
             phaseInvestableRate: record.investableRate,
             baseInvestable: record.baseInvestable,
             spillover: record.spillover,
+            stockPhaseInvestableRate: record.stockInvestableRate ?? 0,
+            baseStockInvestable: record.baseStockInvestable ?? 0,
         },
     };
 }
