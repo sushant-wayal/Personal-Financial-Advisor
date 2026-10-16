@@ -262,7 +262,6 @@ model Stock {
   currentQuantity     Float
   currentPrice        Float?
   currentWorth        Float?
-  minInvestment       Float?
   setupDate           DateTime?
   processedMessageIds String[] @default([])
   createdAt           DateTime @default(now())

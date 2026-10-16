@@ -86,22 +86,6 @@ describe("stockRisk — Position Sizing & Hard Constraints", () => {
     expect(size.rejectedReason).toContain("Insufficient capacity: capital_based constraint yields 0 shares");
   });
 
-  it("respects custom per-stock minimum investment constraint when provided", () => {
-    // Available capital ₹400 can buy 2 shares of a ₹200 stock, but custom constraint requires ₹500
-    const size = calculatePositionSize(
-      "FEDERALBNK",
-      200,
-      190,
-      400, // available capital ₹400 yields 2 shares @ ₹200 = ₹400
-      200000,
-      5,
-      1,
-      500, // custom min investment ₹500
-    );
-
-    expect(size.finalQuantity).toBe(0);
-    expect(size.rejectedReason).toContain("below minimum investment threshold");
-  });
 
   it("permits position sizing for stocks trading under ₹500 without artificial floor when capital is sufficient for whole shares", () => {
     // Sub-500 stock: entry price ₹150, available capital ₹450 -> 3 shares @ 150 = ₹450

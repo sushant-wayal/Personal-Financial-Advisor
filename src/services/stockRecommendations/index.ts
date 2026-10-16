@@ -189,17 +189,6 @@ export async function generateDailyRecommendations(options?: {
         stopLoss: number;
       };
       latestBar: MarketBar;
-      minInvestment: number;
-    }
-
-    const userStocks = await prisma.stock.findMany({
-      select: { symbol: true, minInvestment: true },
-    });
-    const customStockMinMap = new Map<string, number>();
-    for (const s of userStocks) {
-      if (s.minInvestment != null && s.minInvestment > 0) {
-        customStockMinMap.set(s.symbol.toUpperCase(), s.minInvestment);
-      }
     }
 
     const viableCandidates: BuySetupCandidate[] = [];
@@ -219,17 +208,11 @@ export async function generateDailyRecommendations(options?: {
         continue;
       }
 
-      // Actual minimum investment constraint for this specific stock (1 whole share @ entryPrice or custom constraint)
-      const customMin = customStockMinMap.get(cand.symbol.toUpperCase());
-      const minInvestment = customMin != null && customMin > 0
-        ? Math.max(customMin, bestBuy.entryPrice)
-        : bestBuy.entryPrice;
-
-      // If min investment exceeds the entire deployable budget, it cannot even be afforded standalone
-      if (minInvestment > totalDeployableBudget) {
+      // If price of 1 whole share exceeds total deployable budget, it cannot be afforded
+      if (bestBuy.entryPrice > totalDeployableBudget) {
         rejections.push({
           symbol: cand.symbol,
-          reason: `Minimum investment ₹${minInvestment.toFixed(2)} (1 share @ ₹${bestBuy.entryPrice.toFixed(2)}) exceeds total deployable budget ₹${totalDeployableBudget.toFixed(2)}`,
+          reason: `Entry price ₹${bestBuy.entryPrice.toFixed(2)} for 1 share exceeds total deployable budget ₹${totalDeployableBudget.toFixed(2)}`,
         });
         continue;
       }
@@ -241,7 +224,6 @@ export async function generateDailyRecommendations(options?: {
           stopLoss: number;
         },
         latestBar,
-        minInvestment,
       });
     }
 
@@ -250,7 +232,7 @@ export async function generateDailyRecommendations(options?: {
     let activeCandidates = viableCandidates.slice(0, 3);
 
     // Iterative sizing & redistribution loop:
-    // If any candidate's calculated position cannot meet its minInvestment,
+    // If any candidate's calculated position cannot afford at least 1 whole share,
     // remove it, log rejection, and redistribute its capital across the remaining active candidates!
     let finalSized: Array<{
       item: BuySetupCandidate;
@@ -278,19 +260,12 @@ export async function generateDailyRecommendations(options?: {
           Math.max(10000, riskSnapshot.currentEquity),
           sectorExposure,
           riskSnapshot.openPositionCount + i,
-          item.minInvestment,
         );
 
-        const estimatedCapital = sizing.finalQuantity * item.bestBuy.entryPrice;
-
-        if (
-          sizing.finalQuantity < 1 ||
-          estimatedCapital < item.minInvestment ||
-          sizing.rejectedReason !== null
-        ) {
+        if (sizing.finalQuantity < 1 || sizing.rejectedReason !== null) {
           rejections.push({
             symbol: item.cand.symbol,
-            reason: `Position size ₹${estimatedCapital.toFixed(2)} is less than minimum investment ₹${item.minInvestment.toFixed(2)} (1 share @ ₹${item.bestBuy.entryPrice.toFixed(2)}). Removed from suggestions; capital redistributed to other candidate stocks.`,
+            reason: `Allocated budget ₹${budgetPerStock.toFixed(2)} cannot fund 1 whole share (@ ₹${item.bestBuy.entryPrice.toFixed(2)}) under risk limits. Removed from suggestions; capital redistributed to other candidate stocks.`,
           });
           failedIndices.push(i);
           allPassed = false;
