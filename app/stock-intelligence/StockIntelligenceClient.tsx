@@ -49,6 +49,10 @@ function formatDecimal(val: number | null | undefined, digits = 2): string {
 function formatBindingConstraint(raw: string | null | undefined): string {
   if (!raw) return "Optimal Sizing";
   switch (raw) {
+    case "cycle_stock_credit_limit":
+      return "Sized from cycle stock trading balance";
+    case "cycle_budget_exhausted":
+      return "Cycle stock trading credit exhausted";
     case "cash_capacity_limit":
       return "Sized by available liquid cash";
     case "exposure_cap_limit":

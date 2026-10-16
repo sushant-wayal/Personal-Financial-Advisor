@@ -33,7 +33,7 @@ import type {
 } from "../../types/stockIntelligence";
 import { calculateBurnRate, calculateRunway } from "../analytics";
 import { getEmergencyFundStatus } from "../emergencyFund";
-import { determinePhase, computeSurplus, detectSalaryCycle } from "../investmentEngine";
+import { determinePhase, computeSurplus, detectSalaryCycle, getOrGenerateInvestmentSuggestion } from "../investmentEngine";
 import { daysBetween } from "../shared/dates";
 
 // ─── Capital Allocation ──────────────────────────────────────────────────────
@@ -219,16 +219,22 @@ export async function calculateCapitalAllocation(
     });
   }
 
-  // 6. Active Mutual Fund Carveout from monthly cycle
-  const activeSuggestion = await prisma.investmentSuggestion.findFirst({
-    where: { status: "ACTIVE" },
-    orderBy: { createdAt: "desc" },
-  });
+  // 6. Current Cycle Allocation (Mutual Funds & Stock Trading Pool)
+  let currentCycleSuggestion: any = null;
+  try {
+    const sugResult = await getOrGenerateInvestmentSuggestion();
+    currentCycleSuggestion = sugResult?.suggestion ?? null;
+  } catch {
+    currentCycleSuggestion = await prisma.investmentSuggestion.findFirst({
+      orderBy: { createdAt: "desc" },
+    });
+  }
 
-  const activeMfInvestable = (activeSuggestion && typeof activeSuggestion.totalStockInvestable === "number")
-    ? (activeSuggestion.isManuallyEdited
-        ? (activeSuggestion.editedEquity ?? 0) + (activeSuggestion.editedDebt ?? 0) + (activeSuggestion.editedGold ?? 0)
-        : (activeSuggestion.totalInvestable ?? 0))
+  // Active mutual fund carveout: only deduct if suggestion is ACTIVE (not yet invested)
+  const activeMfInvestable = (currentCycleSuggestion?.status === "ACTIVE" && typeof currentCycleSuggestion.totalInvestable === "number")
+    ? (currentCycleSuggestion.isManuallyEdited
+        ? (currentCycleSuggestion.editedEquity ?? 0) + (currentCycleSuggestion.editedDebt ?? 0) + (currentCycleSuggestion.editedGold ?? 0)
+        : currentCycleSuggestion.totalInvestable)
     : 0;
 
   if (activeMfInvestable > 0) {
@@ -247,11 +253,13 @@ export async function calculateCapitalAllocation(
     nearTermGoalCommitments + upcomingObligations + otherProtectedCash;
   const liquidFreeCash = Math.max(0, verifiedLiquidCash - totalDeductions);
 
-  // Cycle Stock Trading Balance from active monthly suggestion
-  const cycleStockTradingPool = activeSuggestion?.totalStockInvestable ?? 0;
-  const remainingCycleStockBalance = activeSuggestion?.remainingStockBalance != null
-    ? activeSuggestion.remainingStockBalance
-    : cycleStockTradingPool;
+  // Cycle Stock Trading Balance from authoritative current cycle suggestion
+  const cycleStockTradingPool = currentCycleSuggestion?.stockCycle?.totalInvestable
+    ?? currentCycleSuggestion?.totalStockInvestable
+    ?? 0;
+  const remainingCycleStockBalance = currentCycleSuggestion?.stockCycle?.remainingStockBalance
+    ?? currentCycleSuggestion?.remainingStockBalance
+    ?? cycleStockTradingPool;
 
   // 7. Financial phase restriction
   const cycleInfo = await detectSalaryCycle();
@@ -309,7 +317,9 @@ export async function calculateCapitalAllocation(
 
   // Maximum permitted total direct-equity exposure across portfolio governed by phase & regime caps
   const maxPermittedExposure = (phasePolicy.newPurchasesAllowed && regimePolicy.newPurchasesAllowed)
-    ? Math.round(totalTradingBase * (phaseMaxPct / 100) * (regimePolicy.maxExposurePct / 100))
+    ? (cycleStockTradingPool > 0
+        ? Math.round(totalTradingBase * (regimePolicy.maxExposurePct / 100))
+        : Math.round(totalTradingBase * (phaseMaxPct / 100) * (regimePolicy.maxExposurePct / 100)))
     : 0;
 
   // Remaining exposure capacity after accounting for existing holdings
@@ -333,8 +343,12 @@ export async function calculateCapitalAllocation(
     statusReason = regimePolicy.description;
   } else if (potentiallyDeployableCash === 0) {
     eligibleNewPurchaseBudget = 0;
-    status = "ZERO_SURPLUS";
-    statusReason = "Zero deployable cash after protecting emergency reserves, living expenses, and near-term commitments.";
+    status = (remainingCycleStockBalance === 0 && cycleStockTradingPool > 0)
+      ? "CYCLE_BUDGET_EXHAUSTED"
+      : "ZERO_SURPLUS";
+    statusReason = (remainingCycleStockBalance === 0 && cycleStockTradingPool > 0)
+      ? "Cycle stock trading credit is exhausted (₹0 remaining). Budget resets on next cycle rollover."
+      : "Zero deployable cash after protecting emergency reserves, living expenses, and near-term commitments.";
   } else if (remainingExposureCapacity === 0 && deployedCapital > 0) {
     eligibleNewPurchaseBudget = 0;
     status = "EXPOSURE_CAP_REACHED";
@@ -354,11 +368,13 @@ export async function calculateCapitalAllocation(
   } else if (!regimePolicy.newPurchasesAllowed) {
     bindingConstraint = `regime_blocked_${marketRegime.toLowerCase()}`;
   } else if (potentiallyDeployableCash === 0) {
-    bindingConstraint = "zero_deployable_cash";
+    bindingConstraint = (remainingCycleStockBalance === 0 && cycleStockTradingPool > 0)
+      ? "cycle_budget_exhausted"
+      : "zero_deployable_cash";
   } else if (remainingExposureCapacity < cashCapacity) {
     bindingConstraint = "exposure_cap_limit";
   } else {
-    bindingConstraint = "cash_capacity_limit";
+    bindingConstraint = cycleStockTradingPool > 0 ? "cycle_stock_credit_limit" : "cash_capacity_limit";
   }
 
   return {

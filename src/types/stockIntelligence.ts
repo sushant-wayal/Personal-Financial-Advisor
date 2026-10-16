@@ -169,6 +169,7 @@ export type AllocationStatus =
   | "BLOCKED_BY_DRAWDOWN"
   | "EXPOSURE_CAP_REACHED"
   | "ZERO_SURPLUS"
+  | "CYCLE_BUDGET_EXHAUSTED"
   | "STALE_DATA"
   | "ERROR";
 
