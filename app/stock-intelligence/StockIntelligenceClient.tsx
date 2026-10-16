@@ -798,180 +798,80 @@ export default function StockIntelligenceClient() {
                 </div>
               )}
 
-              {/* 1. Four-Pillar Capital Balance (100% Cash Balanced) */}
+              {/* 1. Cycle Stock Trading Allocation Card */}
               <Card className="border-border bg-card/60 backdrop-blur overflow-hidden">
                 <CardHeader className="pb-3 border-b border-border/40 bg-muted/20">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                     <div>
                       <CardTitle className="text-sm font-semibold flex items-center gap-2 text-foreground">
-                        <ShieldAlert className="h-4 w-4 text-cyan-400" />
-                        Four-Pillar Capital Allocation (100% Cash Balanced)
+                        <Briefcase className="h-4 w-4 text-cyan-400" />
+                        Cycle Stock Trading Allocation
                       </CardTitle>
                       <CardDescription className="text-xs mt-0.5">
-                        Guarantees Emergency Fund, Goals, Mutual Funds, and Stocks strictly partition total bank liquidity.
+                        Direct-equity swing trading allocation configured for your financial phase and refreshed with each investment cycle.
                       </CardDescription>
                     </div>
                     <div className="text-right sm:self-auto shrink-0">
-                      <span className="text-[11px] text-muted-foreground block uppercase font-medium">Verified Bank Balance</span>
+                      <span className="text-[11px] text-muted-foreground block uppercase font-medium">Bank Liquid Cash</span>
                       <span className="text-base font-bold text-foreground">{formatInr(capital?.verifiedLiquidCash)}</span>
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent className="p-4 space-y-4">
-                  {/* Visual 4-Segment Pillar Grid */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                    {/* Pillar 1: Emergency Fund */}
-                    <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3 flex flex-col justify-between">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {/* Metric 1: Cycle Stock Pool */}
+                    <div className="rounded-lg border border-cyan-500/30 bg-cyan-500/10 p-3 flex flex-col justify-between">
                       <div>
-                        <div className="flex items-center justify-between text-xs font-semibold text-emerald-400">
-                          <span>1. Emergency Fund</span>
-                          <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded font-medium">Safe</span>
+                        <div className="flex items-center justify-between text-xs font-semibold text-cyan-400">
+                          <span>Cycle Stock Trading Pool</span>
+                          <span className="text-[10px] bg-cyan-500/20 text-cyan-300 px-1.5 py-0.5 rounded font-medium">Monthly Credit</span>
                         </div>
-                        <div className="text-xl font-bold text-foreground mt-2">{formatInr(capital?.efAllocatedCash)}</div>
+                        <div className="text-2xl font-bold text-foreground mt-2">{formatInr(capital?.cycleStockTradingPool)}</div>
                       </div>
                       <span className="text-[11px] text-muted-foreground mt-2 block">
-                        Target: {formatInr(capital?.efTargetAmount)} ({capital?.efTargetAmount ? Math.min(100, Math.round(((capital.efAllocatedCash ?? 0) / capital.efTargetAmount) * 100)) : 100}% funded)
+                        Allocated during investment cycle run
                       </span>
                     </div>
 
-                    {/* Pillar 2: Goals & Commitments */}
-                    <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-3 flex flex-col justify-between">
-                      <div>
-                        <div className="flex items-center justify-between text-xs font-semibold text-blue-400">
-                          <span>2. Goals & Buffer</span>
-                          <span className="text-[10px] bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded font-medium">Committed</span>
-                        </div>
-                        <div className="text-xl font-bold text-foreground mt-2">
-                          {formatInr(
-                            (capital?.nearTermGoalCommitments ?? 0) +
-                            (capital?.upcomingObligations ?? 0) +
-                            (capital?.essentialExpensesCash ?? 0)
-                          )}
-                        </div>
-                      </div>
-                      <span className="text-[11px] text-muted-foreground mt-2 block">
-                        Near-term goals & living expenses
-                      </span>
-                    </div>
-
-                    {/* Pillar 3: Monthly Mutual Funds */}
+                    {/* Metric 2: Utilized This Cycle */}
                     <div className="rounded-lg border border-purple-500/20 bg-purple-500/5 p-3 flex flex-col justify-between">
                       <div>
                         <div className="flex items-center justify-between text-xs font-semibold text-purple-400">
-                          <span>3. Monthly MF Pool</span>
-                          <span className="text-[10px] bg-purple-500/20 text-purple-300 px-1.5 py-0.5 rounded font-medium">Monthly SIP</span>
+                          <span>Utilized / Invested</span>
+                          <span className="text-[10px] bg-purple-500/20 text-purple-300 px-1.5 py-0.5 rounded font-medium">Current Cycle</span>
                         </div>
-                        <div className="text-xl font-bold text-foreground mt-2">{formatInr(capital?.cycleMfInvestable)}</div>
+                        <div className="text-2xl font-bold text-foreground mt-2">
+                          {formatInr(Math.max(0, (capital?.cycleStockTradingPool ?? 0) - (capital?.remainingCycleStockBalance ?? 0)))}
+                        </div>
                       </div>
                       <span className="text-[11px] text-muted-foreground mt-2 block">
-                        Committed in monthly suggestion
+                        Committed in active stock trades
                       </span>
                     </div>
 
-                    {/* Pillar 4: Cycle Stock Trading Pool */}
-                    <div className="rounded-lg border border-cyan-500/30 bg-cyan-500/10 p-3 flex flex-col justify-between ring-1 ring-cyan-500/30">
+                    {/* Metric 3: Remaining Cycle Balance */}
+                    <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 flex flex-col justify-between ring-1 ring-emerald-500/30">
                       <div>
-                        <div className="flex items-center justify-between text-xs font-semibold text-cyan-400">
-                          <span>4. Cycle Stock Pool</span>
-                          <span className="text-[10px] bg-cyan-500/20 text-cyan-300 px-1.5 py-0.5 rounded font-medium">Swing Pool</span>
+                        <div className="flex items-center justify-between text-xs font-semibold text-emerald-400">
+                          <span>Available Cycle Credit</span>
+                          <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded font-medium">Deployable</span>
                         </div>
-                        <div className="text-xl font-bold text-foreground mt-2">{formatInr(capital?.cycleStockTradingPool)}</div>
+                        <div className="text-2xl font-bold text-foreground mt-2">{formatInr(capital?.remainingCycleStockBalance)}</div>
                       </div>
-                      <div className="mt-2 text-[11px]">
-                        <span className="text-cyan-300 font-medium">Available credit: </span>
-                        <span className="font-semibold text-foreground">{formatInr(capital?.remainingCycleStockBalance)}</span>
-                      </div>
+                      <span className="text-[11px] text-emerald-300/80 mt-2 block font-medium">
+                        Governs daily purchase sizing
+                      </span>
                     </div>
+                  </div>
+
+                  <div className="rounded-lg border border-border/60 bg-muted/20 p-3 text-xs text-muted-foreground flex items-start gap-2.5">
+                    <ShieldCheck className="h-4 w-4 shrink-0 text-cyan-400 mt-0.5" />
+                    <p className="leading-relaxed">
+                      <strong className="text-foreground">Strict Cycle Ring-Fencing:</strong> Stock suggestions draw exclusively from your cycle stock trading credit. Emergency reserves, goals, and mutual fund SIPs are completely independent and protected from trading risk.
+                    </p>
                   </div>
                 </CardContent>
               </Card>
-
-              {/* 2. Cash Liquidity Waterfall & Deductions Breakdown */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                {/* Left Column: Cash Summary */}
-                <Card className="border-border bg-card/60 backdrop-blur lg:col-span-1 flex flex-col justify-between">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Liquidity Waterfall
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div>
-                      <span className="text-xs text-muted-foreground">Verified Bank Balance</span>
-                      <div className="text-2xl font-bold text-foreground mt-0.5">
-                        {formatInr(capital?.verifiedLiquidCash)}
-                      </div>
-                    </div>
-                    <div className="border-t border-border/60 pt-3">
-                      <span className="text-xs text-rose-400">Total Ring-Fenced Deductions</span>
-                      <div className="text-lg font-semibold text-rose-400 mt-0.5">
-                        −{formatInr(capital?.totalDeductions)}
-                      </div>
-                    </div>
-                    <div className="border-t border-border/60 pt-3">
-                      <span className="text-xs text-cyan-400 font-medium">Deployable Unreserved Cash</span>
-                      <div className="text-2xl font-bold text-cyan-400 mt-0.5">
-                        {formatInr(capital?.potentiallyDeployableCash)}
-                      </div>
-                      <span className="text-[11px] text-muted-foreground mt-1 block">
-                        Governed by remaining cycle stock credit ({formatInr(capital?.remainingCycleStockBalance)})
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Right Column: Protected Allocations Breakdown */}
-                <Card className="border-border bg-card/60 backdrop-blur lg:col-span-2">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Itemized Protection Details ({capital?.deductions?.length ?? 0} active)
-                    </CardTitle>
-                    <CardDescription className="text-xs">
-                      Liquid funds ring-fenced to prevent financial compromise.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-2.5">
-                    {/* Emergency Fund Reserve */}
-                    {capital?.efTargetAmount != null && (
-                      <div className="rounded-lg border border-border/60 bg-muted/20 p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold text-xs text-foreground">Emergency Reserve</span>
-                            <span className="text-[10px] rounded bg-emerald-500/10 px-1.5 py-0.5 text-emerald-400 font-medium">
-                              Pillar 1
-                            </span>
-                          </div>
-                          <span className="text-[11px] text-muted-foreground block mt-0.5">
-                            {formatInr(capital.efAllocatedCash)} saved · Target: {formatInr(capital.efTargetAmount)}
-                          </span>
-                        </div>
-                        <div className="text-right">
-                          <span className="font-semibold text-xs text-rose-400">−{formatInr(capital.efAllocatedCash)}</span>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Other Itemized Deductions (Near-Term Goals, Obligations, Living Buffer) */}
-                    {capital?.deductions?.filter(d => d.source !== "emergencyFund").map((d, i) => (
-                      <div key={i} className="rounded-lg border border-border/60 bg-muted/20 p-3 flex items-center justify-between gap-2">
-                        <div>
-                          <span className="font-medium text-xs text-foreground">{d.label}</span>
-                          {d.basis && (
-                            <span className="text-[11px] text-muted-foreground block mt-0.5">{d.basis}</span>
-                          )}
-                        </div>
-                        <span className="font-semibold text-xs text-rose-400 shrink-0">−{formatInr(d.amount)}</span>
-                      </div>
-                    ))}
-
-                    {capital?.deductions?.length === 0 && (
-                      <div className="p-4 text-center text-xs text-muted-foreground">
-                        No active deduction commitments. All liquid cash is unreserved.
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
 
               {/* 2. Portfolio Exposure & Phase Policy Strip */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

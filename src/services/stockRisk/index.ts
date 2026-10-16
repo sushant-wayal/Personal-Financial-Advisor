@@ -34,7 +34,6 @@ import type {
 import { calculateBurnRate, calculateRunway } from "../analytics";
 import { getEmergencyFundStatus } from "../emergencyFund";
 import { determinePhase, computeSurplus, detectSalaryCycle, getOrGenerateInvestmentSuggestion } from "../investmentEngine";
-import { daysBetween } from "../shared/dates";
 
 // ─── Capital Allocation ──────────────────────────────────────────────────────
 
@@ -111,115 +110,16 @@ export async function calculateCapitalAllocation(
   }
 
   const efTargetAmount = Math.max(0, efStatus.targetAmount);
-  // efAllocatedCash is the actual cash in the bank account dedicated to the emergency fund
   const efAllocatedCash = Math.min(verifiedLiquidCash, Math.max(0, efStatus.savedAmount));
   const efShortfall = Math.max(0, efTargetAmount - efAllocatedCash);
   const protectedEmergencyReserve = efAllocatedCash;
+  const essentialExpensesCash = 0;
+  const nearTermGoalCommitments = 0;
+  const upcomingObligations = 0;
+  const otherProtectedCash = 0;
+  const totalDeductions = 0;
 
-  if (protectedEmergencyReserve > 0) {
-    deductions.push({
-      label: efStatus.isComplete
-        ? `Emergency reserve (fully funded: ${efStatus.targetMonths} months)`
-        : `Emergency reserve allocated (${efStatus.tier === 1 ? "Tier 1 Starter Net" : "Tier 2 Core Reserve"})`,
-      amount: protectedEmergencyReserve,
-      source: "emergencyFund",
-      basis: `Target: ₹${efTargetAmount.toLocaleString("en-IN")}, Allocated from cash: ₹${protectedEmergencyReserve.toLocaleString("en-IN")}, Future shortfall: ₹${efShortfall.toLocaleString("en-IN")}`,
-    });
-  }
-
-  // 3. Essential expenses buffer (non-overlapping)
-  // If the emergency reserve already allocates >= 1 month of living expenses, living expenses
-  // are already protected by that reserve. We do NOT double-deduct an overlapping month of expenses.
-  // If emergency reserve < 1 month, we protect the difference so at least 1 month is preserved.
-  const avgMonthlyExpenses = efStatus.avgMonthlyExpenses || Math.max(0, profile.monthlyExpenses ?? 0);
-  let essentialExpensesCash = 0;
-  if (protectedEmergencyReserve < avgMonthlyExpenses) {
-    essentialExpensesCash = Math.min(
-      Math.max(0, verifiedLiquidCash - protectedEmergencyReserve),
-      avgMonthlyExpenses - protectedEmergencyReserve
-    );
-    if (essentialExpensesCash > 0) {
-      deductions.push({
-        label: "Essential living expenses buffer (completing 1 month)",
-        amount: essentialExpensesCash,
-        source: "financialProfile",
-        basis: `Monthly expenses ₹${avgMonthlyExpenses.toLocaleString("en-IN")}, emergency reserve covers ₹${protectedEmergencyReserve.toLocaleString("en-IN")}`,
-      });
-    }
-  }
-
-  // 4. Near-term goal commitments (next 6 months)
-  const sixMonthsFromNow = new Date(now.getFullYear(), now.getMonth() + 6, now.getDate());
-  const imminentGoals = await prisma.goal.findMany({
-    where: {
-      targetDate: { lte: sixMonthsFromNow },
-      status: { not: "COMPLETED" },
-    },
-  });
-
-  let nearTermGoalCommitments = 0;
-  for (const goal of imminentGoals) {
-    const targetDate = goal.targetDate ? new Date(goal.targetDate) : now;
-    const daysUntilDue = Math.max(0, daysBetween(now, targetDate));
-    const monthsUntilDue = Math.max(1, Math.ceil(daysUntilDue / 30));
-    const goalShortfall = Math.max(0, goal.targetAmount - goal.currentAmount);
-
-    // If goal is due within 30 days (immediate cycle), full remaining shortfall is needed.
-    // If due in 2-6 months, only the current month's installment is committed from today's cash.
-    const nearTermCommitment = daysUntilDue <= 30
-      ? goalShortfall
-      : Math.round(goalShortfall / monthsUntilDue);
-
-    nearTermGoalCommitments += nearTermCommitment;
-
-    if (nearTermCommitment > 0) {
-      deductions.push({
-        label: `Near-term goal: ${goal.title}`,
-        amount: nearTermCommitment,
-        source: "goals",
-        basis: daysUntilDue <= 30
-          ? `Due in ${daysUntilDue} days (<=30d): full remaining shortfall`
-          : `Due in ${monthsUntilDue} months: pro-rated monthly installment (₹${goalShortfall.toLocaleString("en-IN")} / ${monthsUntilDue}mo)`,
-      });
-    }
-  }
-
-  // 5. Known upcoming obligations (EMI, credit card due, BNPL)
-  let upcomingObligations = 0;
-
-  const loans = prisma.loanLiability ? await prisma.loanLiability.findMany() : [];
-  for (const loan of loans) {
-    upcomingObligations += Math.max(0, loan.emiAmount);
-  }
-
-  const creditCards = prisma.creditCardLiability ? await prisma.creditCardLiability.findMany() : [];
-  for (const cc of creditCards) {
-    // Near-term obligation is current statement bill due minus paid, or minimum due if no statement
-    const billedDue = Math.max(0, (cc.lastStatementAmount ?? 0) - (cc.amountPaidSinceStatement ?? 0));
-    const minDue = Math.max(0, (cc.currentOutstanding ?? 0) * ((cc.minimumPaymentPercentage ?? 5.0) / 100));
-    const nearTermCc = billedDue > 0 ? billedDue : (cc.currentOutstanding > 0 ? minDue : 0);
-    upcomingObligations += Math.round(nearTermCc);
-  }
-
-  const bnpls = prisma.bnplLiability
-    ? await prisma.bnplLiability.findMany({
-        where: { isClosed: false },
-      })
-    : [];
-  for (const bnpl of bnpls) {
-    upcomingObligations += Math.max(0, bnpl.monthlyInstallment);
-  }
-
-  if (upcomingObligations > 0) {
-    deductions.push({
-      label: "Upcoming monthly obligations (Loan EMI, CC due, BNPL)",
-      amount: upcomingObligations,
-      source: "liabilities",
-      basis: "Obligations due within the current monthly billing cycle",
-    });
-  }
-
-  // 6. Current Cycle Allocation (Mutual Funds & Stock Trading Pool)
+  // 2. Authoritative Cycle Stock Trading Allocation from Investment Engine
   let currentCycleSuggestion: any = null;
   try {
     const sugResult = await getOrGenerateInvestmentSuggestion();
@@ -230,30 +130,7 @@ export async function calculateCapitalAllocation(
     });
   }
 
-  // Active mutual fund carveout: only deduct if suggestion is ACTIVE (not yet invested)
-  const activeMfInvestable = (currentCycleSuggestion?.status === "ACTIVE" && typeof currentCycleSuggestion.totalInvestable === "number")
-    ? (currentCycleSuggestion.isManuallyEdited
-        ? (currentCycleSuggestion.editedEquity ?? 0) + (currentCycleSuggestion.editedDebt ?? 0) + (currentCycleSuggestion.editedGold ?? 0)
-        : currentCycleSuggestion.totalInvestable)
-    : 0;
-
-  if (activeMfInvestable > 0) {
-    deductions.push({
-      label: "Active monthly mutual fund allocation",
-      amount: activeMfInvestable,
-      source: "investmentEngine",
-      basis: "Committed for current monthly cycle SIP/mutual fund investments",
-    });
-  }
-
-  const otherProtectedCash = activeMfInvestable;
-
-  // Calculate liquid cash remaining after ALL protected deductions
-  const totalDeductions = protectedEmergencyReserve + essentialExpensesCash +
-    nearTermGoalCommitments + upcomingObligations + otherProtectedCash;
-  const liquidFreeCash = Math.max(0, verifiedLiquidCash - totalDeductions);
-
-  // Cycle Stock Trading Balance from authoritative current cycle suggestion
+  // Cycle Stock Trading Balance from current cycle suggestion
   const cycleStockTradingPool = currentCycleSuggestion?.stockCycle?.totalInvestable
     ?? currentCycleSuggestion?.totalStockInvestable
     ?? 0;
@@ -261,13 +138,26 @@ export async function calculateCapitalAllocation(
     ?? currentCycleSuggestion?.remainingStockBalance
     ?? cycleStockTradingPool;
 
-  // 7. Financial phase restriction
+  const cycleMfInvestable = currentCycleSuggestion?.totalInvestable ?? 0;
+
+  // Direct-equity swing trading operates on the cycle's stock credit, bounded by available bank balance
+  const potentiallyDeployableCash = Math.min(verifiedLiquidCash, remainingCycleStockBalance);
+
+  // 3. Financial phase restriction
   const cycleInfo = await detectSalaryCycle();
   const surplusComp = await computeSurplus(cycleInfo.cycleDays);
   const burnData = await calculateBurnRate();
   const runway = await calculateRunway({ burnData });
 
   const efComplete = efStatus.isComplete;
+  const sixMonthsFromNow = new Date(now.getFullYear(), now.getMonth() + 6, now.getDate());
+  const imminentGoals = await prisma.goal.findMany({
+    where: {
+      targetDate: { lte: sixMonthsFromNow },
+      status: { not: "COMPLETED" },
+    },
+    select: { id: true },
+  });
 
   const financialPhase = determinePhase(
     surplusComp.smoothedSurplus,
@@ -279,15 +169,8 @@ export async function calculateCapitalAllocation(
   const phasePolicy = PHASE_TRADING_POLICY[financialPhase];
   const phaseMaxPct = phasePolicy.maxTradingCapitalPct;
 
-  // Potentially deployable cash: bounded by the cycle stock allocation AND available liquid cash
-  const potentiallyDeployableCash = cycleStockTradingPool > 0
-    ? Math.min(liquidFreeCash, remainingCycleStockBalance)
-    : liquidFreeCash;
-
   const phaseLimitedCapital = phasePolicy.newPurchasesAllowed
-    ? (cycleStockTradingPool > 0
-        ? potentiallyDeployableCash
-        : Math.round(potentiallyDeployableCash * (phaseMaxPct / 100)))
+    ? potentiallyDeployableCash
     : 0;
 
   if (!phasePolicy.newPurchasesAllowed) {
@@ -332,49 +215,43 @@ export async function calculateCapitalAllocation(
   let eligibleNewPurchaseBudget = 0;
   let status: AllocationStatus = "ACTIVE";
   let statusReason = "Calculated safe trading budget";
+  let bindingConstraint = "none";
 
   if (!phasePolicy.newPurchasesAllowed) {
     eligibleNewPurchaseBudget = 0;
     status = "BLOCKED_BY_PHASE";
     statusReason = phasePolicy.description;
+    bindingConstraint = `phase_blocked_${financialPhase.toLowerCase()}`;
   } else if (!regimePolicy.newPurchasesAllowed) {
     eligibleNewPurchaseBudget = 0;
     status = "BLOCKED_BY_REGIME";
     statusReason = regimePolicy.description;
+    bindingConstraint = `regime_blocked_${marketRegime.toLowerCase()}`;
   } else if (potentiallyDeployableCash === 0) {
     eligibleNewPurchaseBudget = 0;
-    status = (remainingCycleStockBalance === 0 && cycleStockTradingPool > 0)
+    status = remainingCycleStockBalance === 0
       ? "CYCLE_BUDGET_EXHAUSTED"
       : "ZERO_SURPLUS";
-    statusReason = (remainingCycleStockBalance === 0 && cycleStockTradingPool > 0)
+    statusReason = cycleStockTradingPool > 0
       ? "Cycle stock trading credit is exhausted (₹0 remaining). Budget resets on next cycle rollover."
-      : "Zero deployable cash after protecting emergency reserves, living expenses, and near-term commitments.";
+      : "No stock trading credit allocated for current cycle. Generates on next investment cycle.";
+    bindingConstraint = "cycle_budget_exhausted";
   } else if (remainingExposureCapacity === 0 && deployedCapital > 0) {
     eligibleNewPurchaseBudget = 0;
     status = "EXPOSURE_CAP_REACHED";
     statusReason = `Existing stock exposure (₹${deployedCapital.toLocaleString("en-IN")}) meets or exceeds the permitted exposure cap (₹${maxPermittedExposure.toLocaleString("en-IN")}).`;
+    bindingConstraint = "exposure_cap_limit";
   } else {
     eligibleNewPurchaseBudget = Math.min(cashCapacity, remainingExposureCapacity);
     status = "ACTIVE";
     statusReason = eligibleNewPurchaseBudget > 0
       ? "Budget verified and ready for deployment."
       : "Calculated zero budget.";
-  }
-
-  // Determine binding constraint
-  let bindingConstraint = "none";
-  if (!phasePolicy.newPurchasesAllowed) {
-    bindingConstraint = `phase_blocked_${financialPhase.toLowerCase()}`;
-  } else if (!regimePolicy.newPurchasesAllowed) {
-    bindingConstraint = `regime_blocked_${marketRegime.toLowerCase()}`;
-  } else if (potentiallyDeployableCash === 0) {
-    bindingConstraint = (remainingCycleStockBalance === 0 && cycleStockTradingPool > 0)
-      ? "cycle_budget_exhausted"
-      : "zero_deployable_cash";
-  } else if (remainingExposureCapacity < cashCapacity) {
-    bindingConstraint = "exposure_cap_limit";
-  } else {
-    bindingConstraint = cycleStockTradingPool > 0 ? "cycle_stock_credit_limit" : "cash_capacity_limit";
+    if (remainingExposureCapacity < cashCapacity) {
+      bindingConstraint = "exposure_cap_limit";
+    } else {
+      bindingConstraint = cycleStockTradingPool > 0 ? "cycle_stock_credit_limit" : "cash_capacity_limit";
+    }
   }
 
   return {
@@ -408,7 +285,7 @@ export async function calculateCapitalAllocation(
     warnings,
     cycleStockTradingPool,
     remainingCycleStockBalance,
-    cycleMfInvestable: activeMfInvestable,
+    cycleMfInvestable,
   };
 }
 

@@ -440,33 +440,7 @@ export async function getOrGenerateInvestmentSuggestion(options?: { burnData?: A
         const daysSinceInvested = daysBetween(now, new Date(lastInvested.investedAt));
         if (daysSinceInvested < cycleDays) {
             // Still in invested cool-down period
-            const stockRate = lastInvested.stockInvestableRate > 0 ? lastInvested.stockInvestableRate : stockPhaseRate;
-            const stockTotal = lastInvested.totalStockInvestable > 0 ? lastInvested.totalStockInvestable : baseStockInvestable;
-            const stockRemaining = lastInvested.remainingStockBalance != null && lastInvested.totalStockInvestable > 0
-                ? lastInvested.remainingStockBalance
-                : stockTotal;
-
-            const updatedRecord = {
-                ...lastInvested,
-                stockInvestableRate: stockRate,
-                baseStockInvestable: lastInvested.baseStockInvestable || baseStockInvestable,
-                totalStockInvestable: stockTotal,
-                remainingStockBalance: stockRemaining,
-            };
-
-            if ((!lastInvested.totalStockInvestable || lastInvested.totalStockInvestable === 0) && stockTotal > 0) {
-                await prisma.investmentSuggestion.update({
-                    where: { id: lastInvested.id },
-                    data: {
-                        stockInvestableRate: stockRate,
-                        baseStockInvestable: baseStockInvestable,
-                        totalStockInvestable: stockTotal,
-                        remainingStockBalance: stockRemaining,
-                    },
-                }).catch(() => null);
-            }
-
-            return buildSuggestionResult(updatedRecord, config, cycleDays, cycleDays - daysSinceInvested, surplusComp);
+            return buildSuggestionResult(lastInvested, config, cycleDays, cycleDays - daysSinceInvested, surplusComp);
         }
     }
 

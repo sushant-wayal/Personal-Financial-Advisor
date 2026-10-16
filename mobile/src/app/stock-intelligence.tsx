@@ -580,168 +580,80 @@ export default function StockIntelligenceScreen() {
               )}
             </View>
 
-            {/* Four-Pillar Capital Allocation (100% Cash Balanced) */}
+            {/* Cycle Stock Trading Allocation Card */}
             <View style={styles.card}>
               <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                <Text style={styles.cardSectionTitle}>Four-Pillar Capital Allocation</Text>
-                <Text style={{ fontSize: 11, fontWeight: "700", color: "#22d3ee" }}>100% Balanced</Text>
+                <View style={{ flex: 1, marginRight: 8 }}>
+                  <Text style={styles.cardSectionTitle}>Cycle Stock Trading Allocation</Text>
+                  <Text style={{ fontSize: 11, color: "#888888", marginTop: 2 }}>
+                    Monthly stock allocation governed by your financial phase.
+                  </Text>
+                </View>
+                <View style={{ alignItems: "flex-end" }}>
+                  <Text style={{ fontSize: 9, color: "#888888", textTransform: "uppercase" }}>Liquid Bank Cash</Text>
+                  <Text style={{ fontSize: 12, fontWeight: "700", color: "#ffffff" }}>
+                    {formatCurrencyAmount(capital?.verifiedLiquidCash ?? 0, "INR")}
+                  </Text>
+                </View>
               </View>
-              <Text style={{ fontSize: 11, color: "#888888", marginTop: 2 }}>
-                Bank liquidity strictly partitioned into 4 ring-fenced pillars:
-              </Text>
 
-              <View style={{ gap: 6, marginTop: 8 }}>
-                {/* Pillar 1: Emergency Fund */}
-                <View style={styles.pillarItem}>
-                  <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-                    <Text style={{ fontSize: 11, fontWeight: "700", color: "#34d399" }}>1. Emergency Fund</Text>
-                    <Text style={{ fontSize: 12, fontWeight: "800", color: "#ffffff" }}>
-                      {formatCurrencyAmount(capital?.efAllocatedCash ?? 0, "INR")}
+              <View style={{ gap: 8, marginTop: 10 }}>
+                {/* Metric 1: Cycle Stock Pool */}
+                <View style={[styles.pillarItem, { borderColor: "rgba(34,211,238,0.25)", backgroundColor: "rgba(34,211,238,0.05)" }]}>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                    <Text style={{ fontSize: 11, fontWeight: "700", color: "#22d3ee" }}>Cycle Stock Pool</Text>
+                    <Text style={{ fontSize: 13, fontWeight: "800", color: "#22d3ee" }}>
+                      {formatCurrencyAmount(capital?.cycleStockTradingPool ?? 0, "INR")}
                     </Text>
                   </View>
-                  <Text style={{ fontSize: 10, color: "#888888" }}>
-                    Target: {formatCurrencyAmount(capital?.efTargetAmount ?? 0, "INR")} · Fully Protected
+                  <Text style={{ fontSize: 10, color: "#888888", marginTop: 2 }}>
+                    Allocated during monthly investment cycle
                   </Text>
                 </View>
 
-                {/* Pillar 2: Goals & Commitments */}
-                <View style={styles.pillarItem}>
-                  <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-                    <Text style={{ fontSize: 11, fontWeight: "700", color: "#60a5fa" }}>2. Goals & Buffer</Text>
-                    <Text style={{ fontSize: 12, fontWeight: "800", color: "#ffffff" }}>
+                {/* Metric 2: Utilized This Cycle */}
+                <View style={[styles.pillarItem, { borderColor: "rgba(192,132,252,0.25)", backgroundColor: "rgba(192,132,252,0.05)" }]}>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                    <Text style={{ fontSize: 11, fontWeight: "700", color: "#c084fc" }}>Utilized / Invested</Text>
+                    <Text style={{ fontSize: 13, fontWeight: "800", color: "#ffffff" }}>
                       {formatCurrencyAmount(
-                        (capital?.nearTermGoalCommitments ?? 0) +
-                        (capital?.upcomingObligations ?? 0) +
-                        (capital?.essentialExpensesCash ?? 0),
+                        Math.max(0, (capital?.cycleStockTradingPool ?? 0) - (capital?.remainingCycleStockBalance ?? 0)),
                         "INR"
                       )}
                     </Text>
                   </View>
-                  <Text style={{ fontSize: 10, color: "#888888" }}>
-                    Near-term commitments & living buffer
+                  <Text style={{ fontSize: 10, color: "#888888", marginTop: 2 }}>
+                    Committed in active stock trades
                   </Text>
                 </View>
 
-                {/* Pillar 3: Monthly Mutual Funds */}
-                <View style={styles.pillarItem}>
-                  <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-                    <Text style={{ fontSize: 11, fontWeight: "700", color: "#c084fc" }}>3. Monthly MF Pool</Text>
-                    <Text style={{ fontSize: 12, fontWeight: "800", color: "#ffffff" }}>
-                      {formatCurrencyAmount(capital?.cycleMfInvestable ?? 0, "INR")}
-                    </Text>
-                  </View>
-                  <Text style={{ fontSize: 10, color: "#888888" }}>
-                    Committed in active monthly suggestion
-                  </Text>
-                </View>
-
-                {/* Pillar 4: Cycle Stock Pool */}
-                <View style={[styles.pillarItem, { borderColor: "rgba(34,211,238,0.3)", backgroundColor: "rgba(34,211,238,0.05)" }]}>
-                  <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-                    <Text style={{ fontSize: 11, fontWeight: "700", color: "#22d3ee" }}>4. Cycle Stock Pool</Text>
-                    <Text style={{ fontSize: 12, fontWeight: "800", color: "#22d3ee" }}>
-                      {formatCurrencyAmount(capital?.cycleStockTradingPool ?? 0, "INR")}
-                    </Text>
-                  </View>
-                  <Text style={{ fontSize: 10, color: "#22d3ee" }}>
-                    Available Credit: {formatCurrencyAmount(capital?.remainingCycleStockBalance ?? 0, "INR")}
-                  </Text>
-                </View>
-              </View>
-            </View>
-
-            {/* Liquidity Waterfall Cards */}
-            <View style={{ flexDirection: "row", gap: 8 }}>
-              <View style={[styles.card, { flex: 1, padding: 10 }]}>
-                <Text style={{ fontSize: 9, fontWeight: "700", color: "#888888", textTransform: "uppercase" }}>Bank Cash</Text>
-                <Text style={{ fontSize: 13, fontWeight: "800", color: "#ffffff", marginTop: 4 }}>
-                  {formatCurrencyAmount(capital?.verifiedLiquidCash ?? 0, "INR")}
-                </Text>
-                <Text style={{ fontSize: 9, color: "#888888", marginTop: 2 }}>Verified Liquid</Text>
-              </View>
-
-              <View style={[styles.card, { flex: 1, padding: 10 }]}>
-                <Text style={{ fontSize: 9, fontWeight: "700", color: "#f43f5e", textTransform: "uppercase" }}>Ring-Fenced</Text>
-                <Text style={{ fontSize: 13, fontWeight: "800", color: "#f43f5e", marginTop: 4 }}>
-                  −{formatCurrencyAmount(capital?.totalDeductions ?? 0, "INR")}
-                </Text>
-                <Text style={{ fontSize: 9, color: "#888888", marginTop: 2 }}>Protected</Text>
-              </View>
-
-              <View style={[styles.card, { flex: 1, padding: 10, borderColor: "rgba(34,211,238,0.3)" }]}>
-                <Text style={{ fontSize: 9, fontWeight: "700", color: "#22d3ee", textTransform: "uppercase" }}>Deployable Cash</Text>
-                <Text style={{ fontSize: 13, fontWeight: "800", color: "#22d3ee", marginTop: 4 }}>
-                  {formatCurrencyAmount(capital?.potentiallyDeployableCash ?? 0, "INR")}
-                </Text>
-                <Text style={{ fontSize: 9, color: "#22d3ee", marginTop: 2 }}>Cycle Credit</Text>
-              </View>
-            </View>
-
-            {/* Protected Deductions Breakdown */}
-            <View style={styles.card}>
-              <Text style={styles.cardSectionTitle}>Protected Allocations Breakdown</Text>
-
-              {/* Emergency Fund */}
-              {capital?.efTargetAmount != null && (
-                <View style={{
-                  backgroundColor: "#161618",
-                  padding: 10,
-                  borderRadius: 8,
-                  borderWidth: 1,
-                  borderColor: "rgba(255,255,255,0.06)",
-                }}>
+                {/* Metric 3: Remaining Cycle Balance */}
+                <View style={[styles.pillarItem, { borderColor: "rgba(16,185,129,0.35)", backgroundColor: "rgba(16,185,129,0.08)" }]}>
                   <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                      <Text style={{ fontSize: 12, fontWeight: "700", color: "#ffffff" }}>Emergency Reserve</Text>
-                      <View style={{ backgroundColor: "rgba(16,185,129,0.12)", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-                        <Text style={{ fontSize: 9, fontWeight: "700", color: "#34d399" }}>Drip Funding</Text>
-                      </View>
-                    </View>
-                    <Text style={{ fontSize: 12, fontWeight: "700", color: "#f43f5e" }}>
-                      −{formatCurrencyAmount(capital.efAllocatedCash ?? 0, "INR")}
+                    <Text style={{ fontSize: 11, fontWeight: "700", color: "#34d399" }}>Available Cycle Credit</Text>
+                    <Text style={{ fontSize: 14, fontWeight: "800", color: "#34d399" }}>
+                      {formatCurrencyAmount(capital?.remainingCycleStockBalance ?? 0, "INR")}
                     </Text>
                   </View>
-                  <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 4 }}>
-                    <Text style={{ fontSize: 10, color: "#888888" }}>
-                      Target: {formatCurrencyAmount(capital.efTargetAmount, "INR")}
-                    </Text>
-                    {capital.efShortfall > 0 && (
-                      <Text style={{ fontSize: 10, color: "#fbbf24" }}>
-                        Shortfall: {formatCurrencyAmount(capital.efShortfall, "INR")} (Monthly Drip)
-                      </Text>
-                    )}
-                  </View>
+                  <Text style={{ fontSize: 10, color: "rgba(52,211,153,0.8)", marginTop: 2 }}>
+                    Governs daily purchase recommendations
+                  </Text>
                 </View>
-              )}
+              </View>
 
-              {/* Other Deductions */}
-              {capital?.deductions && capital.deductions.length > 0 ? (
-                capital.deductions.map((d: any, idx: number) => (
-                  <View
-                    key={idx}
-                    style={{
-                      backgroundColor: "#161618",
-                      padding: 10,
-                      borderRadius: 8,
-                      borderWidth: 1,
-                      borderColor: "rgba(255,255,255,0.06)",
-                      flexDirection: "row",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                    }}
-                  >
-                    <View style={{ flex: 1, marginRight: 8 }}>
-                      <Text style={{ fontSize: 12, fontWeight: "600", color: "#ffffff" }}>{d.label}</Text>
-                      {d.basis ? (
-                        <Text style={{ fontSize: 10, color: "#888888", marginTop: 2 }}>{d.basis}</Text>
-                      ) : null}
-                    </View>
-                    <Text style={{ fontSize: 12, fontWeight: "700", color: "#f43f5e" }}>
-                      −{formatCurrencyAmount(d.amount, "INR")}
-                    </Text>
-                  </View>
-                ))
-              ) : null}
+              <View style={{
+                backgroundColor: "#161618",
+                padding: 10,
+                borderRadius: 8,
+                marginTop: 8,
+                borderWidth: 1,
+                borderColor: "rgba(255,255,255,0.06)",
+              }}>
+                <Text style={{ fontSize: 10, color: "#888888", lineHeight: 14 }}>
+                  <Text style={{ color: "#22d3ee", fontWeight: "700" }}>Strict Ring-Fencing: </Text>
+                  Stock suggestions draw exclusively from your cycle stock credit. Emergency reserves, goals, and mutual funds are completely isolated.
+                </Text>
+              </View>
             </View>
 
             {/* Portfolio Exposure & Limits */}
