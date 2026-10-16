@@ -161,11 +161,32 @@ export type StrategySignal = {
 
 // ─── Capital Allocation ──────────────────────────────────────────────────────
 
+export type AllocationStatus =
+  | "ACTIVE"
+  | "MISSING_PROFILE"
+  | "BLOCKED_BY_PHASE"
+  | "BLOCKED_BY_REGIME"
+  | "BLOCKED_BY_DRAWDOWN"
+  | "EXPOSURE_CAP_REACHED"
+  | "ZERO_SURPLUS"
+  | "STALE_DATA"
+  | "ERROR";
+
 export type CapitalAllocation = {
   timestamp: Date;
+  /** High-level allocation status */
+  status: AllocationStatus;
+  /** Human-readable explanation of status and binding reason */
+  statusReason: string;
   /** Verified liquid cash balance */
   verifiedLiquidCash: number;
-  /** Protected emergency reserve */
+  /** Authoritative emergency fund target */
+  efTargetAmount: number;
+  /** Current liquid cash actually allocated to emergency fund */
+  efAllocatedCash: number;
+  /** Future emergency fund shortfall (not deducted from cash) */
+  efShortfall: number;
+  /** Protected emergency reserve (actual allocated cash) */
   protectedEmergencyReserve: number;
   /** Cash needed for essential expenses */
   essentialExpensesCash: number;
@@ -175,6 +196,8 @@ export type CapitalAllocation = {
   upcomingObligations: number;
   /** Other explicitly protected cash */
   otherProtectedCash: number;
+  /** Total cash deductions */
+  totalDeductions: number;
   /** Potentially deployable cash (before phase/risk limits) */
   potentiallyDeployableCash: number;
   /** Current financial phase */
@@ -185,8 +208,16 @@ export type CapitalAllocation = {
   phaseLimitedCapital: number;
   /** Market regime */
   marketRegime: MarketRegime;
+  /** Market regime allocation factor (0.0 - 1.0) */
+  marketRegimeFactor?: number;
   /** Regime-limited exposure */
   regimeLimitedCapital: number;
+  /** Total trading base (unreserved cash + deployed stock) */
+  totalTradingBase: number;
+  /** Maximum permitted total direct-equity exposure */
+  maxPermittedExposure: number;
+  /** Remaining exposure capacity after deployed capital */
+  remainingExposureCapacity: number;
   /** Capital already deployed in direct equity */
   deployedCapital: number;
   /** Final eligible new-purchase budget */
@@ -194,7 +225,7 @@ export type CapitalAllocation = {
   /** Binding constraint that determined the final budget */
   bindingConstraint: string;
   /** Breakdown explanations */
-  deductions: Array<{ label: string; amount: number; source: string }>;
+  deductions: Array<{ label: string; amount: number; source: string; basis?: string }>;
   /** Data freshness */
   dataTimestamp: Date;
   /** Warnings */

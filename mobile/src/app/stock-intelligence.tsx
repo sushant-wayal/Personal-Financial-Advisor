@@ -229,11 +229,16 @@ export default function StockIntelligenceScreen() {
             <View style={styles.heroCol}>
               <Text style={styles.heroLabel}>SAFE TRADING BUDGET</Text>
               <Text style={styles.heroValue}>
-                {formatCurrencyAmount(capital?.eligibleNewPurchaseBudget ?? 0, "INR")}
+                {capital ? formatCurrencyAmount(capital.eligibleNewPurchaseBudget ?? 0, "INR") : "Calculating..."}
               </Text>
               <Text style={styles.heroSubText}>
                 {capital?.bindingConstraint || "Calculated safe"}
               </Text>
+              {capital?.status && capital.status !== "ACTIVE" && (
+                <Text style={{ fontSize: 10, color: "#f59e0b", fontWeight: "700", marginTop: 2 }}>
+                  {capital.status}
+                </Text>
+              )}
             </View>
             <View style={styles.heroCol}>
               <Text style={styles.heroLabel}>DRAWDOWN RISK</Text>
@@ -451,23 +456,124 @@ export default function StockIntelligenceScreen() {
         {activeTab === "risk" && (
           <View style={styles.section}>
             <View style={styles.card}>
-              <Text style={styles.cardSectionTitle}>Verified Capital Allocation Waterfall</Text>
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                <Text style={styles.cardSectionTitle}>Verified Capital Allocation Waterfall</Text>
+                {capital?.status && (
+                  <View style={{
+                    backgroundColor: capital.status === "ACTIVE" ? "rgba(16,185,129,0.15)" : "rgba(245,158,11,0.15)",
+                    paddingHorizontal: 8,
+                    paddingVertical: 2,
+                    borderRadius: 4,
+                  }}>
+                    <Text style={{
+                      fontSize: 10,
+                      fontWeight: "700",
+                      color: capital.status === "ACTIVE" ? "#34d399" : "#fbbf24",
+                    }}>
+                      {capital.status}
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              {capital?.statusReason && capital.status !== "ACTIVE" && (
+                <View style={{
+                  backgroundColor: "rgba(245,158,11,0.08)",
+                  padding: 8,
+                  borderRadius: 6,
+                  borderWidth: 1,
+                  borderColor: "rgba(245,158,11,0.2)",
+                  marginBottom: 8,
+                }}>
+                  <Text style={{ fontSize: 11, color: "#fbbf24", lineHeight: 15 }}>
+                    {capital.statusReason}
+                  </Text>
+                </View>
+              )}
+
               <View style={styles.waterfallRow}>
                 <Text style={styles.detailText}>Verified Bank Cash</Text>
                 <Text style={styles.detailValue}>{formatCurrencyAmount(capital?.verifiedLiquidCash ?? 0, "INR")}</Text>
               </View>
+
               {capital?.deductions?.map((d: any, idx: number) => (
-                <View key={idx} style={styles.waterfallRow}>
-                  <Text style={[styles.detailText, { color: "#f43f5e" }]}>− {d.label}</Text>
+                <View key={idx} style={[styles.waterfallRow, { paddingLeft: 4 }]}>
+                  <View style={{ flex: 1, marginRight: 8 }}>
+                    <Text style={[styles.detailText, { color: "#f43f5e" }]}>− {d.label}</Text>
+                    {d.basis ? (
+                      <Text style={{ fontSize: 10, color: "#888888" }}>{d.basis}</Text>
+                    ) : null}
+                  </View>
                   <Text style={[styles.detailValue, { color: "#f43f5e" }]}>−{formatCurrencyAmount(d.amount, "INR")}</Text>
                 </View>
               ))}
+
+              {capital?.efTargetAmount != null && (
+                <View style={{
+                  backgroundColor: "#161618",
+                  padding: 8,
+                  borderRadius: 6,
+                  marginVertical: 4,
+                }}>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                    <Text style={{ fontSize: 11, color: "#aaaaaa" }}>Emergency Fund (Saved / Target):</Text>
+                    <Text style={{ fontSize: 11, color: "#ffffff", fontWeight: "600" }}>
+                      {formatCurrencyAmount(capital.efAllocatedCash, "INR")} / {formatCurrencyAmount(capital.efTargetAmount, "INR")}
+                    </Text>
+                  </View>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 2 }}>
+                    <Text style={{ fontSize: 10, color: "#888888" }}>Target Shortfall (Not deducted):</Text>
+                    <Text style={{ fontSize: 10, color: "#fbbf24" }}>{formatCurrencyAmount(capital.efShortfall, "INR")}</Text>
+                  </View>
+                </View>
+              )}
+
               <View style={[styles.waterfallRow, { borderTopWidth: 1, borderColor: "rgba(255,255,255,0.1)", paddingTop: 8, marginTop: 4 }]}>
-                <Text style={[styles.detailText, { fontWeight: "bold", color: "#22d3ee" }]}>Permitted Trading Budget</Text>
-                <Text style={[styles.detailValue, { fontWeight: "bold", color: "#10b981" }]}>
+                <Text style={[styles.detailText, { fontWeight: "bold", color: "#22d3ee" }]}>Potentially Deployable Cash</Text>
+                <Text style={[styles.detailValue, { fontWeight: "bold", color: "#22d3ee" }]}>
+                  {formatCurrencyAmount(capital?.potentiallyDeployableCash ?? 0, "INR")}
+                </Text>
+              </View>
+
+              {/* Exposure Sizing Math */}
+              <View style={{
+                backgroundColor: "#161618",
+                padding: 8,
+                borderRadius: 6,
+                marginVertical: 6,
+                gap: 3,
+              }}>
+                <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                  <Text style={{ fontSize: 10, color: "#888888" }}>Total Trading Base (Cash + Holdings):</Text>
+                  <Text style={{ fontSize: 10, color: "#ffffff" }}>{formatCurrencyAmount(capital?.totalTradingBase ?? 0, "INR")}</Text>
+                </View>
+                <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                  <Text style={{ fontSize: 10, color: "#888888" }}>Existing Stock Holdings (Deployed):</Text>
+                  <Text style={{ fontSize: 10, color: "#ffffff" }}>{formatCurrencyAmount(capital?.deployedCapital ?? 0, "INR")}</Text>
+                </View>
+                <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                  <Text style={{ fontSize: 10, color: "#888888" }}>Phase Limit ({capital?.financialPhase ?? "WEALTH_BUILDING"}):</Text>
+                  <Text style={{ fontSize: 10, color: "#ffffff" }}>{capital?.phaseMaxPct ?? 100}%</Text>
+                </View>
+                <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                  <Text style={{ fontSize: 10, color: "#888888" }}>Max Permitted Exposure:</Text>
+                  <Text style={{ fontSize: 10, color: "#ffffff" }}>{formatCurrencyAmount(capital?.maxPermittedExposure ?? 0, "INR")}</Text>
+                </View>
+                <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                  <Text style={{ fontSize: 10, color: "#22d3ee", fontWeight: "600" }}>Remaining Exposure Capacity:</Text>
+                  <Text style={{ fontSize: 10, color: "#22d3ee", fontWeight: "600" }}>{formatCurrencyAmount(capital?.remainingExposureCapacity ?? 0, "INR")}</Text>
+                </View>
+              </View>
+
+              <View style={[styles.waterfallRow, { borderTopWidth: 1, borderColor: "rgba(255,255,255,0.1)", paddingTop: 8, marginTop: 4 }]}>
+                <Text style={[styles.detailText, { fontWeight: "bold", color: "#10b981" }]}>Final Permitted Trading Budget</Text>
+                <Text style={[styles.detailValue, { fontWeight: "bold", color: "#10b981", fontSize: 14 }]}>
                   {formatCurrencyAmount(capital?.eligibleNewPurchaseBudget ?? 0, "INR")}
                 </Text>
               </View>
+              <Text style={{ fontSize: 10, color: "#888888", marginTop: 2 }}>
+                Binding Constraint: {capital?.bindingConstraint || "Calculated safe"}
+              </Text>
             </View>
 
             <View style={styles.card}>

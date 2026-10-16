@@ -26,14 +26,15 @@ import type { MarketRegime } from "../../config/stockEngineDefaults";
 import type { FinancialPhase } from "../../config/investmentDefaults";
 import type {
   CapitalAllocation,
+  AllocationStatus,
   PositionSize,
   PortfolioRiskSnapshot,
   IndicatorValue,
 } from "../../types/stockIntelligence";
-import { calculateBurnRate } from "../analytics";
+import { calculateBurnRate, calculateRunway } from "../analytics";
 import { getEmergencyFundStatus } from "../emergencyFund";
-import { determinePhase, computeSurplus, detectSalaryCycle, getEffectiveProfileConfig } from "../investmentEngine";
-import { calculateRunway } from "../analytics";
+import { determinePhase, computeSurplus, detectSalaryCycle } from "../investmentEngine";
+import { daysBetween } from "../shared/dates";
 
 // ─── Capital Allocation ──────────────────────────────────────────────────────
 
@@ -62,42 +63,87 @@ export async function calculateCapitalAllocation(
   // 1. Get financial profile
   const profile = await prisma.financialProfile.findFirst();
   if (!profile) {
-    return createBlockedAllocation("No financial profile found", now, marketRegime);
+    return createBlockedAllocation(
+      "MISSING_PROFILE",
+      "No financial profile found. Complete profile setup to determine trading budget.",
+      now,
+      marketRegime
+    );
   }
 
-  const verifiedLiquidCash = Math.max(0, profile.balance);
+  const verifiedLiquidCash = Math.max(0, profile.balance ?? 0);
+  if (verifiedLiquidCash === 0) {
+    warnings.push("Liquid bank balance is ₹0. No cash available for trading.");
+  }
 
-  // 2. Emergency fund reserve
-  let protectedEmergencyReserve = 0;
+  // 2. Emergency fund reserve accounting (Authoritative from emergencyFund.ts)
+  let efStatus: Awaited<ReturnType<typeof getEmergencyFundStatus>>;
   try {
-    const efStatus = await getEmergencyFundStatus();
-    if (!efStatus.isComplete) {
-      protectedEmergencyReserve = efStatus.targetAmount;
-      deductions.push({
-        label: "Emergency fund target (not yet complete)",
-        amount: protectedEmergencyReserve,
-        source: "emergencyFund",
-      });
-    }
-  } catch {
-    // If EF calculation fails, protect 6 months of expenses
-    const fallbackEf = (profile.monthlyExpenses || 0) * 6;
-    protectedEmergencyReserve = fallbackEf;
-    warnings.push("Emergency fund status unavailable; using fallback 6-month protection.");
+    efStatus = await getEmergencyFundStatus();
+  } catch (err) {
+    console.warn("[stockRisk] Failed to fetch emergency fund status, using fallback:", err);
+    const fallbackMonths = Math.max(3, profile.emergencyFundMonths ?? 6);
+    const fallbackExp = Math.max(0, profile.monthlyExpenses ?? 0);
+    const fallbackTarget = fallbackMonths * fallbackExp;
+    efStatus = {
+      targetMonths: fallbackMonths,
+      avgMonthlyExpenses: fallbackExp,
+      targetAmount: fallbackTarget,
+      savedAmount: Math.min(verifiedLiquidCash, fallbackTarget),
+      availableBalance: Math.max(0, verifiedLiquidCash - fallbackTarget),
+      progressPct: fallbackTarget > 0 ? (verifiedLiquidCash / fallbackTarget) * 100 : 100,
+      shortfall: Math.max(0, fallbackTarget - verifiedLiquidCash),
+      monthsToComplete: null,
+      estimatedCompletionDate: null,
+      isComplete: verifiedLiquidCash >= fallbackTarget && fallbackTarget > 0,
+      monthlyCapacity: Math.max(0, (profile.monthlyIncome ?? 0) - (profile.monthlyExpenses ?? 0)),
+      efStrategy: (profile.efStrategy as any) || "BALANCED",
+      efRatio: 0.7,
+      goalsRatio: 0.3,
+      tier: verifiedLiquidCash >= fallbackTarget ? 3 : 2,
+      efMonthlyDrip: 0,
+      availableGoalCapacity: 0,
+    };
+    warnings.push("Authoritative emergency fund status unavailable; using profile fallback.");
+  }
+
+  const efTargetAmount = Math.max(0, efStatus.targetAmount);
+  // efAllocatedCash is the actual cash in the bank account dedicated to the emergency fund
+  const efAllocatedCash = Math.min(verifiedLiquidCash, Math.max(0, efStatus.savedAmount));
+  const efShortfall = Math.max(0, efTargetAmount - efAllocatedCash);
+  const protectedEmergencyReserve = efAllocatedCash;
+
+  if (protectedEmergencyReserve > 0) {
     deductions.push({
-      label: "Emergency fund fallback (6 months expenses)",
-      amount: fallbackEf,
-      source: "fallback",
+      label: efStatus.isComplete
+        ? `Emergency reserve (fully funded: ${efStatus.targetMonths} months)`
+        : `Emergency reserve allocated (${efStatus.tier === 1 ? "Tier 1 Starter Net" : "Tier 2 Core Reserve"})`,
+      amount: protectedEmergencyReserve,
+      source: "emergencyFund",
+      basis: `Target: ₹${efTargetAmount.toLocaleString("en-IN")}, Allocated from cash: ₹${protectedEmergencyReserve.toLocaleString("en-IN")}, Future shortfall: ₹${efShortfall.toLocaleString("en-IN")}`,
     });
   }
 
-  // 3. Essential expenses buffer (1 month)
-  const essentialExpensesCash = Math.max(0, profile.monthlyExpenses || 0);
-  deductions.push({
-    label: "Essential expenses buffer (1 month)",
-    amount: essentialExpensesCash,
-    source: "financialProfile",
-  });
+  // 3. Essential expenses buffer (non-overlapping)
+  // If the emergency reserve already allocates >= 1 month of living expenses, living expenses
+  // are already protected by that reserve. We do NOT double-deduct an overlapping month of expenses.
+  // If emergency reserve < 1 month, we protect the difference so at least 1 month is preserved.
+  const avgMonthlyExpenses = efStatus.avgMonthlyExpenses || Math.max(0, profile.monthlyExpenses ?? 0);
+  let essentialExpensesCash = 0;
+  if (protectedEmergencyReserve < avgMonthlyExpenses) {
+    essentialExpensesCash = Math.min(
+      Math.max(0, verifiedLiquidCash - protectedEmergencyReserve),
+      avgMonthlyExpenses - protectedEmergencyReserve
+    );
+    if (essentialExpensesCash > 0) {
+      deductions.push({
+        label: "Essential living expenses buffer (completing 1 month)",
+        amount: essentialExpensesCash,
+        source: "financialProfile",
+        basis: `Monthly expenses ₹${avgMonthlyExpenses.toLocaleString("en-IN")}, emergency reserve covers ₹${protectedEmergencyReserve.toLocaleString("en-IN")}`,
+      });
+    }
+  }
 
   // 4. Near-term goal commitments (next 6 months)
   const sixMonthsFromNow = new Date(now.getFullYear(), now.getMonth() + 6, now.getDate());
@@ -110,59 +156,68 @@ export async function calculateCapitalAllocation(
 
   let nearTermGoalCommitments = 0;
   for (const goal of imminentGoals) {
-    const remaining = Math.max(0, goal.targetAmount - goal.currentAmount);
-    nearTermGoalCommitments += remaining;
-  }
-  if (nearTermGoalCommitments > 0) {
-    deductions.push({
-      label: `Near-term goal commitments (${imminentGoals.length} goals)`,
-      amount: nearTermGoalCommitments,
-      source: "goals",
-    });
+    const targetDate = goal.targetDate ? new Date(goal.targetDate) : now;
+    const daysUntilDue = Math.max(0, daysBetween(now, targetDate));
+    const monthsUntilDue = Math.max(1, Math.ceil(daysUntilDue / 30));
+    const goalShortfall = Math.max(0, goal.targetAmount - goal.currentAmount);
+
+    // If goal is due within 30 days (immediate cycle), full remaining shortfall is needed.
+    // If due in 2-6 months, only the current month's installment is committed from today's cash.
+    const nearTermCommitment = daysUntilDue <= 30
+      ? goalShortfall
+      : Math.round(goalShortfall / monthsUntilDue);
+
+    nearTermGoalCommitments += nearTermCommitment;
+
+    if (nearTermCommitment > 0) {
+      deductions.push({
+        label: `Near-term goal: ${goal.title}`,
+        amount: nearTermCommitment,
+        source: "goals",
+        basis: daysUntilDue <= 30
+          ? `Due in ${daysUntilDue} days (<=30d): full remaining shortfall`
+          : `Due in ${monthsUntilDue} months: pro-rated monthly installment (₹${goalShortfall.toLocaleString("en-IN")} / ${monthsUntilDue}mo)`,
+      });
+    }
   }
 
-  // 5. Known upcoming obligations (EMI, credit card, BNPL due within 30 days)
+  // 5. Known upcoming obligations (EMI, credit card due, BNPL)
   let upcomingObligations = 0;
 
-  const loans = await prisma.loanLiability.findMany();
+  const loans = prisma.loanLiability ? await prisma.loanLiability.findMany() : [];
   for (const loan of loans) {
-    upcomingObligations += loan.emiAmount;
+    upcomingObligations += Math.max(0, loan.emiAmount);
   }
 
-  const creditCards = await prisma.creditCardLiability.findMany();
+  const creditCards = prisma.creditCardLiability ? await prisma.creditCardLiability.findMany() : [];
   for (const cc of creditCards) {
-    upcomingObligations += Math.max(0, cc.currentOutstanding);
+    // Near-term obligation is current statement bill due minus paid, or minimum due if no statement
+    const billedDue = Math.max(0, (cc.lastStatementAmount ?? 0) - (cc.amountPaidSinceStatement ?? 0));
+    const minDue = Math.max(0, (cc.currentOutstanding ?? 0) * ((cc.minimumPaymentPercentage ?? 5.0) / 100));
+    const nearTermCc = billedDue > 0 ? billedDue : (cc.currentOutstanding > 0 ? minDue : 0);
+    upcomingObligations += Math.round(nearTermCc);
   }
 
-  const bnpls = await prisma.bnplLiability.findMany({
-    where: { isClosed: false },
-  });
+  const bnpls = prisma.bnplLiability
+    ? await prisma.bnplLiability.findMany({
+        where: { isClosed: false },
+      })
+    : [];
   for (const bnpl of bnpls) {
-    upcomingObligations += bnpl.monthlyInstallment;
+    upcomingObligations += Math.max(0, bnpl.monthlyInstallment);
   }
 
   if (upcomingObligations > 0) {
     deductions.push({
-      label: "Upcoming monthly obligations (EMI, CC, BNPL)",
+      label: "Upcoming monthly obligations (Loan EMI, CC due, BNPL)",
       amount: upcomingObligations,
       source: "liabilities",
+      basis: "Obligations due within the current monthly billing cycle",
     });
   }
 
-  // 6. Other protected cash: active investment suggestions
-  let otherProtectedCash = 0;
-  const activeInvestment = await prisma.investmentSuggestion.findFirst({
-    where: { status: "ACTIVE" },
-    orderBy: { createdAt: "desc" },
-  });
-  if (activeInvestment) {
-    otherProtectedCash = activeInvestment.totalInvestable;
-    deductions.push({
-      label: "Active investment suggestion (reserved for SIP/MF)",
-      amount: otherProtectedCash,
-      source: "investmentEngine",
-    });
-  }
+  // 6. Other protected cash (active investment suggestions are advisory recommendations, not cash locks)
+  const otherProtectedCash = 0;
 
   // Calculate potentially deployable cash
   const totalDeductions = protectedEmergencyReserve + essentialExpensesCash +
@@ -172,14 +227,10 @@ export async function calculateCapitalAllocation(
   // 7. Financial phase restriction
   const cycleInfo = await detectSalaryCycle();
   const surplusComp = await computeSurplus(cycleInfo.cycleDays);
-  const config = await getEffectiveProfileConfig();
   const burnData = await calculateBurnRate();
   const runway = await calculateRunway({ burnData });
 
-  const efTargetMonths = Math.max(3, config.profile?.emergencyFundMonths ?? 6);
-  const avgMonthlyExpenses = burnData.burnRate > 0 ? burnData.burnRate : (config.profile?.monthlyExpenses ?? 0);
-  const efTargetAmount = efTargetMonths * avgMonthlyExpenses;
-  const efComplete = verifiedLiquidCash >= efTargetAmount && efTargetAmount > 0;
+  const efComplete = efStatus.isComplete;
 
   const financialPhase = determinePhase(
     surplusComp.smoothedSurplus,
@@ -190,7 +241,9 @@ export async function calculateCapitalAllocation(
 
   const phasePolicy = PHASE_TRADING_POLICY[financialPhase];
   const phaseMaxPct = phasePolicy.maxTradingCapitalPct;
-  const phaseLimitedCapital = Math.round(potentiallyDeployableCash * (phaseMaxPct / 100));
+  const phaseLimitedCapital = phasePolicy.newPurchasesAllowed
+    ? Math.round(potentiallyDeployableCash * (phaseMaxPct / 100))
+    : 0;
 
   if (!phasePolicy.newPurchasesAllowed) {
     warnings.push(`New purchases blocked: ${phasePolicy.description}`);
@@ -198,46 +251,102 @@ export async function calculateCapitalAllocation(
 
   // 8. Market regime restriction
   const regimePolicy = REGIME_POLICY[marketRegime];
-  const regimeLimitedCapital = Math.round(phaseLimitedCapital * (regimePolicy.maxExposurePct / 100));
+  const regimeLimitedCapital = regimePolicy.newPurchasesAllowed
+    ? Math.round(phaseLimitedCapital * (regimePolicy.maxExposurePct / 100))
+    : 0;
 
   if (!regimePolicy.newPurchasesAllowed) {
     warnings.push(`New purchases blocked by market regime: ${regimePolicy.description}`);
   }
 
-  // 9. Already deployed capital
-  const stocks = await prisma.stock.findMany({
-    where: { currentQuantity: { gt: 0 } },
-  });
+  // 9. Existing direct-equity exposure (Section 4: Separate cash from exposure)
+  const stocks = prisma.stock
+    ? await prisma.stock.findMany({
+        where: { currentQuantity: { gt: 0 } },
+      })
+    : [];
   const deployedCapital = stocks.reduce((sum, s) => sum + (s.currentWorth ?? 0), 0);
 
-  // 10. Final eligible budget
-  const eligibleNewPurchaseBudget = Math.max(0, Math.round(regimeLimitedCapital - deployedCapital));
+  // Total trading capital base: unreserved liquid cash + existing equity holdings
+  const totalTradingBase = potentiallyDeployableCash + deployedCapital;
+
+  // Maximum permitted total direct-equity exposure across portfolio governed by phase & regime caps
+  const maxPermittedExposure = (phasePolicy.newPurchasesAllowed && regimePolicy.newPurchasesAllowed)
+    ? Math.round(totalTradingBase * (phaseMaxPct / 100) * (regimePolicy.maxExposurePct / 100))
+    : 0;
+
+  // Remaining exposure capacity after accounting for existing holdings
+  const remainingExposureCapacity = Math.max(0, maxPermittedExposure - deployedCapital);
+
+  // Cash constraint: available unreserved cash scaled by phase and regime policy
+  const cashCapacity = regimeLimitedCapital;
+
+  // 10. Final eligible budget: CANNOT exceed unreserved cash capacity AND CANNOT exceed remaining exposure capacity
+  let eligibleNewPurchaseBudget = 0;
+  let status: AllocationStatus = "ACTIVE";
+  let statusReason = "Calculated safe trading budget";
+
+  if (!phasePolicy.newPurchasesAllowed) {
+    eligibleNewPurchaseBudget = 0;
+    status = "BLOCKED_BY_PHASE";
+    statusReason = phasePolicy.description;
+  } else if (!regimePolicy.newPurchasesAllowed) {
+    eligibleNewPurchaseBudget = 0;
+    status = "BLOCKED_BY_REGIME";
+    statusReason = regimePolicy.description;
+  } else if (potentiallyDeployableCash === 0) {
+    eligibleNewPurchaseBudget = 0;
+    status = "ZERO_SURPLUS";
+    statusReason = "Zero deployable cash after protecting emergency reserves, living expenses, and near-term commitments.";
+  } else if (remainingExposureCapacity === 0 && deployedCapital > 0) {
+    eligibleNewPurchaseBudget = 0;
+    status = "EXPOSURE_CAP_REACHED";
+    statusReason = `Existing stock exposure (₹${deployedCapital.toLocaleString("en-IN")}) meets or exceeds the permitted exposure cap (₹${maxPermittedExposure.toLocaleString("en-IN")}).`;
+  } else {
+    eligibleNewPurchaseBudget = Math.min(cashCapacity, remainingExposureCapacity);
+    status = "ACTIVE";
+    statusReason = eligibleNewPurchaseBudget > 0
+      ? "Budget verified and ready for deployment."
+      : "Calculated zero budget.";
+  }
 
   // Determine binding constraint
   let bindingConstraint = "none";
-  const candidates = [
-    { name: "deployable_cash", value: potentiallyDeployableCash },
-    { name: "phase_limit", value: phaseLimitedCapital },
-    { name: "regime_limit", value: regimeLimitedCapital },
-    { name: "net_of_deployed", value: Math.max(0, regimeLimitedCapital - deployedCapital) },
-  ];
-  const sortedConstraints = [...candidates].sort((a, b) => a.value - b.value);
-  bindingConstraint = sortedConstraints[0].name;
+  if (!phasePolicy.newPurchasesAllowed) {
+    bindingConstraint = `phase_blocked_${financialPhase.toLowerCase()}`;
+  } else if (!regimePolicy.newPurchasesAllowed) {
+    bindingConstraint = `regime_blocked_${marketRegime.toLowerCase()}`;
+  } else if (potentiallyDeployableCash === 0) {
+    bindingConstraint = "zero_deployable_cash";
+  } else if (remainingExposureCapacity < cashCapacity) {
+    bindingConstraint = "exposure_cap_limit";
+  } else {
+    bindingConstraint = "cash_capacity_limit";
+  }
 
   return {
     timestamp: now,
+    status,
+    statusReason,
     verifiedLiquidCash,
+    efTargetAmount,
+    efAllocatedCash,
+    efShortfall,
     protectedEmergencyReserve,
     essentialExpensesCash,
     nearTermGoalCommitments,
     upcomingObligations,
     otherProtectedCash,
+    totalDeductions,
     potentiallyDeployableCash,
     financialPhase,
     phaseMaxPct,
     phaseLimitedCapital,
     marketRegime,
     regimeLimitedCapital,
+    totalTradingBase,
+    maxPermittedExposure,
+    remainingExposureCapacity,
     deployedCapital,
     eligibleNewPurchaseBudget,
     bindingConstraint,
@@ -247,21 +356,36 @@ export async function calculateCapitalAllocation(
   };
 }
 
-function createBlockedAllocation(reason: string, now: Date, regime: MarketRegime): CapitalAllocation {
+function createBlockedAllocation(
+  status: AllocationStatus,
+  reason: string,
+  now: Date,
+  regime: MarketRegime,
+  verifiedLiquidCash = 0,
+): CapitalAllocation {
   return {
     timestamp: now,
-    verifiedLiquidCash: 0,
+    status,
+    statusReason: reason,
+    verifiedLiquidCash,
+    efTargetAmount: 0,
+    efAllocatedCash: 0,
+    efShortfall: 0,
     protectedEmergencyReserve: 0,
     essentialExpensesCash: 0,
     nearTermGoalCommitments: 0,
     upcomingObligations: 0,
     otherProtectedCash: 0,
+    totalDeductions: 0,
     potentiallyDeployableCash: 0,
     financialPhase: "CRISIS",
     phaseMaxPct: 0,
     phaseLimitedCapital: 0,
     marketRegime: regime,
     regimeLimitedCapital: 0,
+    totalTradingBase: 0,
+    maxPermittedExposure: 0,
+    remainingExposureCapacity: 0,
     deployedCapital: 0,
     eligibleNewPurchaseBudget: 0,
     bindingConstraint: reason,

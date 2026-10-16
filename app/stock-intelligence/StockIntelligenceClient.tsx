@@ -65,7 +65,12 @@ export default function StockIntelligenceClient() {
   });
 
   // 2. Fetch Capital Allocation & Risk
-  const { data: capData } = useQuery<{
+  const {
+    data: capData,
+    isLoading: isCapLoading,
+    isError: isCapError,
+    refetch: refetchCapital,
+  } = useQuery<{
     ok: boolean;
     capitalAllocation: CapitalAllocation;
     riskSnapshot: PortfolioRiskSnapshot;
@@ -291,12 +296,30 @@ export default function StockIntelligenceClient() {
             <Briefcase className="h-4 w-4 text-emerald-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-foreground">
-              {formatInr(capital?.eligibleNewPurchaseBudget ?? 0)}
-            </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Binding: <span className="text-emerald-400 font-medium">{capital?.bindingConstraint || "Calculated safe"}</span>
-            </p>
+            {isCapLoading ? (
+              <div className="h-8 w-28 animate-pulse rounded bg-muted" />
+            ) : isCapError ? (
+              <div className="flex items-center gap-1.5 text-xs text-rose-400">
+                <AlertTriangle className="h-3.5 w-3.5" />
+                <span>Failed to load</span>
+              </div>
+            ) : (
+              <>
+                <div className="text-2xl font-bold text-foreground">
+                  {formatInr(capital?.eligibleNewPurchaseBudget)}
+                </div>
+                <div className="mt-1 flex flex-col gap-0.5 text-xs text-muted-foreground">
+                  <span>
+                    Binding: <span className="text-emerald-400 font-medium">{capital?.bindingConstraint || "Calculated safe"}</span>
+                  </span>
+                  {capital?.status && capital.status !== "ACTIVE" && (
+                    <span className="text-amber-400 font-medium text-[11px] truncate" title={capital.statusReason}>
+                      {capital.status}
+                    </span>
+                  )}
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -643,38 +666,126 @@ export default function StockIntelligenceClient() {
         <div className="space-y-6">
           <Card className="border-border bg-card/60 backdrop-blur">
             <CardHeader>
-              <CardTitle className="text-base font-semibold text-foreground">
-                Verified Personal Finance Capital Allocation Model
-              </CardTitle>
-              <CardDescription>
-                Direct stock investments are strictly sized from verified deployable liquidity after protecting emergency reserves, living expenses, and financial commitments.
-              </CardDescription>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <div>
+                  <CardTitle className="text-base font-semibold text-foreground">
+                    Verified Personal Finance Capital Allocation Model
+                  </CardTitle>
+                  <CardDescription>
+                    Direct stock investments are strictly sized from verified deployable liquidity after protecting emergency reserves, living expenses, and financial commitments.
+                  </CardDescription>
+                </div>
+                {capital?.status && (
+                  <span className={`inline-flex items-center gap-1.5 self-start rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wider border ${
+                    capital.status === "ACTIVE"
+                      ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                      : "bg-amber-500/10 text-amber-400 border-amber-500/30"
+                  }`}>
+                    {capital.status === "ACTIVE" ? <ShieldCheck className="h-3.5 w-3.5" /> : <ShieldAlert className="h-3.5 w-3.5" />}
+                    {capital.status}
+                  </span>
+                )}
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2 rounded-lg bg-muted/40 p-4 text-sm">
-                <div className="flex justify-between font-medium">
-                  <span>1. Verified Bank Cash Balance:</span>
-                  <span className="text-foreground">{formatInr(capital?.verifiedLiquidCash)}</span>
+              {isCapLoading ? (
+                <div className="space-y-3 p-4">
+                  <div className="h-4 w-3/4 animate-pulse rounded bg-muted" />
+                  <div className="h-4 w-1/2 animate-pulse rounded bg-muted" />
+                  <div className="h-4 w-2/3 animate-pulse rounded bg-muted" />
                 </div>
-                {capital?.deductions?.map((d, i) => (
-                  <div key={i} className="flex justify-between text-xs text-rose-400">
-                    <span>− Less: {d.label}:</span>
-                    <span>−{formatInr(d.amount)}</span>
+              ) : isCapError ? (
+                <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-300 flex items-center justify-between">
+                  <span>Unable to calculate capital allocation.</span>
+                  <Button variant="outline" size="sm" onClick={() => void refetchCapital()}>
+                    Retry
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  {capital?.statusReason && capital.status !== "ACTIVE" && (
+                    <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-300">
+                      <strong>Policy Notice:</strong> {capital.statusReason}
+                    </div>
+                  )}
+
+                  <div className="space-y-3 rounded-lg bg-muted/40 p-4 text-sm">
+                    <div className="flex justify-between font-medium">
+                      <span>1. Verified Bank Cash Balance:</span>
+                      <span className="text-foreground">{formatInr(capital?.verifiedLiquidCash)}</span>
+                    </div>
+
+                    {/* Deductions Breakdown */}
+                    {capital?.deductions?.map((d, i) => (
+                      <div key={i} className="flex justify-between text-xs text-rose-400 pl-3 border-l-2 border-rose-500/30">
+                        <div>
+                          <span>− Less: {d.label}</span>
+                          {d.basis && (
+                            <span className="ml-1 text-[11px] text-muted-foreground">({d.basis})</span>
+                          )}
+                        </div>
+                        <span className="font-medium">−{formatInr(d.amount)}</span>
+                      </div>
+                    ))}
+
+                    {/* Emergency Fund Diagnostic Card */}
+                    {capital?.efTargetAmount != null && (
+                      <div className="rounded border border-border/50 bg-background/50 p-3 text-xs text-muted-foreground my-2 space-y-1.5">
+                        <div className="flex justify-between font-medium text-foreground">
+                          <span>Emergency Fund Status:</span>
+                          <span>{formatInr(capital.efAllocatedCash)} / {formatInr(capital.efTargetAmount)}</span>
+                        </div>
+                        <div className="flex justify-between text-[11px]">
+                          <span>Allocated in Cash (Protected):</span>
+                          <span className="text-rose-400 font-medium">−{formatInr(capital.efAllocatedCash)}</span>
+                        </div>
+                        <div className="flex justify-between text-[11px]">
+                          <span>Remaining Target Shortfall (Diagnostic only — NOT deducted as cash):</span>
+                          <span className="text-amber-400">{formatInr(capital.efShortfall)}</span>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="border-t border-border pt-2 flex justify-between font-semibold">
+                      <span>Potentially Deployable Cash:</span>
+                      <span className="text-cyan-400">{formatInr(capital?.potentiallyDeployableCash)}</span>
+                    </div>
+
+                    {/* Portfolio Exposure Math */}
+                    <div className="rounded border border-border/50 bg-background/50 p-3 text-xs text-muted-foreground my-2 space-y-1.5">
+                      <div className="flex justify-between font-medium text-foreground">
+                        <span>Portfolio Exposure Sizing:</span>
+                        <span>Total Base: {formatInr(capital?.totalTradingBase)}</span>
+                      </div>
+                      <div className="flex justify-between text-[11px]">
+                        <span>Existing Stock Holdings (Deployed):</span>
+                        <span>{formatInr(capital?.deployedCapital)}</span>
+                      </div>
+                      <div className="flex justify-between text-[11px]">
+                        <span>Financial Phase Limit ({capital?.financialPhase}):</span>
+                        <span>{capital?.phaseMaxPct}% ({formatInr(capital?.phaseLimitedCapital)})</span>
+                      </div>
+                      <div className="flex justify-between text-[11px]">
+                        <span>Market Regime Factor ({capital?.marketRegimeFactor ? Math.round(capital.marketRegimeFactor * 100) : 70}%):</span>
+                        <span>Exposure Cap: {formatInr(capital?.maxPermittedExposure)}</span>
+                      </div>
+                      <div className="flex justify-between text-[11px] font-medium text-cyan-300">
+                        <span>Remaining Exposure Capacity:</span>
+                        <span>{formatInr(capital?.remainingExposureCapacity)}</span>
+                      </div>
+                    </div>
+
+                    <div className="border-t border-border pt-2 flex justify-between text-base font-bold text-emerald-400">
+                      <span>Final Permitted Daily Trading Budget:</span>
+                      <span>{formatInr(capital?.eligibleNewPurchaseBudget)}</span>
+                    </div>
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Binding Constraint:</span>
+                      <span className="font-medium text-foreground">{capital?.bindingConstraint || "Calculated safe"}</span>
+                    </div>
                   </div>
-                ))}
-                <div className="border-t border-border pt-2 flex justify-between font-semibold">
-                  <span>Potentially Deployable Cash:</span>
-                  <span className="text-cyan-400">{formatInr(capital?.potentiallyDeployableCash)}</span>
-                </div>
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>Phase Cap ({capital?.financialPhase}):</span>
-                  <span>{capital?.phaseMaxPct}% limit ({formatInr(capital?.phaseLimitedCapital)})</span>
-                </div>
-                <div className="border-t border-border pt-2 flex justify-between text-base font-bold text-emerald-400">
-                  <span>Final Permitted Daily Trading Budget:</span>
-                  <span>{formatInr(capital?.eligibleNewPurchaseBudget)}</span>
-                </div>
-              </div>
+                </>
+              )}
 
               {/* Safety Halt Policy */}
               <div className="rounded-lg border border-border p-4 text-xs space-y-2 text-muted-foreground">
