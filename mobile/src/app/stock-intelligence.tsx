@@ -23,6 +23,14 @@ function formatBindingConstraint(raw: string | null | undefined): string {
   switch (raw) {
     case "cycle_stock_credit_limit":
       return "Sized from cycle stock trading balance";
+    case "slot_tranche_allocated":
+      return "Sized by available position slot capacity";
+    case "market_regime_moderated":
+      return "Moderated by market regime condition";
+    case "drawdown_throttle_active":
+      return "Scaled down by drawdown throttle";
+    case "max_positions_reached":
+      return "Max concurrent open positions (5/5) reached";
     case "cycle_budget_exhausted":
       return "Cycle stock trading credit exhausted";
     case "cash_capacity_limit":
@@ -37,6 +45,8 @@ function formatBindingConstraint(raw: string | null | undefined): string {
       return "Paused: Bearish market regime";
     case "regime_blocked_high_volatility":
       return "Paused: High market volatility";
+    case "drawdown_halt_triggered":
+      return "Paused: 5% drawdown circuit breaker";
     default:
       return raw.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
   }

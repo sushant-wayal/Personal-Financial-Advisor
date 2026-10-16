@@ -28,8 +28,16 @@ vi.mock("../../lib/prisma", () => ({
     investmentSuggestion: {
       findFirst: vi.fn(),
     },
+    stockPaperPortfolio: {
+      findFirst: vi.fn(),
+    },
+    stockPortfolioRiskSnapshot: {
+      findFirst: vi.fn(),
+      create: vi.fn(),
+    },
   },
 }));
+
 
 vi.mock("../emergencyFund", () => ({
   getEmergencyFundStatus: vi.fn(),
@@ -102,7 +110,11 @@ describe("capitalAllocation — Cycle-Based Stock Trading Safeguards", () => {
         remainingStockBalance: 10000,
       },
     } as any);
+    vi.mocked(prisma.stockPaperPortfolio.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.stockPortfolioRiskSnapshot.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.stockPortfolioRiskSnapshot.create).mockResolvedValue({} as any);
   });
+
 
   // 1. No financial profile
   it("Requirement 1: handles missing financial profile gracefully with MISSING_PROFILE status", async () => {
@@ -216,16 +228,21 @@ describe("capitalAllocation — Cycle-Based Stock Trading Safeguards", () => {
       },
     } as any);
 
-    // In NEUTRAL regime: 70% of 20,000 = 14,000
+    // In NEUTRAL regime: 20,000 cycle credit, 10 open slots -> 2,000 slot capacity, 2-slot tranche base = 4,000
+    // Multi-factor target: 4,000 * 0.65 = 2,600
     const result = await calculateCapitalAllocation("NEUTRAL");
 
     expect(result.cycleStockTradingPool).toBe(20000);
     expect(result.remainingCycleStockBalance).toBe(20000);
     expect(result.potentiallyDeployableCash).toBe(20000);
-    expect(result.eligibleNewPurchaseBudget).toBe(14000);
+    expect(result.eligibleNewPurchaseBudget).toBe(2600);
     expect(result.status).toBe("ACTIVE");
-    expect(result.bindingConstraint).toBe("cycle_stock_credit_limit");
+    expect(result.bindingConstraint).toBe("market_regime_moderated");
+    expect(result.marketRegimeFactor).toBe(0.65);
+    expect(result.availablePositionSlots).toBe(10);
   });
+
+
 
   // 5. Does not perform ad-hoc deductions for goals or living buffers
   it("Requirement 5: does not perform ad-hoc deductions for near-term goals or buffers in stock intelligence", async () => {

@@ -177,41 +177,91 @@ export async function calculateCapitalAllocation(
     warnings.push(`New purchases blocked: ${phasePolicy.description}`);
   }
 
-  // 8. Market regime restriction
-  const regimePolicy = REGIME_POLICY[marketRegime];
-  const regimeLimitedCapital = regimePolicy.newPurchasesAllowed
-    ? Math.round(phaseLimitedCapital * (regimePolicy.maxExposurePct / 100))
-    : 0;
-
-  if (!regimePolicy.newPurchasesAllowed) {
-    warnings.push(`New purchases blocked by market regime: ${regimePolicy.description}`);
-  }
-
-  // 9. Existing direct-equity exposure (Section 4: Separate cash from exposure)
+  // 8. Existing direct-equity holdings & open position slots
   const stocks = prisma.stock
     ? await prisma.stock.findMany({
         where: { currentQuantity: { gt: 0 } },
       })
     : [];
   const deployedCapital = stocks.reduce((sum, s) => sum + (s.currentWorth ?? 0), 0);
+  const currentOpenPositions = stocks.length;
+  const maxOpenPositions = RISK_CONFIG.maxOpenPositions; // 5
+  const availableSlots = Math.max(0, maxOpenPositions - currentOpenPositions);
 
-  // Total trading capital base: unreserved liquid cash + existing equity holdings
+  // 9. Portfolio Risk & Drawdown Throttle Factor (D_f)
+  let riskSnapshot: PortfolioRiskSnapshot | null = null;
+  try {
+    riskSnapshot = await calculateDrawdown();
+  } catch (err) {
+    console.warn("[stockRisk] Failed to calculate drawdown, using default safe snapshot:", err);
+  }
+
+  const drawdownPct = riskSnapshot?.drawdownPct ?? 0;
+  const drawdownStatus = riskSnapshot?.drawdownStatus ?? "NORMAL";
+  let drawdownThrottleFactor = 1.0;
+
+  if (drawdownPct >= RISK_CONFIG.drawdownHaltPct || drawdownStatus === "HALTED") {
+    drawdownThrottleFactor = 0.0;
+  } else if (drawdownPct >= RISK_CONFIG.drawdownRestrictedPct || drawdownStatus === "RESTRICTED") {
+    drawdownThrottleFactor = 0.30;
+  } else if (drawdownPct >= RISK_CONFIG.drawdownWarningPct || drawdownStatus === "WARNING") {
+    drawdownThrottleFactor = 0.60;
+  } else {
+    drawdownThrottleFactor = 1.0;
+  }
+
+  // 10. Market Regime Condition Factor (M_f)
+  const regimePolicy = REGIME_POLICY[marketRegime];
+  let marketRegimeFactor = 1.0;
+  switch (marketRegime) {
+    case "BULLISH":
+      marketRegimeFactor = 1.0;
+      break;
+    case "NEUTRAL":
+      marketRegimeFactor = 0.65;
+      break;
+    case "BEARISH":
+      marketRegimeFactor = 0.0;
+      break;
+    case "HIGH_VOLATILITY":
+      marketRegimeFactor = 0.0;
+      break;
+    case "DATA_UNRELIABLE":
+    default:
+      marketRegimeFactor = 0.0;
+      break;
+  }
+
+  if (!regimePolicy.newPurchasesAllowed || marketRegimeFactor === 0) {
+    warnings.push(`New purchases paused by market regime (${marketRegime}): ${regimePolicy.description}`);
+  }
+
+  // 11. Portfolio Asset Base & Exposure Limits
   const totalTradingBase = potentiallyDeployableCash + deployedCapital;
 
-  // Maximum permitted total direct-equity exposure across portfolio governed by phase & regime caps
   const maxPermittedExposure = (phasePolicy.newPurchasesAllowed && regimePolicy.newPurchasesAllowed)
-    ? (cycleStockTradingPool > 0
-        ? Math.round(totalTradingBase * (regimePolicy.maxExposurePct / 100))
-        : Math.round(totalTradingBase * (phaseMaxPct / 100) * (regimePolicy.maxExposurePct / 100)))
+    ? Math.round(totalTradingBase * (regimePolicy.maxExposurePct / 100))
     : 0;
 
-  // Remaining exposure capacity after accounting for existing holdings
   const remainingExposureCapacity = Math.max(0, maxPermittedExposure - deployedCapital);
 
-  // Cash constraint: available unreserved cash scaled by phase and regime policy
-  const cashCapacity = regimeLimitedCapital;
+  // 12. Dynamic Slot & Conviction Tranching
+  const availableCycleCash = potentiallyDeployableCash;
+  const slotCapacity = availableSlots > 0 ? Math.round(availableCycleCash / availableSlots) : 0;
 
-  // 10. Final eligible budget: CANNOT exceed unreserved cash capacity AND CANNOT exceed remaining exposure capacity
+  let dailyTrancheBase = 0;
+  if (availableSlots > 0 && availableCycleCash > 0) {
+    if (availableCycleCash <= 10000) {
+      dailyTrancheBase = availableCycleCash;
+    } else {
+      dailyTrancheBase = Math.min(availableCycleCash, slotCapacity * Math.min(availableSlots, 2));
+    }
+  }
+
+  const multiFactorTarget = Math.round(dailyTrancheBase * marketRegimeFactor * drawdownThrottleFactor);
+  const regimeLimitedCapital = Math.round(availableCycleCash * marketRegimeFactor);
+
+  // 13. Final eligible budget evaluation
   let eligibleNewPurchaseBudget = 0;
   let status: AllocationStatus = "ACTIVE";
   let statusReason = "Calculated safe trading budget";
@@ -222,12 +272,12 @@ export async function calculateCapitalAllocation(
     status = "BLOCKED_BY_PHASE";
     statusReason = phasePolicy.description;
     bindingConstraint = `phase_blocked_${financialPhase.toLowerCase()}`;
-  } else if (!regimePolicy.newPurchasesAllowed) {
+  } else if (!regimePolicy.newPurchasesAllowed || marketRegimeFactor === 0) {
     eligibleNewPurchaseBudget = 0;
     status = "BLOCKED_BY_REGIME";
     statusReason = regimePolicy.description;
     bindingConstraint = `regime_blocked_${marketRegime.toLowerCase()}`;
-  } else if (potentiallyDeployableCash === 0) {
+  } else if (availableCycleCash === 0) {
     eligibleNewPurchaseBudget = 0;
     status = remainingCycleStockBalance === 0
       ? "CYCLE_BUDGET_EXHAUSTED"
@@ -236,19 +286,36 @@ export async function calculateCapitalAllocation(
       ? "Cycle stock trading credit is exhausted (₹0 remaining). Budget resets on next cycle rollover."
       : "No stock trading credit allocated for current cycle. Generates on next investment cycle.";
     bindingConstraint = "cycle_budget_exhausted";
+  } else if (drawdownThrottleFactor === 0) {
+    eligibleNewPurchaseBudget = 0;
+    status = "BLOCKED_BY_DRAWDOWN";
+    statusReason = `Trading halted by 5% portfolio drawdown circuit breaker (current drawdown: ${drawdownPct.toFixed(1)}%).`;
+    bindingConstraint = "drawdown_halt_triggered";
+  } else if (availableSlots === 0) {
+    eligibleNewPurchaseBudget = 0;
+    status = "EXPOSURE_CAP_REACHED";
+    statusReason = `Maximum concurrent open positions (${maxOpenPositions}/${maxOpenPositions}) reached. Await exits before new deployments.`;
+    bindingConstraint = "max_positions_reached";
   } else if (remainingExposureCapacity === 0 && deployedCapital > 0) {
     eligibleNewPurchaseBudget = 0;
     status = "EXPOSURE_CAP_REACHED";
     statusReason = `Existing stock exposure (₹${deployedCapital.toLocaleString("en-IN")}) meets or exceeds the permitted exposure cap (₹${maxPermittedExposure.toLocaleString("en-IN")}).`;
     bindingConstraint = "exposure_cap_limit";
   } else {
-    eligibleNewPurchaseBudget = Math.min(cashCapacity, remainingExposureCapacity);
+    eligibleNewPurchaseBudget = Math.min(availableCycleCash, remainingExposureCapacity, multiFactorTarget);
     status = "ACTIVE";
     statusReason = eligibleNewPurchaseBudget > 0
-      ? "Budget verified and ready for deployment."
+      ? "Multi-factor budget verified and ready for deployment."
       : "Calculated zero budget.";
-    if (remainingExposureCapacity < cashCapacity) {
+
+    if (remainingExposureCapacity < multiFactorTarget && remainingExposureCapacity < availableCycleCash) {
       bindingConstraint = "exposure_cap_limit";
+    } else if (drawdownThrottleFactor < 1.0) {
+      bindingConstraint = "drawdown_throttle_active";
+    } else if (marketRegimeFactor < 1.0) {
+      bindingConstraint = "market_regime_moderated";
+    } else if (availableSlots < maxOpenPositions) {
+      bindingConstraint = "slot_tranche_allocated";
     } else {
       bindingConstraint = cycleStockTradingPool > 0 ? "cycle_stock_credit_limit" : "cash_capacity_limit";
     }
@@ -273,6 +340,7 @@ export async function calculateCapitalAllocation(
     phaseMaxPct,
     phaseLimitedCapital,
     marketRegime,
+    marketRegimeFactor,
     regimeLimitedCapital,
     totalTradingBase,
     maxPermittedExposure,
@@ -286,8 +354,12 @@ export async function calculateCapitalAllocation(
     cycleStockTradingPool,
     remainingCycleStockBalance,
     cycleMfInvestable,
+    drawdownThrottleFactor,
+    availablePositionSlots: availableSlots,
+    slotCapacity,
   };
 }
+
 
 function createBlockedAllocation(
   status: AllocationStatus,
@@ -365,9 +437,11 @@ export async function calculateDrawdown(): Promise<PortfolioRiskSnapshot> {
 
   const equityPeak = lastSnapshot
     ? Math.max(lastSnapshot.equityPeak, currentEquity)
-    : currentEquity > 0 ? currentEquity : 1; // Avoid division by zero
+    : currentEquity;
 
-  const drawdownPct = equityPeak > 0 ? ((equityPeak - currentEquity) / equityPeak) * 100 : 0;
+  const drawdownPct = (equityPeak > 0 && currentEquity > 0)
+    ? Math.max(0, ((equityPeak - currentEquity) / equityPeak) * 100)
+    : 0;
 
   let drawdownStatus: PortfolioRiskSnapshot["drawdownStatus"] = "NORMAL";
   if (drawdownPct >= RISK_CONFIG.drawdownHaltPct) {

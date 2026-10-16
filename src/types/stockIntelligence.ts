@@ -237,6 +237,12 @@ export type CapitalAllocation = {
   remainingCycleStockBalance?: number;
   /** Active cycle MF investable carveout */
   cycleMfInvestable?: number;
+  /** Drawdown throttle factor (0.0 - 1.0) */
+  drawdownThrottleFactor?: number;
+  /** Available open position slots (0 - 5) */
+  availablePositionSlots?: number;
+  /** Sized slot capacity per position */
+  slotCapacity?: number;
 };
 
 // ─── Position Sizing ─────────────────────────────────────────────────────────
