@@ -393,8 +393,8 @@ export default function InvestmentsScreen() {
                         <View style={{ width: 10, height: 10, borderRadius: 3, backgroundColor: "#8b5cf6", flexShrink: 0 }} />
                         <View style={{ flex: 1, minWidth: 0 }}>
                           <Text style={{ color: "#ffffff", fontSize: fs(14), fontWeight: "700" }} numberOfLines={1}>Nifty Next 50 Index</Text>
-                          {niftyNext50 === 0 && equity >= 500 ? (
-                            <Text style={{ color: "#fbbf24", fontSize: fs(10), marginTop: 1, fontStyle: "italic" }} numberOfLines={1}>Shifted to Core (&lt; ₹500 min)</Text>
+                          {niftyNext50 === 0 && equity >= (suggestion?.buckets?.equity?.breakdown?.niftyNext50?.minAmount ?? 500) ? (
+                            <Text style={{ color: "#fbbf24", fontSize: fs(10), marginTop: 1, fontStyle: "italic" }} numberOfLines={1}>Shifted to Core (&lt; {formatCurrencyAmount(suggestion?.buckets?.equity?.breakdown?.niftyNext50?.minAmount ?? 500, "INR")} min)</Text>
                           ) : (
                             <Text style={{ color: "#94a3b8", fontSize: fs(11), marginTop: 1 }} numberOfLines={1}>Growth Blend ({nn50Pct}%)</Text>
                           )}
@@ -409,8 +409,8 @@ export default function InvestmentsScreen() {
                         <View style={{ width: 10, height: 10, borderRadius: 3, backgroundColor: "#22d3ee", flexShrink: 0 }} />
                         <View style={{ flex: 1, minWidth: 0 }}>
                           <Text style={{ color: "#ffffff", fontSize: fs(14), fontWeight: "700" }} numberOfLines={1}>Midcap 150 Index</Text>
-                          {midcap === 0 && equity >= 500 ? (
-                            <Text style={{ color: "#fbbf24", fontSize: fs(10), marginTop: 1, fontStyle: "italic" }} numberOfLines={1}>Shifted to Core (&lt; ₹500 min)</Text>
+                          {midcap === 0 && equity >= (suggestion?.buckets?.equity?.breakdown?.midcap?.minAmount ?? 100) ? (
+                            <Text style={{ color: "#fbbf24", fontSize: fs(10), marginTop: 1, fontStyle: "italic" }} numberOfLines={1}>Shifted to Core (&lt; {formatCurrencyAmount(suggestion?.buckets?.equity?.breakdown?.midcap?.minAmount ?? 100, "INR")} min)</Text>
                           ) : (
                             <Text style={{ color: "#94a3b8", fontSize: fs(11), marginTop: 1 }} numberOfLines={1}>High Growth Alpha ({mcPct}%)</Text>
                           )}
@@ -443,7 +443,7 @@ export default function InvestmentsScreen() {
                 </View>
                 <Text style={styles.suggestedNote}>
                   Suggested: {formatCurrencyAmount(suggestion?.buckets?.debt?.suggested ?? 0, "INR")}
-                  {suggestion?.buckets?.debt?.suggested === 0 && (suggestion?.totalInvestable ?? 0) >= 500 ? " (< ₹500 min, shifted to Equity)" : ""}
+                  {suggestion?.buckets?.debt?.suggested === 0 && (suggestion?.totalInvestable ?? 0) >= (suggestion?.buckets?.debt?.minAmount ?? 500) ? ` (< ${formatCurrencyAmount(suggestion?.buckets?.debt?.minAmount ?? 500, "INR")} min, shifted to Equity)` : ""}
                 </Text>
               </View>
 
@@ -468,7 +468,7 @@ export default function InvestmentsScreen() {
                 </View>
                 <Text style={styles.suggestedNote}>
                   Suggested: {formatCurrencyAmount(suggestion?.buckets?.gold?.suggested ?? 0, "INR")}
-                  {suggestion?.buckets?.gold?.suggested === 0 && (suggestion?.totalInvestable ?? 0) >= 500 ? " (< ₹500 min, shifted to Equity/Debt)" : ""}
+                  {suggestion?.buckets?.gold?.suggested === 0 && (suggestion?.totalInvestable ?? 0) >= (suggestion?.buckets?.gold?.minAmount ?? 100) ? ` (< ${formatCurrencyAmount(suggestion?.buckets?.gold?.minAmount ?? 100, "INR")} min, shifted to Equity/Debt)` : ""}
                 </Text>
               </View>
             </View>

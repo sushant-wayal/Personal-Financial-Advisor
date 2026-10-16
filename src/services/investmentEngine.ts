@@ -21,9 +21,9 @@ export type SurplusComputation = {
 };
 
 export type EquityBreakdown = {
-    nifty50: { amount: number; pctOfEquity: number; pctOfTotal: number };
-    niftyNext50: { amount: number; pctOfEquity: number; pctOfTotal: number };
-    midcap: { amount: number; pctOfEquity: number; pctOfTotal: number };
+    nifty50: { amount: number; pctOfEquity: number; pctOfTotal: number; minAmount?: number };
+    niftyNext50: { amount: number; pctOfEquity: number; pctOfTotal: number; minAmount?: number };
+    midcap: { amount: number; pctOfEquity: number; pctOfTotal: number; minAmount?: number };
 };
 
 export type SubAllocationBreakdown = {
@@ -32,10 +32,11 @@ export type SubAllocationBreakdown = {
         edited: number | null;
         final: number;
         pct: number;
+        minAmount?: number;
         breakdown: EquityBreakdown;
     };
-    debt: { suggested: number; edited: number | null; final: number; pct: number };
-    gold: { suggested: number; edited: number | null; final: number; pct: number };
+    debt: { suggested: number; edited: number | null; final: number; pct: number; minAmount?: number };
+    gold: { suggested: number; edited: number | null; final: number; pct: number; minAmount?: number };
 };
 
 export type InvestmentSuggestionResult = {
@@ -149,6 +150,45 @@ export function distributeWithMinimumThreshold<T extends string>(
     }
 
     return result as Record<T, number>;
+}
+
+/**
+ * Retrieve actual minimum investment constraints for mutual fund categories.
+ * Inspects user's persisted MutualFund holdings in the database first for scheme-specific
+ * overrides (e.g. Nippon Gold min ₹100, HDFC Midcap min ₹100, UTI Nifty 50 min ₹500),
+ * falling back to verified AMC defaults from INVESTMENT_DEFAULTS.minMfInvestments.
+ */
+export async function getMutualFundMinInvestments(): Promise<{
+    nifty50: number;
+    niftyNext50: number;
+    midcap: number;
+    debt: number;
+    gold: number;
+}> {
+    const defaults = INVESTMENT_DEFAULTS.minMfInvestments;
+    try {
+        const funds = await prisma.mutualFund.findMany({
+            select: { schemeName: true, minInvestment: true },
+        });
+
+        const findMin = (predicate: (name: string) => boolean, fallback: number) => {
+            const fund = funds.find((f) => predicate(f.schemeName.toLowerCase()));
+            if (fund && fund.minInvestment != null && fund.minInvestment > 0) {
+                return fund.minInvestment;
+            }
+            return fallback;
+        };
+
+        return {
+            nifty50: findMin((n) => n.includes("nifty 50") && !n.includes("next 50"), defaults.nifty50),
+            niftyNext50: findMin((n) => n.includes("next 50"), defaults.niftyNext50),
+            midcap: findMin((n) => n.includes("midcap"), defaults.midcap),
+            gold: findMin((n) => n.includes("gold"), defaults.gold),
+            debt: findMin((n) => n.includes("debt") || n.includes("liquid"), defaults.debt),
+        };
+    } catch {
+        return defaults;
+    }
 }
 
 
@@ -411,7 +451,7 @@ export async function getOrGenerateInvestmentSuggestion(options?: { burnData?: A
     const now = new Date();
     const sixMonthsFromNow = new Date(now.getFullYear(), now.getMonth() + 6, now.getDate());
 
-    const [cycleInfo, config, imminentGoals, active] = await Promise.all([
+    const [cycleInfo, config, imminentGoals, active, mfMinInvestments] = await Promise.all([
         detectSalaryCycle(),
         getEffectiveProfileConfig(),
         prisma.goal.findMany({
@@ -425,6 +465,7 @@ export async function getOrGenerateInvestmentSuggestion(options?: { burnData?: A
             where: { status: "ACTIVE" },
             orderBy: { createdAt: "desc" },
         }),
+        getMutualFundMinInvestments(),
     ]);
     const cycleDays = cycleInfo.cycleDays;
 
@@ -449,11 +490,15 @@ export async function getOrGenerateInvestmentSuggestion(options?: { burnData?: A
     const baseStockInvestable = Math.max(0, Math.round(surplusComp.smoothedSurplus * (stockPhaseRate / 100)));
 
     const subConfig = phase === "EF_BUILDING" ? config.subAllocations.conservative : config.subAllocations.standard;
-    const minMfAmount = INVESTMENT_DEFAULTS.minMfInvestmentAmount ?? 500;
+    const minEquityAmount = Math.min(
+        mfMinInvestments.nifty50,
+        mfMinInvestments.niftyNext50,
+        mfMinInvestments.midcap,
+    );
     const distributedBuckets = distributeWithMinimumThreshold(baseInvestable, [
-        { key: "equity", weight: subConfig.equity, minAmount: minMfAmount },
-        { key: "debt", weight: subConfig.debt, minAmount: minMfAmount },
-        { key: "gold", weight: subConfig.gold, minAmount: minMfAmount },
+        { key: "equity", weight: subConfig.equity, minAmount: minEquityAmount },
+        { key: "debt", weight: subConfig.debt, minAmount: mfMinInvestments.debt },
+        { key: "gold", weight: subConfig.gold, minAmount: mfMinInvestments.gold },
     ]);
     const suggestedEquity = distributedBuckets.equity;
     const suggestedDebt = distributedBuckets.debt;
@@ -507,7 +552,7 @@ export async function getOrGenerateInvestmentSuggestion(options?: { burnData?: A
             },
         }).catch(() => null);
 
-        return buildSuggestionResult(liveActive, config, cycleDays, null, surplusComp);
+        return buildSuggestionResult(liveActive, config, cycleDays, null, surplusComp, mfMinInvestments);
     }
 
     // Check if last suggestion was INVESTED and cycle has NOT completed yet
@@ -520,7 +565,7 @@ export async function getOrGenerateInvestmentSuggestion(options?: { burnData?: A
         const daysSinceInvested = daysBetween(now, new Date(lastInvested.investedAt));
         if (daysSinceInvested < cycleDays) {
             // Still in invested cool-down period
-            return buildSuggestionResult(lastInvested, config, cycleDays, cycleDays - daysSinceInvested, surplusComp);
+            return buildSuggestionResult(lastInvested, config, cycleDays, cycleDays - daysSinceInvested, surplusComp, mfMinInvestments);
         }
     }
 
@@ -557,7 +602,7 @@ export async function getOrGenerateInvestmentSuggestion(options?: { burnData?: A
         },
     });
 
-    return buildSuggestionResult(created, config, cycleDays, null, surplusComp);
+    return buildSuggestionResult(created, config, cycleDays, null, surplusComp, mfMinInvestments);
 }
 
 function buildSuggestionResult(
@@ -565,7 +610,14 @@ function buildSuggestionResult(
     config: any,
     cycleDays: number,
     nextSuggestionIn: number | null = null,
-    surplusComp: SurplusComputation | null = null
+    surplusComp: SurplusComputation | null = null,
+    mfMinInvestments?: {
+        nifty50: number;
+        niftyNext50: number;
+        midcap: number;
+        debt: number;
+        gold: number;
+    }
 ): InvestmentSuggestionResult {
     const isEdited = record.isManuallyEdited;
     const eq = isEdited ? (record.editedEquity ?? 0) : record.suggestedEquity;
@@ -580,16 +632,16 @@ function buildSuggestionResult(
     const dbPct = total > 0 ? Math.round((db / total) * 100) : 0;
     const gdPct = total > 0 ? Math.max(0, 100 - eqPct - dbPct) : 0;
 
-    // Calculate Equity Breakdown based on profile config (default 60 / 20 / 20) with minimum threshold constraint
-    const minMfAmount = INVESTMENT_DEFAULTS.minMfInvestmentAmount ?? 500;
+    // Use scheme-specific minimum investments
+    const minInvestments = mfMinInvestments ?? INVESTMENT_DEFAULTS.minMfInvestments;
     const n50Pct = config.equityBreakdown?.nifty50 ?? INVESTMENT_DEFAULTS.equityBreakdown.nifty50;
     const nn50Pct = config.equityBreakdown?.niftyNext50 ?? INVESTMENT_DEFAULTS.equityBreakdown.niftyNext50;
     const mcPct = config.equityBreakdown?.midcap ?? INVESTMENT_DEFAULTS.equityBreakdown.midcap;
 
     const distributedEquity = distributeWithMinimumThreshold(eq, [
-        { key: "nifty50", weight: n50Pct, minAmount: minMfAmount },
-        { key: "niftyNext50", weight: nn50Pct, minAmount: minMfAmount },
-        { key: "midcap", weight: mcPct, minAmount: minMfAmount },
+        { key: "nifty50", weight: n50Pct, minAmount: minInvestments.nifty50 },
+        { key: "niftyNext50", weight: nn50Pct, minAmount: minInvestments.niftyNext50 },
+        { key: "midcap", weight: mcPct, minAmount: minInvestments.midcap },
     ]);
 
     const nifty50Amt = distributedEquity.nifty50;
@@ -604,18 +656,23 @@ function buildSuggestionResult(
             amount: nifty50Amt,
             pctOfEquity: calcEqPct(nifty50Amt),
             pctOfTotal: calcSubPct(nifty50Amt),
+            minAmount: minInvestments.nifty50,
         },
         niftyNext50: {
             amount: niftyNext50Amt,
             pctOfEquity: calcEqPct(niftyNext50Amt),
             pctOfTotal: calcSubPct(niftyNext50Amt),
+            minAmount: minInvestments.niftyNext50,
         },
         midcap: {
             amount: midcapAmt,
             pctOfEquity: calcEqPct(midcapAmt),
             pctOfTotal: calcSubPct(midcapAmt),
+            minAmount: minInvestments.midcap,
         },
     };
+
+    const minEquityAmount = Math.min(minInvestments.nifty50, minInvestments.niftyNext50, minInvestments.midcap);
 
     return {
         suggestion: {
@@ -637,10 +694,23 @@ function buildSuggestionResult(
                     edited: record.editedEquity,
                     final: eq,
                     pct: eqPct,
+                    minAmount: minEquityAmount,
                     breakdown: equityBreakdown,
                 },
-                debt: { suggested: record.suggestedDebt, edited: record.editedDebt, final: db, pct: dbPct },
-                gold: { suggested: record.suggestedGold, edited: record.editedGold, final: gd, pct: gdPct },
+                debt: {
+                    suggested: record.suggestedDebt,
+                    edited: record.editedDebt,
+                    final: db,
+                    pct: dbPct,
+                    minAmount: minInvestments.debt,
+                },
+                gold: {
+                    suggested: record.suggestedGold,
+                    edited: record.editedGold,
+                    final: gd,
+                    pct: gdPct,
+                    minAmount: minInvestments.gold,
+                },
             },
             maxInvestable,
             investedAt: record.investedAt ? new Date(record.investedAt) : null,

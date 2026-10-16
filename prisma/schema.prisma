@@ -248,6 +248,7 @@ model MutualFund {
   currentUnits        Float
   currentNav          Float?
   currentWorth        Float?
+  minInvestment       Float?
   setupDate           DateTime?
   processedMessageIds String[] @default([])
   createdAt           DateTime @default(now())
@@ -261,6 +262,7 @@ model Stock {
   currentQuantity     Float
   currentPrice        Float?
   currentWorth        Float?
+  minInvestment       Float?
   setupDate           DateTime?
   processedMessageIds String[] @default([])
   createdAt           DateTime @default(now())

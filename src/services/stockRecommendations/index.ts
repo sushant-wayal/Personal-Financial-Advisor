@@ -192,6 +192,16 @@ export async function generateDailyRecommendations(options?: {
       minInvestment: number;
     }
 
+    const userStocks = await prisma.stock.findMany({
+      select: { symbol: true, minInvestment: true },
+    });
+    const customStockMinMap = new Map<string, number>();
+    for (const s of userStocks) {
+      if (s.minInvestment != null && s.minInvestment > 0) {
+        customStockMinMap.set(s.symbol.toUpperCase(), s.minInvestment);
+      }
+    }
+
     const viableCandidates: BuySetupCandidate[] = [];
 
     for (const cand of eligibleCandidates) {
@@ -209,11 +219,11 @@ export async function generateDailyRecommendations(options?: {
         continue;
       }
 
-      // Minimum investment required to buy at least 1 whole share (and meeting minimum trade size)
-      const minInvestment = Math.max(
-        RISK_CONFIG.minStockInvestmentAmount ?? 500,
-        bestBuy.entryPrice,
-      );
+      // Actual minimum investment constraint for this specific stock (1 whole share @ entryPrice or custom constraint)
+      const customMin = customStockMinMap.get(cand.symbol.toUpperCase());
+      const minInvestment = customMin != null && customMin > 0
+        ? Math.max(customMin, bestBuy.entryPrice)
+        : bestBuy.entryPrice;
 
       // If min investment exceeds the entire deployable budget, it cannot even be afforded standalone
       if (minInvestment > totalDeployableBudget) {
@@ -268,6 +278,7 @@ export async function generateDailyRecommendations(options?: {
           Math.max(10000, riskSnapshot.currentEquity),
           sectorExposure,
           riskSnapshot.openPositionCount + i,
+          item.minInvestment,
         );
 
         const estimatedCapital = sizing.finalQuantity * item.bestBuy.entryPrice;

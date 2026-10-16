@@ -519,6 +519,7 @@ export function calculatePositionSize(
   totalPortfolioValue: number,
   currentSectorExposure: number,
   currentPositionCount: number,
+  minInvestmentConstraint?: number,
 ): PositionSize {
   const rejectedResult = (reason: string): PositionSize => ({
     symbol,
@@ -591,9 +592,11 @@ export function calculatePositionSize(
   // (This is a basic check; strategies should set target prices for proper R/R calculation)
 
   const estimatedCapital = finalQuantity * entryPrice;
-  const minRequiredCapital = Math.max(RISK_CONFIG.minStockInvestmentAmount ?? 500, entryPrice);
+  const minRequiredCapital = minInvestmentConstraint != null && minInvestmentConstraint > 0
+    ? Math.max(minInvestmentConstraint, entryPrice)
+    : entryPrice;
   if (estimatedCapital < minRequiredCapital) {
-    return rejectedResult(`Position capital ₹${estimatedCapital.toFixed(2)} is below minimum investment threshold ₹${minRequiredCapital.toFixed(2)}`);
+    return rejectedResult(`Position capital ₹${estimatedCapital.toFixed(2)} is below minimum investment threshold ₹${minRequiredCapital.toFixed(2)} (1 share @ ₹${entryPrice.toFixed(2)})`);
   }
 
   const estimatedCosts = TRADING_COSTS.estimateBuyCost(estimatedCapital);

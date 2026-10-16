@@ -25,7 +25,14 @@ export type InvestmentDefaults = {
         midcap: number;
     };
     minInvestableThreshold: number; // ₹500
-    minMfInvestmentAmount: number; // ₹500 minimum per mutual fund scheme
+    minMfInvestmentAmount: number; // Default fallback minimum per mutual fund scheme
+    minMfInvestments: {
+        nifty50: number;
+        niftyNext50: number;
+        midcap: number;
+        debt: number;
+        gold: number;
+    };
     staleSuggestionDays: number; // 7 days after cycleDays
     stockPhaseRates: Record<FinancialPhase, number>; // 0 to 100
     defaultStockCarryForwardPct: number;
@@ -38,6 +45,13 @@ export const INVESTMENT_DEFAULTS: InvestmentDefaults = {
         defaultDays: 33,
     },
     minMfInvestmentAmount: 500,
+    minMfInvestments: {
+        nifty50: 500,
+        niftyNext50: 500,
+        midcap: 100,
+        debt: 500,
+        gold: 100,
+    },
     phaseRates: {
         CRISIS: 0,
         EF_BUILDING: 15,

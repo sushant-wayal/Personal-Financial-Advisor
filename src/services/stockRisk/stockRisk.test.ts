@@ -70,20 +70,54 @@ describe("stockRisk — Position Sizing & Hard Constraints", () => {
     expect(size.rejectedReason).toContain("Maximum open positions");
   });
 
-  it("rejects position sizing when available capital cannot fund the minimum investment threshold or 1 whole share", () => {
-    // Available capital ₹400 is less than minimum investment threshold ₹500
+  it("rejects position sizing when available capital cannot fund 1 whole share of the stock", () => {
+    // Available capital ₹300 is less than entry price ₹400 (cannot buy 1 whole share)
     const size = calculatePositionSize(
       "ITC",
       400,
       380,
-      400, // available capital ₹400
+      300, // available capital ₹300 < entryPrice ₹400
       200000,
       5,
       1,
     );
 
     expect(size.finalQuantity).toBe(0);
+    expect(size.rejectedReason).toContain("Insufficient capacity: capital_based constraint yields 0 shares");
+  });
+
+  it("respects custom per-stock minimum investment constraint when provided", () => {
+    // Available capital ₹400 can buy 2 shares of a ₹200 stock, but custom constraint requires ₹500
+    const size = calculatePositionSize(
+      "FEDERALBNK",
+      200,
+      190,
+      400, // available capital ₹400 yields 2 shares @ ₹200 = ₹400
+      200000,
+      5,
+      1,
+      500, // custom min investment ₹500
+    );
+
+    expect(size.finalQuantity).toBe(0);
     expect(size.rejectedReason).toContain("below minimum investment threshold");
+  });
+
+  it("permits position sizing for stocks trading under ₹500 without artificial floor when capital is sufficient for whole shares", () => {
+    // Sub-500 stock: entry price ₹150, available capital ₹450 -> 3 shares @ 150 = ₹450
+    const size = calculatePositionSize(
+      "TRENT",
+      150,
+      140,
+      450,
+      200000,
+      5,
+      1,
+    );
+
+    expect(size.finalQuantity).toBe(3);
+    expect(size.estimatedCapital).toBe(450);
+    expect(size.rejectedReason).toBeNull();
   });
 
   describe("checkTradeEligibility", () => {

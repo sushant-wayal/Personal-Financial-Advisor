@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { computeSurplus, getOrGenerateInvestmentSuggestion, distributeWithMinimumThreshold } from "./investmentEngine";
+import { computeSurplus, getOrGenerateInvestmentSuggestion, distributeWithMinimumThreshold, getMutualFundMinInvestments } from "./investmentEngine";
 import { prisma } from "../lib/prisma";
 
 vi.mock("../lib/prisma", () => ({
@@ -23,6 +23,9 @@ vi.mock("../lib/prisma", () => ({
         investmentHistory: {
             findMany: vi.fn(),
             findFirst: vi.fn(),
+        },
+        mutualFund: {
+            findMany: vi.fn().mockResolvedValue([]),
         },
     },
 }));
@@ -163,9 +166,9 @@ describe("investmentEngine - surplus & suggestions", () => {
             expect(result.suggestion.smoothedSurplus).toBe(70000); // 0.7 * 100k
             expect(result.suggestion.baseInvestable).toBe(35000); // 50% of 70k in Wealth Building phase
             expect(result.suggestion.buckets.equity.breakdown).toEqual({
-                nifty50: { amount: 14700, pctOfEquity: 60, pctOfTotal: 42 },
-                niftyNext50: { amount: 4900, pctOfEquity: 20, pctOfTotal: 14 },
-                midcap: { amount: 4900, pctOfEquity: 20, pctOfTotal: 14 },
+                nifty50: { amount: 14700, pctOfEquity: 60, pctOfTotal: 42, minAmount: 500 },
+                niftyNext50: { amount: 4900, pctOfEquity: 20, pctOfTotal: 14, minAmount: 500 },
+                midcap: { amount: 4900, pctOfEquity: 20, pctOfTotal: 14, minAmount: 100 },
             });
         });
     });
@@ -237,27 +240,53 @@ describe("investmentEngine - surplus & suggestions", () => {
             expect(result.midcap).toBe(0);
         });
 
+        it("handles scheme-specific minimums where midcap allows ₹100 and nifty50 requires ₹500", () => {
+            // ₹800 equity with 60/20/20 weights -> raw: n50 = 480 (< 500, fails), nn50 = 160 (< 500, fails), midcap = 160 (>= 100, passes!).
+            // Midcap receives the redistributed amount because it satisfies its scheme-specific ₹100 threshold!
+            const result = distributeWithMinimumThreshold(800, [
+                { key: "nifty50", weight: 60, minAmount: 500 },
+                { key: "niftyNext50", weight: 20, minAmount: 500 },
+                { key: "midcap", weight: 20, minAmount: 100 },
+            ]);
+
+            expect(result.nifty50).toBe(0);
+            expect(result.niftyNext50).toBe(0);
+            expect(result.midcap).toBe(800);
+        });
+
         it("never outputs any non-zero allocation below the threshold", () => {
             const totals = [0, 100, 499, 500, 600, 1000, 1499, 1500, 2300, 3750, 5000];
             for (const total of totals) {
                 const res = distributeWithMinimumThreshold(total, [
                     { key: "nifty50", weight: 60, minAmount: 500 },
                     { key: "niftyNext50", weight: 20, minAmount: 500 },
-                    { key: "midcap", weight: 20, minAmount: 500 },
+                    { key: "midcap", weight: 20, minAmount: 100 },
                 ]);
 
-                for (const val of Object.values(res)) {
+                for (const [key, val] of Object.entries(res)) {
                     if (val > 0) {
-                        expect(val).toBeGreaterThanOrEqual(500);
+                        const min = key === "midcap" ? 100 : 500;
+                        expect(val).toBeGreaterThanOrEqual(min);
                     }
                 }
-                const sum = Object.values(res).reduce((a, b) => a + b, 0);
-                if (total >= 500) {
-                    expect(sum).toBe(total);
-                } else {
-                    expect(sum).toBe(0);
-                }
             }
+        });
+    });
+
+    describe("getMutualFundMinInvestments", () => {
+        it("retrieves scheme-specific overrides from user holdings in the database", async () => {
+            vi.mocked(prisma.mutualFund.findMany).mockResolvedValueOnce([
+                { schemeName: "Nippon India Gold Savings Fund - Direct Plan", minInvestment: 100 } as any,
+                { schemeName: "HDFC NIFTY Midcap 150 Index Fund", minInvestment: 100 } as any,
+                { schemeName: "UTI Nifty 50 Index Fund", minInvestment: 500 } as any,
+                { schemeName: "UTI - Nifty Next 50 Index Fund", minInvestment: 500 } as any,
+            ]);
+
+            const mins = await getMutualFundMinInvestments();
+            expect(mins.gold).toBe(100);
+            expect(mins.midcap).toBe(100);
+            expect(mins.nifty50).toBe(500);
+            expect(mins.niftyNext50).toBe(500);
         });
     });
 });

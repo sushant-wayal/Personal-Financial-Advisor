@@ -314,8 +314,8 @@ export default function InvestmentsClient() {
                                                     <div className="h-3 w-3 rounded-md bg-violet-500 flex-shrink-0" />
                                                     <div className="truncate">
                                                         <div className="text-xs font-semibold text-white">Nifty Next 50 Index</div>
-                                                        {niftyNext50 === 0 && equity >= 500 ? (
-                                                            <div className="text-[10px] text-amber-400 font-mono">Shifted to Core (&lt; ₹500 min)</div>
+                                                        {niftyNext50 === 0 && equity >= (suggestion?.buckets.equity.breakdown.niftyNext50.minAmount ?? 500) ? (
+                                                            <div className="text-[10px] text-amber-400 font-mono">Shifted to Core (&lt; {formatCurrency(suggestion?.buckets.equity.breakdown.niftyNext50.minAmount ?? 500)} min)</div>
                                                         ) : (
                                                             <div className="text-[10px] text-slate-400">Growth Blend ({nn50Pct}%)</div>
                                                         )}
@@ -332,8 +332,8 @@ export default function InvestmentsClient() {
                                                     <div className="h-3 w-3 rounded-md bg-cyan-400 flex-shrink-0" />
                                                     <div className="truncate">
                                                         <div className="text-xs font-semibold text-white">Midcap 150 Index</div>
-                                                        {midcap === 0 && equity >= 500 ? (
-                                                            <div className="text-[10px] text-amber-400 font-mono">Shifted to Core (&lt; ₹500 min)</div>
+                                                        {midcap === 0 && equity >= (suggestion?.buckets.equity.breakdown.midcap.minAmount ?? 100) ? (
+                                                            <div className="text-[10px] text-amber-400 font-mono">Shifted to Core (&lt; {formatCurrency(suggestion?.buckets.equity.breakdown.midcap.minAmount ?? 100)} min)</div>
                                                         ) : (
                                                             <div className="text-[10px] text-slate-400">High Growth Alpha ({mcPct}%)</div>
                                                         )}
@@ -368,8 +368,8 @@ export default function InvestmentsClient() {
                                     </div>
                                     <div className="text-[11px] text-slate-500">
                                         Suggested: {formatCurrency(suggestion?.buckets.debt.suggested ?? 0)}
-                                        {suggestion?.buckets.debt.suggested === 0 && (suggestion?.totalInvestable ?? 0) >= 500 && (
-                                            <span className="text-amber-400 ml-1">(&lt; ₹500 min, shifted to Equity)</span>
+                                        {suggestion?.buckets.debt.suggested === 0 && (suggestion?.totalInvestable ?? 0) >= (suggestion?.buckets.debt.minAmount ?? 500) && (
+                                            <span className="text-amber-400 ml-1">(&lt; {formatCurrency(suggestion?.buckets.debt.minAmount ?? 500)} min, shifted to Equity)</span>
                                         )}
                                     </div>
                                 </div>
@@ -395,8 +395,8 @@ export default function InvestmentsClient() {
                                     </div>
                                     <div className="text-[11px] text-slate-500">
                                         Suggested: {formatCurrency(suggestion?.buckets.gold.suggested ?? 0)}
-                                        {suggestion?.buckets.gold.suggested === 0 && (suggestion?.totalInvestable ?? 0) >= 500 && (
-                                            <span className="text-amber-400 ml-1">(&lt; ₹500 min, shifted to Equity/Debt)</span>
+                                        {suggestion?.buckets.gold.suggested === 0 && (suggestion?.totalInvestable ?? 0) >= (suggestion?.buckets.gold.minAmount ?? 100) && (
+                                            <span className="text-amber-400 ml-1">(&lt; {formatCurrency(suggestion?.buckets.gold.minAmount ?? 100)} min, shifted to Equity/Debt)</span>
                                         )}
                                     </div>
                                 </div>
