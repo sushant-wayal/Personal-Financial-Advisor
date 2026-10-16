@@ -464,6 +464,83 @@ export default function SettingsClient() {
                                     </div>
                                 </div>
 
+                                {/* Stock Trading Phase Rates */}
+                                <div className="space-y-3 pt-3 border-t border-white/5">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <div className="text-xs font-semibold text-cyan-400">Stock Trading Phase Rates (% of Surplus)</div>
+                                            <div className="text-[11px] text-slate-400">Surplus percentage allocated to cycle stock trading credit on rollover</div>
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <Label className="text-[11px] text-cyan-300">EF Building Stock %</Label>
+                                            <Input
+                                                type="number"
+                                                min={0}
+                                                max={100}
+                                                value={profile?.efBuildingStockRate ?? 10}
+                                                onChange={(e) => setProfile({ ...profile, efBuildingStockRate: Number(e.target.value) })}
+                                                className="h-8 text-xs font-mono bg-black/40 border-white/10 mt-1 text-cyan-200"
+                                            />
+                                        </div>
+                                        <div>
+                                            <Label className="text-[11px] text-cyan-300">Goal Sprint Stock %</Label>
+                                            <Input
+                                                type="number"
+                                                min={0}
+                                                max={100}
+                                                value={profile?.goalSprintStockRate ?? 25}
+                                                onChange={(e) => setProfile({ ...profile, goalSprintStockRate: Number(e.target.value) })}
+                                                className="h-8 text-xs font-mono bg-black/40 border-white/10 mt-1 text-cyan-200"
+                                            />
+                                        </div>
+                                        <div>
+                                            <Label className="text-[11px] text-cyan-300">Wealth Building Stock %</Label>
+                                            <Input
+                                                type="number"
+                                                min={0}
+                                                max={100}
+                                                value={profile?.wealthBuildingStockRate ?? 40}
+                                                onChange={(e) => setProfile({ ...profile, wealthBuildingStockRate: Number(e.target.value) })}
+                                                className="h-8 text-xs font-mono bg-black/40 border-white/10 mt-1 text-cyan-200"
+                                            />
+                                        </div>
+                                        <div>
+                                            <Label className="text-[11px] text-cyan-300">Crisis Stock %</Label>
+                                            <Input
+                                                type="number"
+                                                min={0}
+                                                max={100}
+                                                value={profile?.crisisStockRate ?? 0}
+                                                onChange={(e) => setProfile({ ...profile, crisisStockRate: Number(e.target.value) })}
+                                                className="h-8 text-xs font-mono bg-black/40 border-white/10 mt-1 text-cyan-200"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="pt-2">
+                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                            <div>
+                                                <Label className="text-[11px] text-slate-300">Unused Stock Carry-Forward (%)</Label>
+                                                <div className="text-[10px] text-slate-500">Unspent stock balance rolling into next cycle</div>
+                                            </div>
+                                            <div className="flex items-center gap-1.5">
+                                                <Input
+                                                    type="number"
+                                                    min={0}
+                                                    max={100}
+                                                    value={profile?.stockCarryForwardPct ?? 50}
+                                                    onChange={(e) => setProfile({ ...profile, stockCarryForwardPct: Number(e.target.value) })}
+                                                    className="w-20 h-8 text-right text-xs font-mono bg-black/40 border-white/10 text-cyan-200"
+                                                />
+                                                <span className="text-xs text-slate-400 font-mono">%</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+
                                  {/* Standard Sub-Allocations */}
                                 <div className="space-y-3 pt-3 border-t border-white/5">
                                     <div className="text-xs font-medium text-slate-200">Standard Allocation (%)</div>

@@ -32,7 +32,13 @@ type Profile = {
   equityNifty50Pct?: number | null;
   equityNiftyNext50Pct?: number | null;
   equityMidcapPct?: number | null;
+  crisisStockRate?: number | null;
+  efBuildingStockRate?: number | null;
+  wealthBuildingStockRate?: number | null;
+  goalSprintStockRate?: number | null;
+  stockCarryForwardPct?: number | null;
 };
+
 
 function apiUrl(path: string) {
   return `${API_BASE_URL}${path}`;
@@ -155,7 +161,13 @@ export default function InvestmentSettingsScreen() {
           equityNifty50Pct: Math.max(0, Math.min(100, Number(profile.equityNifty50Pct ?? 60))),
           equityNiftyNext50Pct: Math.max(0, Math.min(100, Number(profile.equityNiftyNext50Pct ?? 20))),
           equityMidcapPct: Math.max(0, Math.min(100, Number(profile.equityMidcapPct ?? 20))),
+          crisisStockRate: Math.max(0, Math.min(100, Number(profile.crisisStockRate ?? 0))),
+          efBuildingStockRate: Math.max(0, Math.min(100, Number(profile.efBuildingStockRate ?? 10))),
+          wealthBuildingStockRate: Math.max(0, Math.min(100, Number(profile.wealthBuildingStockRate ?? 40))),
+          goalSprintStockRate: Math.max(0, Math.min(100, Number(profile.goalSprintStockRate ?? 25))),
+          stockCarryForwardPct: Math.max(0, Math.min(100, Number(profile.stockCarryForwardPct ?? 50))),
         }),
+
       });
 
       const payload = await res.json();
@@ -255,6 +267,66 @@ export default function InvestmentSettingsScreen() {
               accentColor="#ffb4ab"
             />
           </View>
+
+          {/* SECTION 1.5: Cycle Stock Trading Allocation Rates */}
+          <View style={styles.card}>
+            <View style={styles.cardTitleRow}>
+              <View style={[styles.iconBox, { backgroundColor: "rgba(34,211,238,0.15)" }]}>
+                <MaterialIcons name="trending-up" size={20} color="#22d3ee" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.cardKicker, { color: "#22d3ee" }]}>CYCLE STOCK TRADING CREDIT</Text>
+                <Text style={styles.cardTitle}>Stock Trading Phase Rates</Text>
+              </View>
+            </View>
+            <Text style={{ fontSize: 11, color: "#888888", marginBottom: 12, lineHeight: 16 }}>
+              Surplus percentage dedicated to your swing trading pool on each salary cycle rollover.
+            </Text>
+
+            <View style={styles.gridTwo}>
+              <ConfigInput
+                label="Wealth Building"
+                value={String(profile.wealthBuildingStockRate ?? 40)}
+                unit="%"
+                onChangeText={(v) => updateProfile({ wealthBuildingStockRate: Math.max(0, Math.min(100, Number(v || 0))) })}
+                accentColor="#22d3ee"
+              />
+              <ConfigInput
+                label="Goal Sprint"
+                value={String(profile.goalSprintStockRate ?? 25)}
+                unit="%"
+                onChangeText={(v) => updateProfile({ goalSprintStockRate: Math.max(0, Math.min(100, Number(v || 0))) })}
+                accentColor="#38bdf8"
+              />
+            </View>
+
+            <View style={styles.gridTwo}>
+              <ConfigInput
+                label="EF Building"
+                value={String(profile.efBuildingStockRate ?? 10)}
+                unit="%"
+                onChangeText={(v) => updateProfile({ efBuildingStockRate: Math.max(0, Math.min(100, Number(v || 0))) })}
+                accentColor="#a5f3fc"
+              />
+              <ConfigInput
+                label="Crisis Phase"
+                value={String(profile.crisisStockRate ?? 0)}
+                unit="%"
+                onChangeText={(v) => updateProfile({ crisisStockRate: Math.max(0, Math.min(100, Number(v || 0))) })}
+                accentColor="#ffb4ab"
+              />
+            </View>
+
+            <ConfigInput
+              label="Unspent Stock Carry-Forward"
+              sublabel="Percentage of uninvested stock balance carried to next cycle"
+              value={String(profile.stockCarryForwardPct ?? 50)}
+              unit="%"
+              onChangeText={(v) => updateProfile({ stockCarryForwardPct: Math.max(0, Math.min(100, Number(v || 0))) })}
+              accentColor="#22d3ee"
+            />
+          </View>
+
 
           {/* SECTION 2: Standard Asset Allocation (Wealth Building) */}
           <View style={styles.card}>

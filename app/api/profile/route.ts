@@ -58,7 +58,13 @@ export async function PUT(req: Request) {
             equityNifty50Pct: numOr(body.equityNifty50Pct, 60),
             equityNiftyNext50Pct: numOr(body.equityNiftyNext50Pct, 20),
             equityMidcapPct: numOr(body.equityMidcapPct, 20),
+            crisisStockRate: numOr(body.crisisStockRate, 0),
+            efBuildingStockRate: numOr(body.efBuildingStockRate, 10),
+            wealthBuildingStockRate: numOr(body.wealthBuildingStockRate, 40),
+            goalSprintStockRate: numOr(body.goalSprintStockRate, 25),
+            stockCarryForwardPct: numOr(body.stockCarryForwardPct, 50),
         };
+
 
         const existing = await prisma.financialProfile.findFirst();
         const averages = await calculateAveragedMonthlyIncomeAndExpense();
