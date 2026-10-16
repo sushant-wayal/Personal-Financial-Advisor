@@ -30,6 +30,8 @@ import type {
 } from "@/src/types/stockIntelligence";
 import type { StrategyName } from "@/src/config/stockEngineDefaults";
 
+import ReactMarkdown from "react-markdown";
+
 function formatInr(val: number | null | undefined): string {
   if (val == null) return "₹0";
   return new Intl.NumberFormat("en-IN", {
@@ -42,6 +44,26 @@ function formatInr(val: number | null | undefined): string {
 function formatDecimal(val: number | null | undefined, digits = 2): string {
   if (val == null) return "0.00";
   return val.toFixed(digits);
+}
+
+function formatBindingConstraint(raw: string | null | undefined): string {
+  if (!raw) return "Optimal Sizing";
+  switch (raw) {
+    case "cash_capacity_limit":
+      return "Sized by available liquid cash";
+    case "exposure_cap_limit":
+      return "Capped by portfolio exposure limit";
+    case "zero_deployable_cash":
+      return "Zero unallocated cash";
+    case "phase_blocked_crisis":
+      return "Paused for financial stabilization";
+    case "regime_blocked_bearish":
+      return "Paused: Bearish market regime";
+    case "regime_blocked_high_volatility":
+      return "Paused: High market volatility";
+    default:
+      return raw.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  }
 }
 
 export default function StockIntelligenceClient() {
@@ -310,7 +332,7 @@ export default function StockIntelligenceClient() {
                 </div>
                 <div className="mt-1 flex flex-col gap-0.5 text-xs text-muted-foreground">
                   <span>
-                    Binding: <span className="text-emerald-400 font-medium">{capital?.bindingConstraint || "Calculated safe"}</span>
+                    Sizing: <span className="text-emerald-400 font-medium">{formatBindingConstraint(capital?.bindingConstraint)}</span>
                   </span>
                   {capital?.status && capital.status !== "ACTIVE" && (
                     <span className="text-amber-400 font-medium text-[11px] truncate" title={capital.statusReason}>
@@ -446,8 +468,24 @@ export default function StockIntelligenceClient() {
                   </CardTitle>
                 </div>
               </CardHeader>
-              <CardContent className="text-sm leading-relaxed text-muted-foreground whitespace-pre-line">
-                {run.aiExplanation}
+              <CardContent>
+                <div className="prose prose-invert prose-sm max-w-none text-muted-foreground leading-relaxed">
+                  <ReactMarkdown
+                    components={{
+                      p: ({ children }) => <p className="mb-2.5 last:mb-0 leading-relaxed text-slate-300">{children}</p>,
+                      ul: ({ children }) => <ul className="list-disc list-inside mb-2.5 space-y-1 text-slate-300">{children}</ul>,
+                      ol: ({ children }) => <ol className="list-decimal list-inside mb-2.5 space-y-1 text-slate-300">{children}</ol>,
+                      li: ({ children }) => <li className="text-sm">{children}</li>,
+                      strong: ({ children }) => <strong className="font-semibold text-cyan-300">{children}</strong>,
+                      em: ({ children }) => <em className="italic text-emerald-300">{children}</em>,
+                      h1: ({ children }) => <h1 className="text-base font-bold text-foreground mb-1.5">{children}</h1>,
+                      h2: ({ children }) => <h2 className="text-sm font-semibold text-foreground mb-1">{children}</h2>,
+                      h3: ({ children }) => <h3 className="text-xs font-semibold uppercase tracking-wider text-cyan-400 mb-1">{children}</h3>,
+                    }}
+                  >
+                    {run.aiExplanation}
+                  </ReactMarkdown>
+                </div>
               </CardContent>
             </Card>
           )}
@@ -664,142 +702,226 @@ export default function StockIntelligenceClient() {
       {/* ───────────────── TAB 2: CAPITAL SAFEGUARDS ───────────────── */}
       {activeTab === "capital" && (
         <div className="space-y-6">
-          <Card className="border-border bg-card/60 backdrop-blur">
-            <CardHeader>
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                <div>
-                  <CardTitle className="text-base font-semibold text-foreground">
-                    Verified Personal Finance Capital Allocation Model
-                  </CardTitle>
-                  <CardDescription>
-                    Direct stock investments are strictly sized from verified deployable liquidity after protecting emergency reserves, living expenses, and financial commitments.
-                  </CardDescription>
-                </div>
-                {capital?.status && (
-                  <span className={`inline-flex items-center gap-1.5 self-start rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wider border ${
-                    capital.status === "ACTIVE"
-                      ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
-                      : "bg-amber-500/10 text-amber-400 border-amber-500/30"
-                  }`}>
-                    {capital.status === "ACTIVE" ? <ShieldCheck className="h-3.5 w-3.5" /> : <ShieldAlert className="h-3.5 w-3.5" />}
-                    {capital.status}
-                  </span>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {isCapLoading ? (
-                <div className="space-y-3 p-4">
-                  <div className="h-4 w-3/4 animate-pulse rounded bg-muted" />
-                  <div className="h-4 w-1/2 animate-pulse rounded bg-muted" />
-                  <div className="h-4 w-2/3 animate-pulse rounded bg-muted" />
-                </div>
-              ) : isCapError ? (
-                <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-300 flex items-center justify-between">
-                  <span>Unable to calculate capital allocation.</span>
-                  <Button variant="outline" size="sm" onClick={() => void refetchCapital()}>
-                    Retry
-                  </Button>
-                </div>
-              ) : (
-                <>
-                  {capital?.statusReason && capital.status !== "ACTIVE" && (
-                    <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-300">
-                      <strong>Policy Notice:</strong> {capital.statusReason}
-                    </div>
-                  )}
+          {/* Header Card */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                <ShieldCheck className="h-5 w-5 text-emerald-400" />
+                Capital Safeguards & Sizing Engine
+              </h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Multi-layer capital protection ensuring direct stock trading never compromises your living reserves or financial goals.
+              </p>
+            </div>
+            {capital?.status && (
+              <span className={`inline-flex items-center gap-1.5 self-start rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wider border ${
+                capital.status === "ACTIVE"
+                  ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                  : "bg-amber-500/10 text-amber-400 border-amber-500/30"
+              }`}>
+                {capital.status === "ACTIVE" ? <ShieldCheck className="h-3.5 w-3.5" /> : <ShieldAlert className="h-3.5 w-3.5" />}
+                {capital.status === "ACTIVE" ? "Verified Safe · Active" : capital.status}
+              </span>
+            )}
+          </div>
 
-                  <div className="space-y-3 rounded-lg bg-muted/40 p-4 text-sm">
-                    <div className="flex justify-between font-medium">
-                      <span>1. Verified Bank Cash Balance:</span>
-                      <span className="text-foreground">{formatInr(capital?.verifiedLiquidCash)}</span>
-                    </div>
+          {isCapLoading ? (
+            <div className="space-y-4 p-6 rounded-xl border border-border bg-card/60">
+              <div className="h-5 w-1/3 animate-pulse rounded bg-muted" />
+              <div className="h-24 w-full animate-pulse rounded bg-muted" />
+              <div className="h-24 w-full animate-pulse rounded bg-muted" />
+            </div>
+          ) : isCapError ? (
+            <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-5 text-sm text-rose-300 flex items-center justify-between">
+              <span>Unable to calculate capital allocation.</span>
+              <Button variant="outline" size="sm" onClick={() => void refetchCapital()}>
+                Retry Calculation
+              </Button>
+            </div>
+          ) : (
+            <>
+              {capital?.statusReason && capital.status !== "ACTIVE" && (
+                <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-xs text-amber-300 flex items-start gap-2.5">
+                  <ShieldAlert className="h-4 w-4 shrink-0 text-amber-400 mt-0.5" />
+                  <div>
+                    <span className="font-semibold text-amber-200">Policy Safeguard Notice: </span>
+                    {capital.statusReason}
+                  </div>
+                </div>
+              )}
 
-                    {/* Deductions Breakdown */}
-                    {capital?.deductions?.map((d, i) => (
-                      <div key={i} className="flex justify-between text-xs text-rose-400 pl-3 border-l-2 border-rose-500/30">
-                        <div>
-                          <span>− Less: {d.label}</span>
-                          {d.basis && (
-                            <span className="ml-1 text-[11px] text-muted-foreground">({d.basis})</span>
-                          )}
-                        </div>
-                        <span className="font-medium">−{formatInr(d.amount)}</span>
+              {/* 1. Cash Liquidity Waterfall & Protected Reserves */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                {/* Left Column: Cash Summary */}
+                <Card className="border-border bg-card/60 backdrop-blur lg:col-span-1 flex flex-col justify-between">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Liquidity Waterfall
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <span className="text-xs text-muted-foreground">Verified Bank Balance</span>
+                      <div className="text-2xl font-bold text-foreground mt-0.5">
+                        {formatInr(capital?.verifiedLiquidCash)}
                       </div>
-                    ))}
+                    </div>
+                    <div className="border-t border-border/60 pt-3">
+                      <span className="text-xs text-rose-400">Total Protected Deductions</span>
+                      <div className="text-lg font-semibold text-rose-400 mt-0.5">
+                        −{formatInr(capital?.totalDeductions)}
+                      </div>
+                    </div>
+                    <div className="border-t border-border/60 pt-3">
+                      <span className="text-xs text-cyan-400 font-medium">Net Deployable Cash</span>
+                      <div className="text-2xl font-bold text-cyan-400 mt-0.5">
+                        {formatInr(capital?.potentiallyDeployableCash)}
+                      </div>
+                      <span className="text-[11px] text-muted-foreground mt-1 block">
+                        Unreserved liquidity eligible for safety scaling
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
 
-                    {/* Emergency Fund Diagnostic Card */}
+                {/* Right Column: Protected Allocations Breakdown */}
+                <Card className="border-border bg-card/60 backdrop-blur lg:col-span-2">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Protected Allocations ({capital?.deductions?.length ?? 0} active)
+                    </CardTitle>
+                    <CardDescription className="text-xs">
+                      Liquid funds ring-fenced to prevent financial compromise.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-2.5">
+                    {/* Emergency Fund Reserve */}
                     {capital?.efTargetAmount != null && (
-                      <div className="rounded border border-border/50 bg-background/50 p-3 text-xs text-muted-foreground my-2 space-y-1.5">
-                        <div className="flex justify-between font-medium text-foreground">
-                          <span>Emergency Fund Status:</span>
-                          <span>{formatInr(capital.efAllocatedCash)} / {formatInr(capital.efTargetAmount)}</span>
+                      <div className="rounded-lg border border-border/60 bg-muted/20 p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-xs text-foreground">Emergency Reserve</span>
+                            <span className="text-[10px] rounded bg-emerald-500/10 px-1.5 py-0.5 text-emerald-400 font-medium">
+                              Protected Cash
+                            </span>
+                          </div>
+                          <span className="text-[11px] text-muted-foreground block mt-0.5">
+                            {formatInr(capital.efAllocatedCash)} saved · Target: {formatInr(capital.efTargetAmount)}
+                          </span>
                         </div>
-                        <div className="flex justify-between text-[11px]">
-                          <span>Allocated in Cash (Protected):</span>
-                          <span className="text-rose-400 font-medium">−{formatInr(capital.efAllocatedCash)}</span>
-                        </div>
-                        <div className="flex justify-between text-[11px]">
-                          <span>Remaining Target Shortfall (Diagnostic only — NOT deducted as cash):</span>
-                          <span className="text-amber-400">{formatInr(capital.efShortfall)}</span>
+                        <div className="text-right">
+                          <span className="font-semibold text-xs text-rose-400">−{formatInr(capital.efAllocatedCash)}</span>
+                          <span className="text-[10px] text-muted-foreground block">
+                            Shortfall ({formatInr(capital.efShortfall)}) funded via future drip
+                          </span>
                         </div>
                       </div>
                     )}
 
-                    <div className="border-t border-border pt-2 flex justify-between font-semibold">
-                      <span>Potentially Deployable Cash:</span>
-                      <span className="text-cyan-400">{formatInr(capital?.potentiallyDeployableCash)}</span>
-                    </div>
+                    {/* Other Itemized Deductions (Near-Term Goals, Obligations, Living Buffer) */}
+                    {capital?.deductions?.filter(d => d.source !== "emergencyFund").map((d, i) => (
+                      <div key={i} className="rounded-lg border border-border/60 bg-muted/20 p-3 flex items-center justify-between gap-2">
+                        <div>
+                          <span className="font-medium text-xs text-foreground">{d.label}</span>
+                          {d.basis && (
+                            <span className="text-[11px] text-muted-foreground block mt-0.5">{d.basis}</span>
+                          )}
+                        </div>
+                        <span className="font-semibold text-xs text-rose-400 shrink-0">−{formatInr(d.amount)}</span>
+                      </div>
+                    ))}
 
-                    {/* Portfolio Exposure Math */}
-                    <div className="rounded border border-border/50 bg-background/50 p-3 text-xs text-muted-foreground my-2 space-y-1.5">
-                      <div className="flex justify-between font-medium text-foreground">
-                        <span>Portfolio Exposure Sizing:</span>
-                        <span>Total Base: {formatInr(capital?.totalTradingBase)}</span>
+                    {capital?.deductions?.length === 0 && (
+                      <div className="p-4 text-center text-xs text-muted-foreground">
+                        No active deduction commitments. All liquid cash is unreserved.
                       </div>
-                      <div className="flex justify-between text-[11px]">
-                        <span>Existing Stock Holdings (Deployed):</span>
-                        <span>{formatInr(capital?.deployedCapital)}</span>
-                      </div>
-                      <div className="flex justify-between text-[11px]">
-                        <span>Financial Phase Limit ({capital?.financialPhase}):</span>
-                        <span>{capital?.phaseMaxPct}% ({formatInr(capital?.phaseLimitedCapital)})</span>
-                      </div>
-                      <div className="flex justify-between text-[11px]">
-                        <span>Market Regime Factor ({capital?.marketRegimeFactor ? Math.round(capital.marketRegimeFactor * 100) : 70}%):</span>
-                        <span>Exposure Cap: {formatInr(capital?.maxPermittedExposure)}</span>
-                      </div>
-                      <div className="flex justify-between text-[11px] font-medium text-cyan-300">
-                        <span>Remaining Exposure Capacity:</span>
-                        <span>{formatInr(capital?.remainingExposureCapacity)}</span>
-                      </div>
-                    </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
 
-                    <div className="border-t border-border pt-2 flex justify-between text-base font-bold text-emerald-400">
-                      <span>Final Permitted Daily Trading Budget:</span>
-                      <span>{formatInr(capital?.eligibleNewPurchaseBudget)}</span>
-                    </div>
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>Binding Constraint:</span>
-                      <span className="font-medium text-foreground">{capital?.bindingConstraint || "Calculated safe"}</span>
-                    </div>
+              {/* 2. Portfolio Exposure & Phase Policy Strip */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <Card className="border-border bg-card/60 backdrop-blur p-4">
+                  <span className="text-[11px] text-muted-foreground uppercase font-medium">Financial Phase</span>
+                  <div className="text-lg font-bold text-foreground mt-1">{capital?.financialPhase}</div>
+                  <span className="text-xs text-muted-foreground mt-0.5 block">{capital?.phaseMaxPct}% Max Capital Cap</span>
+                </Card>
+
+                <Card className="border-border bg-card/60 backdrop-blur p-4">
+                  <span className="text-[11px] text-muted-foreground uppercase font-medium">Market Regime</span>
+                  <div className="text-lg font-bold text-foreground mt-1">{capital?.marketRegime}</div>
+                  <span className="text-xs text-muted-foreground mt-0.5 block">
+                    {capital?.marketRegimeFactor ? Math.round(capital.marketRegimeFactor * 100) : 70}% Sizing Multiplier
+                  </span>
+                </Card>
+
+                <Card className="border-border bg-card/60 backdrop-blur p-4">
+                  <span className="text-[11px] text-muted-foreground uppercase font-medium">Existing Holdings</span>
+                  <div className="text-lg font-bold text-foreground mt-1">{formatInr(capital?.deployedCapital)}</div>
+                  <span className="text-xs text-muted-foreground mt-0.5 block">Counts toward exposure cap</span>
+                </Card>
+
+                <Card className="border-border bg-card/60 backdrop-blur p-4">
+                  <span className="text-[11px] text-muted-foreground uppercase font-medium">Max Allowed Exposure</span>
+                  <div className="text-lg font-bold text-cyan-400 mt-1">{formatInr(capital?.maxPermittedExposure)}</div>
+                  <span className="text-xs text-muted-foreground mt-0.5 block">
+                    Capacity: {formatInr(capital?.remainingExposureCapacity)}
+                  </span>
+                </Card>
+              </div>
+
+              {/* 3. Hero Trading Budget Sizing Result */}
+              <div className="rounded-xl border border-emerald-500/30 bg-gradient-to-r from-emerald-950/30 via-background to-cyan-950/30 p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <span className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">
+                    Permitted Daily Trading Budget
+                  </span>
+                  <div className="text-3xl font-extrabold text-foreground mt-1">
+                    {formatInr(capital?.eligibleNewPurchaseBudget)}
                   </div>
-                </>
-              )}
+                  <span className="text-xs text-muted-foreground mt-1 block">
+                    Governed by: <strong className="text-emerald-300 font-medium">{formatBindingConstraint(capital?.bindingConstraint)}</strong>
+                  </span>
+                </div>
+                <div className="text-xs text-slate-300 max-w-sm border-l border-emerald-500/20 pl-4 space-y-1">
+                  <div className="font-semibold text-emerald-400 flex items-center gap-1.5">
+                    <CheckCircle2 className="h-4 w-4" />
+                    Zero Margin & Leverage Policy
+                  </div>
+                  <p className="text-[11px] leading-relaxed text-muted-foreground">
+                    Purchases are strictly funded from unreserved cash. Never borrows or leverages personal accounts.
+                  </p>
+                </div>
+              </div>
 
-              {/* Safety Halt Policy */}
-              <div className="rounded-lg border border-border p-4 text-xs space-y-2 text-muted-foreground">
-                <div className="text-foreground font-semibold flex items-center gap-1.5">
+              {/* 4. Drawdown Circuit Breakers Grid */}
+              <div className="rounded-xl border border-border bg-card/40 p-4">
+                <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
                   <ShieldAlert className="h-4 w-4 text-cyan-400" />
                   Drawdown Control Rules (Conservative 5% Target)
                 </div>
-                <p>• <strong>&lt; 3.0%</strong>: Normal operation. All eligible strategies permitted.</p>
-                <p>• <strong>3.0% – 4.0%</strong>: Warning zone. Position sizing tightened.</p>
-                <p>• <strong>4.0% – 4.5%</strong>: Restricted zone. Momentum strategies disabled; existing positions only.</p>
-                <p>• <strong>≥ 4.5%</strong>: Trading Halt. Zero new purchases permitted until recovery below 2.0%.</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+                  <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3">
+                    <span className="font-bold text-emerald-400 block">&lt; 3.0% Drawdown</span>
+                    <span className="text-muted-foreground text-[11px] mt-1 block">Normal operation. All eligible swing strategies active.</span>
+                  </div>
+                  <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3">
+                    <span className="font-bold text-amber-400 block">3.0% – 4.0% Warning</span>
+                    <span className="text-muted-foreground text-[11px] mt-1 block">Tighter position sizing. Momentum paused.</span>
+                  </div>
+                  <div className="rounded-lg border border-purple-500/20 bg-purple-500/5 p-3">
+                    <span className="font-bold text-purple-400 block">4.0% – 4.5% Restricted</span>
+                    <span className="text-muted-foreground text-[11px] mt-1 block">New purchases restricted. Existing positions managed.</span>
+                  </div>
+                  <div className="rounded-lg border border-rose-500/20 bg-rose-500/5 p-3">
+                    <span className="font-bold text-rose-400 block">≥ 4.5% Circuit Breaker</span>
+                    <span className="text-muted-foreground text-[11px] mt-1 block">Trading Halt. Zero new orders permitted until recovery.</span>
+                  </div>
+                </div>
               </div>
-            </CardContent>
-          </Card>
+            </>
+          )}
         </div>
       )}
 
