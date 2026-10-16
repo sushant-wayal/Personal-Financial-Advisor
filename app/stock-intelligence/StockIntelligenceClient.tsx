@@ -50,21 +50,57 @@ function formatBindingConstraint(raw: string | null | undefined): string {
   if (!raw) return "Optimal Sizing";
   switch (raw) {
     case "cycle_stock_credit_limit":
-      return "Sized from cycle stock trading balance";
+      return "Sized from cycle stock credit";
     case "cycle_budget_exhausted":
-      return "Cycle stock trading credit exhausted";
+      return "Cycle credit exhausted";
     case "cash_capacity_limit":
-      return "Sized by available liquid cash";
+      return "Sized by liquid cash";
     case "exposure_cap_limit":
-      return "Capped by portfolio exposure limit";
+      return "Portfolio exposure limit";
     case "zero_deployable_cash":
       return "Zero unallocated cash";
     case "phase_blocked_crisis":
-      return "Paused for financial stabilization";
+      return "Paused: Crisis stabilization";
     case "regime_blocked_bearish":
-      return "Paused: Bearish market regime";
+      return "Paused: Bearish regime";
     case "regime_blocked_high_volatility":
-      return "Paused: High market volatility";
+      return "Paused: High volatility";
+    default:
+      return raw.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+}
+
+function formatPhaseName(raw: string | null | undefined): string {
+  if (!raw) return "Wealth Building";
+  switch (raw) {
+    case "EF_BUILDING":
+      return "Reserve Building";
+    case "WEALTH_BUILDING":
+      return "Wealth Building";
+    case "GOAL_SPRINT":
+      return "Goal Sprint";
+    case "CRISIS":
+      return "Crisis Mode";
+    default:
+      return raw.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+}
+
+function formatStatusName(raw: string | null | undefined): string {
+  if (!raw) return "Active";
+  switch (raw) {
+    case "ACTIVE":
+      return "Active";
+    case "CYCLE_BUDGET_EXHAUSTED":
+      return "Cycle Credit Used";
+    case "EXPOSURE_CAP_REACHED":
+      return "Exposure Capped";
+    case "BLOCKED_BY_PHASE":
+      return "Phase Protected";
+    case "BLOCKED_BY_REGIME":
+      return "Regime Paused";
+    case "ZERO_SURPLUS":
+      return "Zero Surplus";
     default:
       return raw.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
   }
@@ -362,15 +398,16 @@ export default function StockIntelligenceClient() {
                 <div className="text-2xl font-bold text-foreground">
                   {formatInr(capital?.eligibleNewPurchaseBudget)}
                 </div>
-                <div className="mt-1 flex flex-col gap-0.5 text-xs text-muted-foreground">
-                  <span>
-                    Sizing: <span className="text-emerald-400 font-medium">{formatBindingConstraint(capital?.bindingConstraint)}</span>
+                <div className="mt-2 flex items-center">
+                  <span className={`inline-flex items-center rounded px-2 py-0.5 text-[11px] font-semibold border ${
+                    (capital?.eligibleNewPurchaseBudget ?? 0) > 0
+                      ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                      : "bg-amber-500/10 text-amber-400 border-amber-500/30"
+                  }`}>
+                    {(capital?.eligibleNewPurchaseBudget ?? 0) > 0
+                      ? "Ready for Deployment"
+                      : formatStatusName(capital?.status)}
                   </span>
-                  {capital?.status && capital.status !== "ACTIVE" && (
-                    <span className="text-amber-400 font-medium text-[11px] truncate" title={capital.statusReason}>
-                      {capital.status}
-                    </span>
-                  )}
                 </div>
               </>
             )}
@@ -412,10 +449,10 @@ export default function StockIntelligenceClient() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-foreground">
-              {capital?.financialPhase ?? "WEALTH_BUILDING"}
+              {formatPhaseName(capital?.financialPhase)}
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
-              Emergency fund & commitments protected
+              Direct-equity cap: {capital?.phaseMaxPct ?? 10}%
             </p>
           </CardContent>
         </Card>
@@ -768,7 +805,7 @@ export default function StockIntelligenceClient() {
                   : "bg-amber-500/10 text-amber-400 border-amber-500/30"
               }`}>
                 {capital.status === "ACTIVE" ? <ShieldCheck className="h-3.5 w-3.5" /> : <ShieldAlert className="h-3.5 w-3.5" />}
-                {capital.status === "ACTIVE" ? "Verified Safe · Active" : capital.status}
+                {formatStatusName(capital.status)}
               </span>
             )}
           </div>
@@ -877,7 +914,7 @@ export default function StockIntelligenceClient() {
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <Card className="border-border bg-card/60 backdrop-blur p-4">
                   <span className="text-[11px] text-muted-foreground uppercase font-medium">Financial Phase</span>
-                  <div className="text-lg font-bold text-foreground mt-1">{capital?.financialPhase}</div>
+                  <div className="text-lg font-bold text-foreground mt-1">{formatPhaseName(capital?.financialPhase)}</div>
                   <span className="text-xs text-muted-foreground mt-0.5 block">{capital?.phaseMaxPct}% Max Capital Cap</span>
                 </Card>
 
@@ -923,7 +960,7 @@ export default function StockIntelligenceClient() {
                     Zero Margin & Leverage Policy
                   </div>
                   <p className="text-[11px] leading-relaxed text-muted-foreground">
-                    Purchases are strictly funded from unreserved cash. Never borrows or leverages personal accounts.
+                    Purchases are strictly funded from cycle stock trading credits. Never borrows or leverages personal accounts.
                   </p>
                 </div>
               </div>

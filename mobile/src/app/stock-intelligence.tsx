@@ -42,6 +42,42 @@ function formatBindingConstraint(raw: string | null | undefined): string {
   }
 }
 
+function formatPhaseName(raw: string | null | undefined): string {
+  if (!raw) return "Wealth Building";
+  switch (raw) {
+    case "EF_BUILDING":
+      return "Reserve Building";
+    case "WEALTH_BUILDING":
+      return "Wealth Building";
+    case "GOAL_SPRINT":
+      return "Goal Sprint";
+    case "CRISIS":
+      return "Crisis Mode";
+    default:
+      return raw.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+}
+
+function formatStatusName(raw: string | null | undefined): string {
+  if (!raw) return "Active";
+  switch (raw) {
+    case "ACTIVE":
+      return "Active";
+    case "CYCLE_BUDGET_EXHAUSTED":
+      return "Cycle Credit Used";
+    case "EXPOSURE_CAP_REACHED":
+      return "Exposure Capped";
+    case "BLOCKED_BY_PHASE":
+      return "Phase Protected";
+    case "BLOCKED_BY_REGIME":
+      return "Regime Paused";
+    case "ZERO_SURPLUS":
+      return "Zero Surplus";
+    default:
+      return raw.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+}
+
 function apiUrl(path: string) {
   return `${API_BASE_URL}${path}`;
 }
@@ -274,22 +310,30 @@ export default function StockIntelligenceScreen() {
         <View style={styles.heroCard}>
           <View style={styles.heroRow}>
             <View style={styles.heroCol}>
-              <Text style={styles.heroLabel}>SAFE TRADING BUDGET</Text>
+              <Text style={styles.heroLabel}>SAFE BUDGET</Text>
               <Text style={styles.heroValue}>
-                {capital ? formatCurrencyAmount(capital.eligibleNewPurchaseBudget ?? 0, "INR") : "Calculating..."}
+                {capital ? formatCurrencyAmount(capital.eligibleNewPurchaseBudget ?? 0, "INR") : "₹0"}
               </Text>
-              <Text style={styles.heroSubText}>
-                {formatBindingConstraint(capital?.bindingConstraint)}
-              </Text>
-              {capital?.status && capital.status !== "ACTIVE" && (
-                <Text style={{ fontSize: 10, color: "#f59e0b", fontWeight: "700", marginTop: 2 }}>
-                  {capital.status}
+              <View style={{
+                alignSelf: "flex-start",
+                marginTop: 4,
+                backgroundColor: (capital?.eligibleNewPurchaseBudget ?? 0) > 0 ? "rgba(16,185,129,0.15)" : "rgba(245,158,11,0.15)",
+                paddingHorizontal: 6,
+                paddingVertical: 2,
+                borderRadius: 4,
+              }}>
+                <Text style={{
+                  fontSize: 10,
+                  fontWeight: "700",
+                  color: (capital?.eligibleNewPurchaseBudget ?? 0) > 0 ? "#34d399" : "#fbbf24",
+                }}>
+                  {(capital?.eligibleNewPurchaseBudget ?? 0) > 0 ? "Ready" : formatStatusName(capital?.status)}
                 </Text>
-              )}
+              </View>
             </View>
 
             <View style={styles.heroCol}>
-              <Text style={styles.heroLabel}>CYCLE STOCK CREDIT</Text>
+              <Text style={styles.heroLabel}>CYCLE CREDIT</Text>
               <Text style={[styles.heroValue, { color: "#22d3ee" }]}>
                 {capital ? formatCurrencyAmount(capital.remainingCycleStockBalance ?? 0, "INR") : "₹0"}
               </Text>
@@ -299,14 +343,15 @@ export default function StockIntelligenceScreen() {
             </View>
 
             <View style={styles.heroCol}>
-              <Text style={styles.heroLabel}>DRAWDOWN RISK</Text>
+              <Text style={styles.heroLabel}>DRAWDOWN</Text>
               <Text style={[styles.heroValue, { color: (risk?.drawdownPct ?? 0) >= 4.0 ? "#f43f5e" : "#22d3ee" }]}>
-                {(risk?.drawdownPct ?? 0).toFixed(1)}% <Text style={{ fontSize: 12, color: "#888888" }}>/ 5.0%</Text>
+                {(risk?.drawdownPct ?? 0).toFixed(1)}% <Text style={{ fontSize: 11, color: "#888888" }}>/ 5%</Text>
               </Text>
               <Text style={styles.heroSubText}>Status: {risk?.drawdownStatus ?? "NORMAL"}</Text>
             </View>
           </View>
         </View>
+
 
         {/* Segmented Control Tabs */}
         <View style={styles.tabContainer}>
@@ -536,32 +581,39 @@ export default function StockIntelligenceScreen() {
           <View style={styles.section}>
             {/* Header / Status Banner */}
             <View style={styles.card}>
-              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                <View style={{ flex: 1, marginRight: 8 }}>
-                  <Text style={styles.cardSectionTitle}>Capital Safeguards & Sizing Engine</Text>
-                  <Text style={{ fontSize: 11, color: "#888888", marginTop: 2 }}>
-                    Automated liquidity protection, liability insulation & exposure governor.
+              <View>
+                <Text style={styles.cardSectionTitle}>Capital Safeguards & Sizing Engine</Text>
+                <Text style={{ fontSize: 11, color: "#888888", marginTop: 2, lineHeight: 16 }}>
+                  Automated liquidity protection, liability insulation & exposure governor.
+                </Text>
+              </View>
+              <View style={{ flexDirection: "row", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
+                <View style={{
+                  backgroundColor: "rgba(34,211,238,0.12)",
+                  paddingHorizontal: 8,
+                  paddingVertical: 3,
+                  borderRadius: 6,
+                  borderWidth: 1,
+                  borderColor: "rgba(34,211,238,0.25)",
+                }}>
+                  <Text style={{ fontSize: 10, fontWeight: "700", color: "#22d3ee" }}>
+                    {formatPhaseName(capital?.financialPhase)}
                   </Text>
                 </View>
-                <View style={{ flexDirection: "row", gap: 6 }}>
-                  <View style={{ backgroundColor: "rgba(34,211,238,0.12)", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 }}>
-                    <Text style={{ fontSize: 10, fontWeight: "700", color: "#22d3ee" }}>
-                      {capital?.financialPhase ?? "WEALTH_BUILDING"}
+                {capital?.status && (
+                  <View style={{
+                    backgroundColor: capital.status === "ACTIVE" ? "rgba(16,185,129,0.15)" : "rgba(245,158,11,0.15)",
+                    paddingHorizontal: 8,
+                    paddingVertical: 3,
+                    borderRadius: 6,
+                    borderWidth: 1,
+                    borderColor: capital.status === "ACTIVE" ? "rgba(16,185,129,0.25)" : "rgba(245,158,11,0.25)",
+                  }}>
+                    <Text style={{ fontSize: 10, fontWeight: "700", color: capital.status === "ACTIVE" ? "#34d399" : "#fbbf24" }}>
+                      {formatStatusName(capital.status)}
                     </Text>
                   </View>
-                  {capital?.status && (
-                    <View style={{
-                      backgroundColor: capital.status === "ACTIVE" ? "rgba(16,185,129,0.15)" : "rgba(245,158,11,0.15)",
-                      paddingHorizontal: 8,
-                      paddingVertical: 3,
-                      borderRadius: 6,
-                    }}>
-                      <Text style={{ fontSize: 10, fontWeight: "700", color: capital.status === "ACTIVE" ? "#34d399" : "#fbbf24" }}>
-                        {capital.status}
-                      </Text>
-                    </View>
-                  )}
-                </View>
+                )}
               </View>
 
               {capital?.statusReason && capital.status !== "ACTIVE" && (
@@ -571,7 +623,7 @@ export default function StockIntelligenceScreen() {
                   borderRadius: 8,
                   borderWidth: 1,
                   borderColor: "rgba(245,158,11,0.25)",
-                  marginTop: 6,
+                  marginTop: 8,
                 }}>
                   <Text style={{ fontSize: 11, color: "#fbbf24", lineHeight: 16 }}>
                     {capital.statusReason}
@@ -717,7 +769,7 @@ export default function StockIntelligenceScreen() {
                 </Text>
               </View>
               <Text style={{ fontSize: 10, color: "#888888", marginTop: 8, lineHeight: 14 }}>
-                Sized as the minimum of available liquid cash and remaining portfolio exposure, guarded by real-time drawdown throttles.
+                Sized from your cycle stock credit pool and remaining exposure, guarded by real-time drawdown throttles.
               </Text>
             </View>
 
