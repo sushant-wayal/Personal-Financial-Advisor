@@ -138,9 +138,44 @@ export default function InvestmentSettingsScreen() {
   const midcap = profile.equityMidcapPct ?? 20;
   const eqSum = nifty50 + niftyNext50 + midcap;
 
+  const wbMF = profile.wealthBuildingInvestableRate ?? 60;
+  const wbStock = profile.wealthBuildingStockRate ?? 40;
+  const wbSum = wbMF + wbStock;
+
+  const gsMF = profile.goalSprintInvestableRate ?? 40;
+  const gsStock = profile.goalSprintStockRate ?? 25;
+  const gsSum = gsMF + gsStock;
+
+  const efMF = profile.efBuildingInvestableRate ?? 15;
+  const efStock = profile.efBuildingStockRate ?? 10;
+  const efSum = efMF + efStock;
+
+  const crMF = profile.crisisInvestableRate ?? 0;
+  const crStock = profile.crisisStockRate ?? 0;
+  const crSum = crMF + crStock;
+
+  const anyPhaseExceeded = wbSum > 100 || gsSum > 100 || efSum > 100 || crSum > 100;
+
   const { showSuccess, showError } = useAlert();
 
   const handleSave = async () => {
+    if (wbSum > 100) {
+      showError("Invalid Allocation", `Wealth Building total allocation (${wbMF}% MF + ${wbStock}% Stock = ${wbSum}%) cannot exceed 100% of surplus.`);
+      return;
+    }
+    if (gsSum > 100) {
+      showError("Invalid Allocation", `Goal Sprint total allocation (${gsMF}% MF + ${gsStock}% Stock = ${gsSum}%) cannot exceed 100% of surplus.`);
+      return;
+    }
+    if (efSum > 100) {
+      showError("Invalid Allocation", `EF Building total allocation (${efMF}% MF + ${efStock}% Stock = ${efSum}%) cannot exceed 100% of surplus.`);
+      return;
+    }
+    if (crSum > 100) {
+      showError("Invalid Allocation", `Crisis total allocation (${crMF}% MF + ${crStock}% Stock = ${crSum}%) cannot exceed 100% of surplus.`);
+      return;
+    }
+
     setSaving(true);
     try {
       const res = await fetch(apiUrl("/api/profile"), {
@@ -148,9 +183,9 @@ export default function InvestmentSettingsScreen() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...profile,
-          efBuildingInvestableRate: Math.max(0, Math.min(100, Number(profile.efBuildingInvestableRate ?? 20))),
+          efBuildingInvestableRate: Math.max(0, Math.min(100, Number(profile.efBuildingInvestableRate ?? 15))),
           goalSprintInvestableRate: Math.max(0, Math.min(100, Number(profile.goalSprintInvestableRate ?? 40))),
-          wealthBuildingInvestableRate: Math.max(0, Math.min(100, Number(profile.wealthBuildingInvestableRate ?? 100))),
+          wealthBuildingInvestableRate: Math.max(0, Math.min(100, Number(profile.wealthBuildingInvestableRate ?? 60))),
           crisisInvestableRate: Math.max(0, Math.min(100, Number(profile.crisisInvestableRate ?? 0))),
           stdEquityPct: Math.max(0, Math.min(100, Number(profile.stdEquityPct ?? 70))),
           stdDebtPct: Math.max(0, Math.min(100, Number(profile.stdDebtPct ?? 20))),
@@ -235,7 +270,7 @@ export default function InvestmentSettingsScreen() {
               />
               <ConfigInput
                 label="Wealth Building"
-                value={String(profile.wealthBuildingInvestableRate ?? 100)}
+                value={String(profile.wealthBuildingInvestableRate ?? 60)}
                 unit="%"
                 onChangeText={(v) => updateProfile({ wealthBuildingInvestableRate: Math.max(0, Math.min(100, Number(v || 0))) })}
                 accentColor="#34d399"
@@ -325,6 +360,62 @@ export default function InvestmentSettingsScreen() {
               onChangeText={(v) => updateProfile({ stockCarryForwardPct: Math.max(0, Math.min(100, Number(v || 0))) })}
               accentColor="#22d3ee"
             />
+          </View>
+
+          {/* SECTION 1.6: Phase Allocation Breakdown & Constraint Indicator */}
+          <View style={[styles.card, anyPhaseExceeded && { borderColor: "rgba(239, 68, 68, 0.4)", borderWidth: 1 }]}>
+            <View style={styles.cardTitleRow}>
+              <View style={[styles.iconBox, { backgroundColor: anyPhaseExceeded ? "rgba(239, 68, 68, 0.15)" : "rgba(16, 185, 129, 0.15)" }]}>
+                <MaterialIcons name={anyPhaseExceeded ? "error-outline" : "verified"} size={20} color={anyPhaseExceeded ? "#ef4444" : "#10b981"} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.cardKicker, { color: anyPhaseExceeded ? "#ef4444" : "#10b981" }]}>
+                  {anyPhaseExceeded ? "CONSTRAINT VIOLATION: SUM > 100%" : "ALLOCATION BALANCE (MAX 100%)"}
+                </Text>
+                <Text style={styles.cardTitle}>Phase Surplus Distribution</Text>
+              </View>
+            </View>
+            <Text style={{ fontSize: 11, color: "#888888", marginBottom: 6, lineHeight: 16 }}>
+              Total surplus allocated to Mutual Funds and Swing Stocks must not exceed 100% in any phase.
+            </Text>
+
+            <View style={{ gap: 10 }}>
+              {[
+                { name: "Wealth Building", mf: wbMF, stock: wbStock, sum: wbSum, color: "#34d399" },
+                { name: "Goal Sprint", mf: gsMF, stock: gsStock, sum: gsSum, color: "#fbbf24" },
+                { name: "EF Building", mf: efMF, stock: efStock, sum: efSum, color: "#c4c7c8" },
+                { name: "Crisis Phase", mf: crMF, stock: crStock, sum: crSum, color: "#ffb4ab" },
+              ].map((p) => {
+                const isOver = p.sum > 100;
+                const unallocated = Math.max(0, 100 - p.sum);
+                return (
+                  <View key={p.name} style={{ backgroundColor: "#141414", padding: 10, borderRadius: 10, borderWidth: 1, borderColor: isOver ? "rgba(239, 68, 68, 0.5)" : "rgba(255, 255, 255, 0.06)", gap: 6 }}>
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                      <Text style={{ color: "#ffffff", fontFamily: "Inter", fontSize: fs(12), fontWeight: "600" }}>{p.name}</Text>
+                      <View style={[styles.sumBadge, isOver ? styles.sumError : (p.sum === 100 ? styles.sumOk : styles.sumWarn)]}>
+                        <Text style={[styles.sumBadgeText, { color: isOver ? "#ef4444" : (p.sum === 100 ? "#34d399" : "#fbbf24") }]}>
+                          {isOver ? `${p.sum}% EXCEEDS 100%` : (p.sum === 100 ? "100% Capped" : `${p.sum}% Allocated`)}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={{ height: 6, borderRadius: 3, flexDirection: "row", overflow: "hidden", backgroundColor: "rgba(255,255,255,0.05)" }}>
+                      {p.mf > 0 && <View style={{ flex: p.mf, backgroundColor: p.color }} />}
+                      {p.stock > 0 && <View style={{ flex: p.stock, backgroundColor: "#22d3ee" }} />}
+                      {unallocated > 0 && !isOver && <View style={{ flex: unallocated, backgroundColor: "transparent" }} />}
+                    </View>
+
+                    <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                      <Text style={{ color: p.color, fontSize: fs(10), fontFamily: "JetBrains Mono" }}>MF: {p.mf}%</Text>
+                      <Text style={{ color: "#22d3ee", fontSize: fs(10), fontFamily: "JetBrains Mono" }}>Stock: {p.stock}%</Text>
+                      <Text style={{ color: isOver ? "#ef4444" : "#888888", fontSize: fs(10), fontFamily: "JetBrains Mono" }}>
+                        {isOver ? `Over by ${p.sum - 100}%` : `Buffer: ${unallocated}%`}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
           </View>
 
 
@@ -477,8 +568,14 @@ export default function InvestmentSettingsScreen() {
           </View>
 
           {/* Action Save Button */}
-          <Pressable onPress={handleSave} disabled={saving} style={[styles.saveBtn, saving && styles.saveBtnDisabled]}>
-            <Text style={styles.saveBtnText}>{saving ? "Saving..." : "Save"}</Text>
+          <Pressable
+            onPress={handleSave}
+            disabled={saving || anyPhaseExceeded}
+            style={[styles.saveBtn, (saving || anyPhaseExceeded) && styles.saveBtnDisabled, anyPhaseExceeded && { backgroundColor: "#4b1b1b" }]}
+          >
+            <Text style={styles.saveBtnText}>
+              {saving ? "Saving..." : anyPhaseExceeded ? "Fix Phase Allocation (> 100%)" : "Save Settings"}
+            </Text>
           </Pressable>
         </KeyboardAwareScrollView>
       )}
@@ -515,6 +612,7 @@ const styles = StyleSheet.create({
   sumBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, borderWidth: 1 },
   sumOk: { backgroundColor: "rgba(52,211,153,0.15)", borderColor: "rgba(52,211,153,0.3)" },
   sumWarn: { backgroundColor: "rgba(251,191,36,0.15)", borderColor: "rgba(251,191,36,0.3)" },
+  sumError: { backgroundColor: "rgba(239,68,68,0.15)", borderColor: "rgba(239,68,68,0.4)" },
   sumBadgeText: { color: "#ffffff", fontFamily: "JetBrains Mono", fontSize: fs(11), fontWeight: "700" },
   gridTwo: { flexDirection: "row", gap: 10 },
   gridThree: { flexDirection: "row", gap: 8 },

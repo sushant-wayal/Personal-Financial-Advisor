@@ -104,7 +104,7 @@ model FinancialProfile {
   // Phase Investable Rates (0-100)
   crisisInvestableRate         Float    @default(0)
   efBuildingInvestableRate     Float    @default(15)
-  wealthBuildingInvestableRate Float    @default(100)
+  wealthBuildingInvestableRate Float    @default(60)
   goalSprintInvestableRate     Float    @default(40)
 
   // Standard Sub-Allocations (0-100)

@@ -47,7 +47,7 @@ export async function PUT(req: Request) {
             autoSalaryCycle: boolOr(body.autoSalaryCycle, true),
             crisisInvestableRate: numOr(body.crisisInvestableRate, 0),
             efBuildingInvestableRate: numOr(body.efBuildingInvestableRate, 15),
-            wealthBuildingInvestableRate: numOr(body.wealthBuildingInvestableRate, 100),
+            wealthBuildingInvestableRate: numOr(body.wealthBuildingInvestableRate, 60),
             goalSprintInvestableRate: numOr(body.goalSprintInvestableRate, 40),
             stdEquityPct: numOr(body.stdEquityPct, 70),
             stdDebtPct: numOr(body.stdDebtPct, 20),
@@ -64,6 +64,40 @@ export async function PUT(req: Request) {
             goalSprintStockRate: numOr(body.goalSprintStockRate, 25),
             stockCarryForwardPct: numOr(body.stockCarryForwardPct, 50),
         };
+
+        // Validate MF % + Stock % <= 100 for each phase
+        const phaseChecks = [
+            {
+                phase: "Wealth Building",
+                mf: investmentData.wealthBuildingInvestableRate,
+                stock: investmentData.wealthBuildingStockRate,
+            },
+            {
+                phase: "Goal Sprint",
+                mf: investmentData.goalSprintInvestableRate,
+                stock: investmentData.goalSprintStockRate,
+            },
+            {
+                phase: "EF Building",
+                mf: investmentData.efBuildingInvestableRate,
+                stock: investmentData.efBuildingStockRate,
+            },
+            {
+                phase: "Crisis",
+                mf: investmentData.crisisInvestableRate,
+                stock: investmentData.crisisStockRate,
+            },
+        ];
+
+        for (const p of phaseChecks) {
+            const sum = p.mf + p.stock;
+            if (sum > 100) {
+                return NextResponse.json({
+                    error: `${p.phase} phase total allocation (${p.mf}% MF + ${p.stock}% Stock = ${sum}%) cannot exceed 100% of surplus.`
+                }, { status: 400 });
+            }
+        }
+
 
 
         const existing = await prisma.financialProfile.findFirst();

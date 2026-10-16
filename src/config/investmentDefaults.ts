@@ -40,7 +40,7 @@ export const INVESTMENT_DEFAULTS: InvestmentDefaults = {
         CRISIS: 0,
         EF_BUILDING: 15,
         GOAL_SPRINT: 40,
-        WEALTH_BUILDING: 100,
+        WEALTH_BUILDING: 60,
     },
     stockPhaseRates: {
         CRISIS: 0,

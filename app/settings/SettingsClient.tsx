@@ -109,6 +109,12 @@ export default function SettingsClient() {
         fetch("/api/emergency-fund").then(r => r.json()).then(d => { if (d.ok) setEfStatus(d); }).catch(() => {});
     }, [profile?.emergencyFundMonths]);
 
+    const wbSum = Number(profile?.wealthBuildingInvestableRate ?? 60) + Number(profile?.wealthBuildingStockRate ?? 40);
+    const gsSum = Number(profile?.goalSprintInvestableRate ?? 40) + Number(profile?.goalSprintStockRate ?? 25);
+    const efSum = Number(profile?.efBuildingInvestableRate ?? 15) + Number(profile?.efBuildingStockRate ?? 10);
+    const crSum = Number(profile?.crisisInvestableRate ?? 0) + Number(profile?.crisisStockRate ?? 0);
+    const anyPhaseExceeded = wbSum > 100 || gsSum > 100 || efSum > 100 || crSum > 100;
+
     async function saveSenders() {
         setStatus("saving");
         setMessage("");
@@ -133,6 +139,23 @@ export default function SettingsClient() {
     }
 
     async function saveProfile() {
+        if (wbSum > 100) {
+            setMessage(`Wealth Building allocation (${wbSum}%) exceeds 100%. Please ensure MF % + Stock % <= 100%.`);
+            return;
+        }
+        if (gsSum > 100) {
+            setMessage(`Goal Sprint allocation (${gsSum}%) exceeds 100%. Please ensure MF % + Stock % <= 100%.`);
+            return;
+        }
+        if (efSum > 100) {
+            setMessage(`EF Building allocation (${efSum}%) exceeds 100%. Please ensure MF % + Stock % <= 100%.`);
+            return;
+        }
+        if (crSum > 100) {
+            setMessage(`Crisis phase allocation (${crSum}%) exceeds 100%. Please ensure MF % + Stock % <= 100%.`);
+            return;
+        }
+
         setSavingProfile(true);
         try {
             const res = await fetch("/api/profile", {
@@ -540,6 +563,56 @@ export default function SettingsClient() {
                                     </div>
                                 </div>
 
+                                {/* Phase Allocation Breakdown & Constraint Indicator */}
+                                <div className={`p-3 rounded-lg border ${anyPhaseExceeded ? "border-rose-500/40 bg-rose-500/5" : "border-emerald-500/20 bg-emerald-500/5"} space-y-2.5`}>
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-1.5">
+                                            <div className={`text-xs font-semibold ${anyPhaseExceeded ? "text-rose-400" : "text-emerald-400"}`}>
+                                                {anyPhaseExceeded ? "Constraint Violation: Allocation Exceeds 100%" : "Phase Surplus Distribution (MF + Stock <= 100%)"}
+                                            </div>
+                                        </div>
+                                        <span className={`text-[10px] font-mono px-2 py-0.5 rounded border ${anyPhaseExceeded ? "bg-rose-500/20 text-rose-300 border-rose-500/40" : "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"}`}>
+                                            {anyPhaseExceeded ? "Invalid Allocation" : "Valid Configuration"}
+                                        </span>
+                                    </div>
+                                    <div className="text-[11px] text-slate-400">
+                                        Each phase represents the % of monthly surplus allocated across Mutual Funds and Swing Trading. The combined total must not exceed 100%.
+                                    </div>
+
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                                        {[
+                                            { name: "Wealth Building", mf: Number(profile?.wealthBuildingInvestableRate ?? 60), stock: Number(profile?.wealthBuildingStockRate ?? 40), sum: wbSum, color: "text-emerald-400" },
+                                            { name: "Goal Sprint", mf: Number(profile?.goalSprintInvestableRate ?? 40), stock: Number(profile?.goalSprintStockRate ?? 25), sum: gsSum, color: "text-amber-400" },
+                                            { name: "EF Building", mf: Number(profile?.efBuildingInvestableRate ?? 15), stock: Number(profile?.efBuildingStockRate ?? 10), sum: efSum, color: "text-slate-300" },
+                                            { name: "Crisis Phase", mf: Number(profile?.crisisInvestableRate ?? 0), stock: Number(profile?.crisisStockRate ?? 0), sum: crSum, color: "text-rose-400" },
+                                        ].map((p) => {
+                                            const isOver = p.sum > 100;
+                                            const unallocated = Math.max(0, 100 - p.sum);
+                                            return (
+                                                <div key={p.name} className={`p-2 rounded bg-black/40 border ${isOver ? "border-rose-500/40" : "border-white/5"} space-y-1.5`}>
+                                                    <div className="flex items-center justify-between text-xs">
+                                                        <span className="font-medium text-slate-200">{p.name}</span>
+                                                        <span className={`font-mono text-[10px] px-1.5 py-0.5 rounded ${isOver ? "bg-rose-500/20 text-rose-400 font-bold" : p.sum === 100 ? "bg-emerald-500/20 text-emerald-400" : "bg-slate-800 text-slate-300"}`}>
+                                                            {isOver ? `${p.sum}% > 100%` : p.sum === 100 ? "100% Capped" : `${p.sum}% Allocated`}
+                                                        </span>
+                                                    </div>
+                                                    <div className="h-1.5 w-full bg-slate-800/80 rounded-full flex overflow-hidden">
+                                                        <div style={{ width: `${Math.min(100, p.mf)}%` }} className="bg-indigo-500 h-full" />
+                                                        <div style={{ width: `${Math.min(100 - p.mf, p.stock)}%` }} className="bg-cyan-400 h-full" />
+                                                    </div>
+                                                    <div className="flex justify-between text-[10px] font-mono text-slate-400">
+                                                        <span>MF: {p.mf}%</span>
+                                                        <span className="text-cyan-300">Stock: {p.stock}%</span>
+                                                        <span className={isOver ? "text-rose-400 font-bold" : "text-slate-500"}>
+                                                            {isOver ? `Over: +${p.sum - 100}%` : `Buffer: ${unallocated}%`}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
 
                                  {/* Standard Sub-Allocations */}
                                 <div className="space-y-3 pt-3 border-t border-white/5">
@@ -657,8 +730,12 @@ export default function SettingsClient() {
                             </div>
 
                             <div className="flex gap-2 pt-2">
-                                <Button onClick={saveProfile} disabled={savingProfile} className="flex-1 rounded-lg">
-                                    {savingProfile ? "Saving..." : "Save"}
+                                <Button
+                                    onClick={saveProfile}
+                                    disabled={savingProfile || anyPhaseExceeded}
+                                    className={`flex-1 rounded-lg ${anyPhaseExceeded ? "bg-rose-900/60 hover:bg-rose-900/60 text-rose-200 cursor-not-allowed" : ""}`}
+                                >
+                                    {savingProfile ? "Saving..." : anyPhaseExceeded ? "Fix Allocation (> 100%)" : "Save"}
                                 </Button>
                                 <Button
                                     variant="outline"
