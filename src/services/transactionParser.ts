@@ -60,7 +60,7 @@ const monthNumbers: Record<string, number> = {
     december: 12,
 };
 
-const merchantAcronyms = new Set(["upi", "vpa", "atm", "lic", "pvr", "inox"]);
+const merchantAcronyms = new Set(["upi", "vpa", "atm", "lic", "pvr", "inox", "hdfc", "icici", "sbi"]);
 
 const noiseWords = new Set([
     "dear",
@@ -137,8 +137,8 @@ function cleanMerchantCandidate(
             .replace(/\b(?:on|dated?|at)\s+\d{1,2}[\s\-/]\d{1,2}[\s\-/]\d{2,4}.*$/i, "")
             .replace(/\b(?:ref|txn|transaction|utr|rrn|available balance|avl bal|if not done by you)\b.*$/i, "")
             .replace(/\b(?:via|using|through|by)\s+(?:upi|vpa|card|netbanking|net banking|paytm|phonepe|gpay|google pay)\b.*$/i, "")
-            .replace(/\b(?:from|to)?\s*(?:vpa|upi id)\s+[a-z0-9._-]+@[a-z0-9._-]+\b/ig, " ")
-            .replace(/\b[a-z0-9._-]+@[a-z0-9._-]+\b/ig, " ");
+            .replace(/(?:^|\s)(?:from|to)?\s*(?:vpa|upi id\s*[:\-]?\s*)?[*a-z0-9._+-]+@[a-z0-9._-]+(?=\s|$)/ig, " ")
+            .replace(/[*a-z0-9._+-]+@[a-z0-9._-]+/ig, " ");
     }
 
     value = value
@@ -164,7 +164,16 @@ function cleanMerchantCandidate(
         .join(" ")
         .trim();
 
-    if (!value) return undefined;
+    if (!value) {
+        const vpaMatch = normalizeText(candidate).match(/([*a-z0-9._+-]+)@[a-z0-9._-]+/i);
+        if (vpaMatch?.[1]) {
+            const handleUser = vpaMatch[1].replace(/[*0-9_.-]/g, " ").trim();
+            if (handleUser.length >= 3 && /[a-z]/i.test(handleUser)) {
+                return titleCase(handleUser);
+            }
+        }
+        return undefined;
+    }
 
     if (!options?.structuredField && isInfrastructureName(value)) {
         return undefined;
@@ -174,8 +183,10 @@ function cleanMerchantCandidate(
 }
 
 function merchantFromStructuredDetails(text: string) {
-    console.log("Attempting structured merchant extraction from:", text);
     const labels = [
+        "Paid To",
+        "Transfer To",
+        "Sent To",
         "Sender",
         "Merchant",
         "Receiver",
@@ -197,14 +208,9 @@ function merchantFromStructuredDetails(text: string) {
 
         let endIndex = remaining.length;
 
-        const vpaIndex = remaining.search(/\(\s*VPA\s*:/i);
-        if (vpaIndex !== -1) {
-            endIndex = Math.min(endIndex, vpaIndex);
-        }
-
-        const refIndex = remaining.search(/\bUPI\s+Reference\b/i);
-        if (refIndex !== -1) {
-            endIndex = Math.min(endIndex, refIndex);
+        const stopIndex = remaining.search(/\b(?:important note|please note|note:|upi\s+reference|ref\b|txn\b|transaction\b|utr\b|date\b|amount\b|from\s+account)\b|\(\s*vpa\s*:/i);
+        if (stopIndex !== -1) {
+            endIndex = Math.min(endIndex, stopIndex);
         }
 
         const rawMerchant = remaining
@@ -239,6 +245,15 @@ function extractMerchant(text: string, rawText?: string) {
         };
     }
 
+    const vpaMerchant = merchantFromVpaContext(text);
+
+    if (vpaMerchant) {
+        return {
+            merchant: vpaMerchant,
+            confidence: 0.85,
+        };
+    }
+
     const directPatterns = [
         /\b(?:paid|sent|payment made|payment|debited|credited)\s+(?:to|from|at)\s+([A-Za-z0-9&.' -]{2,80}?)(?=\s+\b(?:via|using|through|on|ref|txn|utr|rrn|for|from account|to account)\b|$)/i,
 
@@ -258,15 +273,6 @@ function extractMerchant(text: string, rawText?: string) {
                 confidence: 0.78,
             };
         }
-    }
-
-    const vpaMerchant = merchantFromVpaContext(text);
-
-    if (vpaMerchant) {
-        return {
-            merchant: vpaMerchant,
-            confidence: 0.7,
-        };
     }
 
     const dictMerchant = merchantFromDictionary(text);
@@ -300,7 +306,7 @@ function extractBankName(text: string) {
 }
 
 function extractPaymentMethod(text: string) {
-    if (/\bupi\b|\bvpa\b|@[a-z0-9._-]+\b/i.test(text)) return "UPI";
+    if (/\bupi\b|\bvpa\b|[*a-z0-9._+-]+@[a-z0-9._-]+\b/i.test(text)) return "UPI";
     if (/\b(?:credit|debit)\s+card\b|\bcard\b/i.test(text)) return "Card";
     if (/\bimps\b/i.test(text)) return "IMPS";
     if (/\bneft\b/i.test(text)) return "NEFT";
@@ -403,8 +409,8 @@ function merchantFromDictionary(text: string) {
 
 function merchantFromVpaContext(text: string) {
     const patterns = [
-        /\b(?:to|towards|by|from)\s+vpa\s+[a-z0-9._-]+@[a-z0-9._-]+\s*\(([^)]{2,80})\)/i,
-        /\b(?:to|towards|by|from)\s+vpa\s+[a-z0-9._-]+@[a-z0-9._-]+\s+([A-Za-z][A-Za-z0-9&.' -]{2,60}?)(?=\s+\b(?:on|ref|txn|utr|rrn|if not done|available balance)\b|$)/i,
+        /(?:(?:to|towards|by|from)\s+)?(?:vpa\s*[:\-]?\s*)?[*a-z0-9._+-]+@[a-z0-9._-]+\s*\(([^)]{2,80})\)/i,
+        /\b(?:to|towards|by|from)\s+(?:vpa\s*[:\-]?\s*)?[*a-z0-9._+-]+@[a-z0-9._-]+\s+([A-Za-z][A-Za-z0-9&.' -]{2,60}?)(?=\s+\b(?:on|ref|txn|utr|rrn|if not done|available balance)\b|$)/i,
         /\b(?:to|towards|by|from)\s+([A-Za-z][A-Za-z0-9&.' -]{2,60}?)\s+(?:via|through|using)\s+(?:upi|vpa)\b/i,
     ];
     for (const pattern of patterns) {
@@ -416,7 +422,6 @@ function merchantFromVpaContext(text: string) {
 }
 
 export function deterministicParse(raw: string, fallbackTimestamp?: string | Date): ParseResult {
-    console.log("Parsing transaction text:", raw);
     const text = normalizeText(raw);
     const amount = extractAmount(text);
     const extractedTimestamp = extractTimestamp(text);
