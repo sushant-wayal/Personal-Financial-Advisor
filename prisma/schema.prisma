@@ -695,3 +695,147 @@ model StockPortfolioRiskSnapshot {
 
   @@index([snapshotAt])
 }
+
+/// Mainboard and SME IPO listings tracked by the engine
+model IpoListing {
+  id                  String   @id @default(cuid())
+  companyName         String
+  symbol              String   @unique
+  exchange            String   @default("NSE") // NSE, BSE, BOTH
+  issueType           String   @default("MAINBOARD") // MAINBOARD, SME
+
+  // Timeline dates (in IST)
+  openDate            DateTime @db.Date
+  closeDate           DateTime @db.Date
+  allotmentDate       DateTime? @db.Date
+  refundsDate         DateTime? @db.Date
+  dematCreditDate     DateTime? @db.Date
+  listingDate         DateTime? @db.Date
+
+  // Issue Pricing and Sizing
+  priceFloor          Float
+  priceCap            Float
+  lotSize             Int
+  minInvestment       Float    // priceCap * lotSize
+  issueSizeCr         Float    // In INR Crores
+  freshIssueCr        Float    @default(0)
+  ofsCr               Float    @default(0)
+
+  // Live / Latest Demand & Sentiment
+  gmpAmount           Float    @default(0)
+  gmpPercent          Float    @default(0) // (gmpAmount / priceCap) * 100
+  gmpTrend            String   @default("STABLE") // RISING, STABLE, FALLING
+  qibSub              Float    @default(0) // Subscription multiple (e.g., 14.5x)
+  niiSub              Float    @default(0)
+  retailSub           Float    @default(0)
+  totalSub            Float    @default(0)
+
+  // Financial & Valuation Metrics
+  peRatio             Float?
+  industryPe          Float?
+  revenueGrowthPct    Float?   // 3-year CAGR
+  patMarginPct        Float?
+  ronwPct             Float?
+  debtToEquity        Float?
+
+  // Status and Meta
+  status              String   @default("UPCOMING") // UPCOMING, OPEN, CLOSED, ALLOTTED, LISTED
+  listingPrice        Float?   // Actual price on listing day
+  listingGainPct      Float?   // Actual listing day return %
+  rhpUrl              String?  // Link to Red Herring Prospectus PDF
+  summaryThesis       String?  // Business overview & industry position
+  keyRisks            String   @default("[]") // JSON array of prospect risks
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  recommendationItems IpoRecommendationItem[]
+  applications        IpoApplicationRecord[]
+
+  @@index([status])
+  @@index([openDate, closeDate])
+}
+
+/// Daily IPO recommendation execution record (one per session date)
+model IpoRecommendationRun {
+  id                   String   @id @default(cuid())
+  sessionDate          DateTime @db.Date @unique
+  marketRegime         String   // Passed from stock regime (BULLISH, NEUTRAL, etc.)
+  totalOpenIpos        Int      @default(0)
+  bestIpoSymbol        String?  // Symbol of the #1 Best Pick to Apply Today
+  bestIpoVerdict       String?  // STRONG_APPLY, AVOID_ALL, etc.
+  aiSynthesis          String?  // Overall daily IPO market commentary by Gemini
+  status               String   @default("COMPLETE")
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  items                IpoRecommendationItem[]
+
+  @@index([sessionDate])
+}
+
+/// Individual IPO recommendation details within a daily run
+model IpoRecommendationItem {
+  id                   String   @id @default(cuid())
+  runId                String
+  run                  IpoRecommendationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  ipoId                String
+  ipo                  IpoListing @relation(fields: [ipoId], references: [id], onDelete: Cascade)
+  symbol               String
+
+  isBestPick           Boolean  @default(false)
+  score                Float    // 0 to 100 composite score
+  verdict              String   // STRONG_APPLY, APPLY, NEUTRAL, AVOID
+  strategy             String   // LISTING_GAINS, LONG_TERM, AVOID
+  expectedListingGain  Float    // Expected percentage gain
+
+  // Component sub-scores
+  demandScore          Float
+  gmpScore             Float
+  valuationScore       Float
+  issueQualityScore    Float
+
+  // Sizing & Action details
+  recommendedLots      Int      @default(1)
+  recommendedBidPrice  Float    // Cut-off price
+  requiredCapital      Float    // priceCap * recommendedLots
+  userCanAfford        Boolean  @default(true)
+
+  // Qualitative AI audit
+  reasonsFor           String   @default("[]") // JSON array
+  reasonsAgainst       String   @default("[]") // JSON array
+  aiThesis             String?
+
+  createdAt            DateTime @default(now())
+
+  @@index([runId])
+  @@index([ipoId])
+}
+
+/// User's tracked IPO applications (Virtual / Paper or Real tracking)
+model IpoApplicationRecord {
+  id                   String   @id @default(cuid())
+  ipoId                String
+  ipo                  IpoListing @relation(fields: [ipoId], references: [id], onDelete: Cascade)
+  symbol               String
+  lotsApplied          Int      @default(1)
+  bidPrice             Float
+  totalAmountBlocked   Float
+  upiIdUsed            String?
+  applicationNumber    String?
+  applicationDate      DateTime @default(now())
+
+  // Status workflow
+  status               String   @default("APPLIED") // APPLIED, ALLOTTED, NOT_ALLOTTED, WITHDRAWN
+  lotsAllotted         Int      @default(0)
+  listingExitPrice     Float?
+  realizedPnl          Float?
+  notes                String?
+
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([ipoId])
+  @@index([status])
+}
+
