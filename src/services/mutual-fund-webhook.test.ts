@@ -1,9 +1,117 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { ingestMutualFundDepositoryAlert } from "./mutual-fund-webhook.service";
 import { prisma } from "../lib/prisma";
 
+interface MockFundRecord {
+    id: string;
+    schemeName: string;
+    schemeCode: string | null;
+    isin: string;
+    planType: string;
+    option: string;
+    currentUnits: number;
+    currentNav: number | null;
+    currentWorth: number | null;
+    setupDate: Date;
+    processedMessageIds: string[];
+}
+
+let mockFunds: MockFundRecord[] = [];
+
+vi.mock("./amfi-service", () => ({
+    resolveMutualFundByIsin: vi.fn().mockResolvedValue(null)
+}));
+
+vi.mock("../lib/prisma", () => ({
+    prisma: {
+        mutualFund: {
+            deleteMany: vi.fn().mockImplementation((args?: { where?: { isin?: { in?: string[] } } }) => {
+                const targetIsins = args?.where?.isin?.in;
+                if (targetIsins) {
+                    mockFunds = mockFunds.filter(f => !targetIsins.includes(f.isin));
+                } else {
+                    mockFunds = [];
+                }
+                return Promise.resolve({ count: mockFunds.length });
+            }),
+            findFirst: vi.fn().mockImplementation((args?: { where?: { isin?: string; OR?: Array<{ processedMessageIds?: { has?: string }; isin?: string; schemeCode?: string; schemeName?: { equals?: string } }> } }) => {
+                const where = args?.where;
+                if (!where) return Promise.resolve(mockFunds[0] || null);
+
+                const found = mockFunds.find(fund => {
+                    // Deduplication check
+                    if (where.isin && where.OR) {
+                        const isinMatch = fund.isin === where.isin;
+                        const orMatch = where.OR.some(clause => {
+                            if (clause.processedMessageIds?.has) {
+                                return fund.processedMessageIds.includes(clause.processedMessageIds.has);
+                            }
+                            return false;
+                        });
+                        return isinMatch && orMatch;
+                    }
+
+                    // Existing fund check
+                    if (where.OR) {
+                        return where.OR.some(clause => {
+                            if (clause.isin && fund.isin === clause.isin) return true;
+                            if (clause.schemeCode && fund.schemeCode === clause.schemeCode) return true;
+                            if (clause.schemeName?.equals && fund.schemeName.toLowerCase() === clause.schemeName.equals.toLowerCase()) return true;
+                            return false;
+                        });
+                    }
+
+                    if (where.isin) {
+                        return fund.isin === where.isin;
+                    }
+
+                    return false;
+                });
+
+                return Promise.resolve(found || null);
+            }),
+            findMany: vi.fn().mockImplementation((args?: { where?: { isin?: { in?: string[] } } }) => {
+                const targetIsins = args?.where?.isin?.in;
+                if (targetIsins) {
+                    return Promise.resolve(mockFunds.filter(f => targetIsins.includes(f.isin)));
+                }
+                return Promise.resolve([...mockFunds]);
+            }),
+            create: vi.fn().mockImplementation((args: { data: Omit<MockFundRecord, "id"> }) => {
+                const record: MockFundRecord = {
+                    id: `fund_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+                    schemeName: args.data.schemeName,
+                    schemeCode: args.data.schemeCode ?? null,
+                    isin: args.data.isin,
+                    planType: args.data.planType ?? "DIRECT",
+                    option: args.data.option ?? "GROWTH",
+                    currentUnits: args.data.currentUnits,
+                    currentNav: args.data.currentNav ?? null,
+                    currentWorth: args.data.currentWorth ?? null,
+                    setupDate: args.data.setupDate || new Date(),
+                    processedMessageIds: args.data.processedMessageIds || []
+                };
+                mockFunds.push(record);
+                return Promise.resolve(record);
+            }),
+            update: vi.fn().mockImplementation((args: { where: { id: string }; data: Partial<MockFundRecord> }) => {
+                const idx = mockFunds.findIndex(f => f.id === args.where.id);
+                if (idx !== -1) {
+                    mockFunds[idx] = {
+                        ...mockFunds[idx],
+                        ...args.data,
+                    };
+                    return Promise.resolve(mockFunds[idx]);
+                }
+                return Promise.resolve(null);
+            }),
+        }
+    }
+}));
+
 describe("Mutual Fund Depository Ingestion", () => {
     beforeEach(async () => {
+        mockFunds = [];
         // Clean up mock test mutual funds only
         await prisma.mutualFund.deleteMany({
             where: {
@@ -13,6 +121,7 @@ describe("Mutual Fund Depository Ingestion", () => {
     });
 
     afterEach(async () => {
+        mockFunds = [];
         // Clean up mock test mutual funds only
         await prisma.mutualFund.deleteMany({
             where: {
