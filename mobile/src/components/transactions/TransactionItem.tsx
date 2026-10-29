@@ -2,6 +2,7 @@ import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import type { Transaction } from "../../types/transaction";
+import { formatRelativeTime } from "../../lib/relativeTime";
 
 type TransactionItemProps = {
   item: Transaction;
@@ -9,7 +10,7 @@ type TransactionItemProps = {
   selected: boolean;
   currencySymbol: string;
   isCredit: boolean;
-  dateStr: string;
+  dateStr?: string;
   onPress: () => void;
   onLongPress: () => void;
 };
@@ -28,6 +29,7 @@ export function TransactionItem({
   const category = item.category?.name ?? "";
   const method = item.paymentMethod ?? item.transactionType ?? "";
   const bank = item.bankName ?? "";
+  const relativeDate = dateStr ?? formatRelativeTime(item.timestamp);
 
   return (
     <Pressable
@@ -46,7 +48,6 @@ export function TransactionItem({
         <View style={styles.rowTop}>
           <View style={styles.rowTitleGroup}>
             <Text style={styles.merchant} numberOfLines={1}>{merchant}</Text>
-            <Text style={styles.date}>{dateStr}</Text>
           </View>
           <Text style={[styles.amount, isCredit ? styles.credit : styles.debit]} numberOfLines={1}>
             {isCredit ? "+" : "-"}{currencySymbol}{Math.abs(item.amount ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -74,6 +75,8 @@ export function TransactionItem({
             </View>
           ) : null}
         </View>
+
+        <Text style={styles.date}>{relativeDate}</Text>
       </View>
     </Pressable>
   );
@@ -115,7 +118,7 @@ const styles = StyleSheet.create({
   date: {
     fontSize: 12,
     color: "#8e9192",
-    marginTop: 2,
+    marginTop: 4,
   },
   amount: {
     fontSize: 15,

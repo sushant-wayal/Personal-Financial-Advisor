@@ -24,6 +24,7 @@ import { getCurrencySymbol, useCurrency, formatIndianAmountInput, parseIndianAmo
 import { API_BASE_URL } from "../lib/apiBaseUrl";
 import { beginHorizontalScroll, endHorizontalScroll, updateHorizontalScroll } from "../lib/horizontalScrollPriority";
 import { clearClientCache, fetchCachedValue, setClientCache } from "../lib/clientCache";
+import { formatRelativeTime } from "../lib/relativeTime";
 import { ConfirmModal } from "../components/ConfirmModal";
 
 type Transaction = {
@@ -1029,7 +1030,7 @@ export default function TransactionsScreen() {
 
   const renderItem = ({ item }: { item: Transaction }) => {
     const merchant = item.merchant ?? "Unknown";
-    const date = formatDate(item.timestamp);
+    const date = formatRelativeTime(item.timestamp);
     const category = item.category?.name ?? "";
     const method = item.paymentMethod ?? item.transactionType ?? "";
     const bank = item.bankName ?? "";
@@ -1053,7 +1054,6 @@ export default function TransactionsScreen() {
           <View style={styles.rowTop}>
             <View style={styles.rowTitleGroup}>
               <Text style={styles.merchant} numberOfLines={1}>{merchant}</Text>
-              <Text style={styles.date}>{date}</Text>
             </View>
             <Text style={[styles.amount, isCredit ? styles.credit : styles.debit]} numberOfLines={1}>
               {isCredit ? "+" : "-"}{currencySymbol}{Math.abs(item.amount ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -1081,6 +1081,8 @@ export default function TransactionsScreen() {
               </View>
             ) : null}
           </View>
+
+          <Text style={styles.date}>{date}</Text>
         </View>
       </Pressable>
     );
