@@ -45,8 +45,8 @@ export async function runDailyProactiveIntelligence(options?: {
     console.info(`[proactiveIntelligence] Stock market closed today (${tradingDayCheck.reason}). Skipping stock pre-computation.`);
   }
 
-  // 3. Pre-calculate IPO Intelligence Recommendations
-  const ipoRun = await generateDailyIpoRecommendations({ forceRerun: true });
+  // 3. Pre-calculate IPO Intelligence Recommendations (obeys daily session run)
+  const ipoRun = await generateDailyIpoRecommendations();
   const bestIpo = ipoRun.bestPick;
 
   // 4. Pre-calculate / Refresh Monthly Investment Suggestion & Stock Credit Pool

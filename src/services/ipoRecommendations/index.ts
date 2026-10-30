@@ -29,6 +29,17 @@ import { detectMarketRegime } from "../stockAnalysis/regime";
 import { calculateCapitalAllocation } from "../stockRisk";
 import { generateAiIpoBriefing } from "./aiIpoAdvisor";
 
+/**
+ * Generates or retrieves today's single daily IPO recommendation run.
+ *
+ * Daily Run Policy (Identical to Secondary Stock Engine):
+ * 1. At most one recommendation plan per calendar day (keyed to Indian Standard Time date).
+ * 2. Runs DAILY (365 days a year, including weekends and exchange holidays) because primary market
+ *    offerings, GMP movements, and bidding schedules span calendar timelines.
+ * 3. Once generated for the day, subsequent queries obey and re-serve the persisted daily run.
+ * 4. If an IPO application has been recorded for today, the session is locked to prevent shifting
+ *    recommendations after user action.
+ */
 export async function generateDailyIpoRecommendations(options?: {
   forceRerun?: boolean;
 }): Promise<IpoRunResult> {
@@ -36,18 +47,31 @@ export async function generateDailyIpoRecommendations(options?: {
   const sessionDateStr = formatIstDateStr(now);
   const sessionDateObj = normalizeDate(sessionDateStr);
 
-  // If already run for today and not forced, return cached run
-  if (!options?.forceRerun) {
-    const existingRun = await prisma.ipoRecommendationRun.findUnique({
-      where: { sessionDate: sessionDateObj },
-      include: {
-        items: {
-          include: { ipo: true },
+  // Check if a run already exists for today's session date
+  const existingRun = await prisma.ipoRecommendationRun.findUnique({
+    where: { sessionDate: sessionDateObj },
+    include: {
+      items: {
+        include: { ipo: true },
+      },
+    },
+  });
+
+  if (existingRun) {
+    const todayStart = new Date(`${sessionDateStr}T00:00:00.000+05:30`);
+    const todayEnd = new Date(`${sessionDateStr}T23:59:59.999+05:30`);
+    const hasTodayApplications = await prisma.ipoApplicationRecord.count({
+      where: {
+        applicationDate: {
+          gte: todayStart,
+          lte: todayEnd,
         },
       },
     });
 
-    if (existingRun) {
+    // If applications exist for today, lock and re-serve existing run.
+    // If no applications exist and forceRerun is false, obey existing daily run.
+    if (hasTodayApplications > 0 || !options?.forceRerun) {
       return formatPersistedIpoRun(existingRun);
     }
   }
@@ -256,7 +280,7 @@ export async function generateDailyIpoRecommendations(options?: {
   };
 }
 
-async function formatPersistedIpoRun(run: any): Promise<IpoRunResult> {
+export async function formatPersistedIpoRun(run: any): Promise<IpoRunResult> {
   const sessionDateStr = run.sessionDate.toISOString().slice(0, 10);
   const [upcomingIpos, closedIpos] = await Promise.all([
     getUpcomingIpos(run.sessionDate),

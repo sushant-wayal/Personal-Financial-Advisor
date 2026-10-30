@@ -1372,3 +1372,15 @@ The frontend interface strictly focuses on two core views:
 2. **Safeguards**: Capital allocation, binding risk constraints, drawdown throttling, and financial phase protection.
 
 Detailed re-evaluation checklist and audit criteria are documented in [`docs/stock-sandbox-and-backtesting-reevaluation.md`](docs/stock-sandbox-and-backtesting-reevaluation.md).
+
+
+---
+
+## 17. DAILY RUN CADENCE & CALENDAR POLICY: STOCKS VS. IPOS
+
+| Attribute | Secondary Stock Intelligence | Primary Market IPO Intelligence |
+|---|---|---|
+| **Max Runs per Day** | **At most 1 run per calendar day** (IST). Throughout the day, the engine obeys and re-serves the day's generated recommendations. | **At most 1 run per calendar day** (IST). Throughout the day, the engine obeys and re-serves the day's generated recommendations. |
+| **Operating Schedule** | **Exchange Trading Days Only** (Monday–Friday, non-exchange holidays). Skips running on weekends and NSE market holidays. | **365 Days a Year (Daily)**. Operates on calendar days (including weekends and exchange holidays) because IPO bidding, status updates, GMP tracking, and SEBI filings span calendar dates. |
+| **Session Locking** | Locked when any candidate trade is marked as `INVESTED`. Forced reruns are prevented to protect execution discipline. | Locked when any IPO application is tracked for today (`IpoApplicationRecord`). Forced reruns are prevented to prevent shifting suggestions after user action. |
+| **Pre-Computation** | `runDailyProactiveIntelligence()` triggers pre-computation on trading mornings. | `runDailyProactiveIntelligence()` and daily cron trigger morning sync everyday (365 days/year). |

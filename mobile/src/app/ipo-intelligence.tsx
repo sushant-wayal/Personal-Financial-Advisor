@@ -89,12 +89,19 @@ export default function IpoIntelligenceScreen() {
   const handleRefreshPipeline = async () => {
     setActionLoading(true);
     try {
-      await safeFetchJson(apiUrl("/api/ipo-intelligence/run"), {
+      const res = await safeFetchJson(apiUrl("/api/ipo-intelligence/run"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ forceRerun: true }),
       });
-      showSuccess("Analysis Complete", "Today's IPO recommendations updated!");
+      if (res?.isSessionLocked) {
+        showSuccess(
+          "Session Locked",
+          res.message || "Today's IPO recommendations are locked because an application was tracked.",
+        );
+      } else {
+        showSuccess("Analysis Complete", "Today's IPO recommendations updated!");
+      }
       loadData();
     } catch (e: any) {
       showError("Analysis Error", e.message || String(e));

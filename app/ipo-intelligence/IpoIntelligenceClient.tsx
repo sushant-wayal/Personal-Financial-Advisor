@@ -140,6 +140,7 @@ export default function IpoIntelligenceClient() {
   const [lotCount, setLotCount] = useState(1);
   const [upiId, setUpiId] = useState("");
   const [applySuccessMsg, setApplySuccessMsg] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<{ type: "success" | "error" | "info"; text: string } | null>(null);
 
   // 1. Fetch Today's Recommendation Run
   const { data: recData, isFetching: recFetching, isLoading: recLoading } = useQuery<{
@@ -178,9 +179,23 @@ export default function IpoIntelligenceClient() {
       if (!res.ok) throw new Error("Failed to execute IPO recommendation pipeline");
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data: { ok?: boolean; isSessionLocked?: boolean; message?: string }) => {
+      if (data?.isSessionLocked) {
+        setStatusMessage({
+          type: "info",
+          text: data.message || "Today's IPO recommendation plan is active with submitted applications. Daily session plan is locked to prevent changing suggestions.",
+        });
+      } else {
+        setStatusMessage({ type: "success", text: "Daily IPO recommendation pipeline completed successfully!" });
+      }
       void queryClient.invalidateQueries({ queryKey: ["ipo-recommendations"] });
       void queryClient.invalidateQueries({ queryKey: ["ipo-applications"] });
+      setTimeout(() => setStatusMessage(null), 5000);
+    },
+    onError: (err: unknown) => {
+      const msg = err instanceof Error ? err.message : "Error executing pipeline";
+      setStatusMessage({ type: "error", text: msg });
+      setTimeout(() => setStatusMessage(null), 6000);
     },
   });
 
@@ -217,6 +232,28 @@ export default function IpoIntelligenceClient() {
 
   return (
     <div className="flex-1 space-y-6 p-4 md:p-8 pt-6 pb-24 max-w-7xl mx-auto">
+      {/* Top Banner Status Notification */}
+      {statusMessage && (
+        <div
+          className={`flex items-center gap-3 rounded-xl border p-4 text-sm backdrop-blur transition-all ${
+            statusMessage.type === "success"
+              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+              : statusMessage.type === "error"
+                ? "border-rose-500/30 bg-rose-500/10 text-rose-300"
+                : "border-cyan-500/30 bg-cyan-500/10 text-cyan-300"
+          }`}
+        >
+          {statusMessage.type === "success" ? (
+            <CheckCircle2 className="h-5 w-5 shrink-0" />
+          ) : statusMessage.type === "error" ? (
+            <AlertTriangle className="h-5 w-5 shrink-0" />
+          ) : (
+            <Info className="h-5 w-5 shrink-0" />
+          )}
+          <span>{statusMessage.text}</span>
+        </div>
+      )}
+
       {/* Top Header & Session Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border/40 pb-5">
         <div>

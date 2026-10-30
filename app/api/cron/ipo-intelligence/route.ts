@@ -14,9 +14,12 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    console.info("[cron] Starting North IPO Intelligence daily morning sync...");
+    // Note: IPO pipeline runs daily (365 days a year, including exchange holidays and weekends)
+    // because primary market listings, subscription windows, and GMP movements span calendar days.
+    console.info("[cron] Starting North IPO Intelligence daily morning sync (365 days/year)...");
 
     await ensureSeedIpos();
+    // Generates today's initial recommendation run (safe against overwriting active applied sessions)
     const run = await generateDailyIpoRecommendations({ forceRerun: true });
 
     console.info(
