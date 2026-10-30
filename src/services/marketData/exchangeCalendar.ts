@@ -175,3 +175,4 @@ export function isStockTradingDay(date: Date = new Date()): {
 
   return { isTradingDay: true, dateStr };
 }
+

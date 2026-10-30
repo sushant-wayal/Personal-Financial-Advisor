@@ -94,3 +94,4 @@ describe("Exchange Calendar — NSE/BSE Trading Days & Holidays", () => {
     expect(getExchangeDayOfWeek(lateUtc)).toBe(6); // Saturday in IST
   });
 });
+
