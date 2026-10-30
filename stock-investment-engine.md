@@ -1359,3 +1359,16 @@ FINAL PRIORITY ORDER:
 8. Additional sophistication.
 
 Implement North Stock Intelligence according to this specification, extending the existing North application without breaking its current behavior.
+
+---
+
+## 16. FRONTEND VISIBILITY STATUS (SANDBOX & BACKTEST)
+
+**Status as of October 2026**:
+The Paper Trading Sandbox and Historical Strategy Backtester tabs have been temporarily hidden from the user-facing frontend (both Web and Mobile) while preserving all underlying domain services and API endpoints. 
+
+The frontend interface strictly focuses on two core views:
+1. **Signals**: Actionable daily swing trade setups (BUY, HOLD, SELL) with whole-share sizing, ATR stop loss, target prices, and live trade tracking.
+2. **Safeguards**: Capital allocation, binding risk constraints, drawdown throttling, and financial phase protection.
+
+Detailed re-evaluation checklist and audit criteria are documented in [`docs/stock-sandbox-and-backtesting-reevaluation.md`](docs/stock-sandbox-and-backtesting-reevaluation.md).

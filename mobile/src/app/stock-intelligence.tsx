@@ -20,6 +20,13 @@ import { useAlert } from "../providers/AlertProvider";
 import { InvestmentsSkeleton } from "../components/LoadingSkeleton";
 import Markdown from "react-native-markdown-display";
 
+/**
+ * Feature flag for experimental Paper Trading Sandbox and Historical Backtesting tabs.
+ * Kept disabled from frontend pending architectural and accuracy re-evaluation.
+ * Backend services and endpoints remain active.
+ */
+const SHOW_EXPERIMENTAL_TABS = false;
+
 function calculateStockCharges(tradeValue: number) {
   if (!tradeValue || tradeValue <= 0) {
     return {
@@ -499,14 +506,16 @@ export default function StockIntelligenceScreen() {
             </Text>
           </Pressable>
 
-          <Pressable
-            onPress={() => setActiveTab("paper")}
-            style={[styles.tabButton, activeTab === "paper" && styles.tabButtonActive]}
-          >
-            <Text style={[styles.tabButtonText, activeTab === "paper" && styles.tabButtonTextActive]}>
-              Sandbox ({paperData?.positions?.length ?? 0})
-            </Text>
-          </Pressable>
+          {SHOW_EXPERIMENTAL_TABS && (
+            <Pressable
+              onPress={() => setActiveTab("paper")}
+              style={[styles.tabButton, activeTab === "paper" && styles.tabButtonActive]}
+            >
+              <Text style={[styles.tabButtonText, activeTab === "paper" && styles.tabButtonTextActive]}>
+                Sandbox ({paperData?.positions?.length ?? 0})
+              </Text>
+            </Pressable>
+          )}
 
           <Pressable
             onPress={() => setActiveTab("risk")}
@@ -517,14 +526,16 @@ export default function StockIntelligenceScreen() {
             </Text>
           </Pressable>
 
-          <Pressable
-            onPress={() => setActiveTab("backtest")}
-            style={[styles.tabButton, activeTab === "backtest" && styles.tabButtonActive]}
-          >
-            <Text style={[styles.tabButtonText, activeTab === "backtest" && styles.tabButtonTextActive]}>
-              Backtest
-            </Text>
-          </Pressable>
+          {SHOW_EXPERIMENTAL_TABS && (
+            <Pressable
+              onPress={() => setActiveTab("backtest")}
+              style={[styles.tabButton, activeTab === "backtest" && styles.tabButtonActive]}
+            >
+              <Text style={[styles.tabButtonText, activeTab === "backtest" && styles.tabButtonTextActive]}>
+                Backtest
+              </Text>
+            </Pressable>
+          )}
         </View>
 
         {/* ─── TAB 1: RECOMMENDATIONS ─── */}
@@ -658,14 +669,16 @@ export default function StockIntelligenceScreen() {
                       </Pressable>
                     )}
 
-                    <Pressable
-                      onPress={() => handlePaperBuy(buy)}
-                      disabled={actionLoading}
-                      style={({ pressed }) => [styles.simulateBtn, { flex: 1, marginTop: 0 }, pressed ? { opacity: 0.7 } : null]}
-                    >
-                      <MaterialIcons name="play-arrow" size={16} color="#06b6d4" />
-                      <Text style={styles.simulateBtnText}>Simulate</Text>
-                    </Pressable>
+                    {SHOW_EXPERIMENTAL_TABS && (
+                      <Pressable
+                        onPress={() => handlePaperBuy(buy)}
+                        disabled={actionLoading}
+                        style={({ pressed }) => [styles.simulateBtn, { flex: 1, marginTop: 0 }, pressed ? { opacity: 0.7 } : null]}
+                      >
+                        <MaterialIcons name="play-arrow" size={16} color="#06b6d4" />
+                        <Text style={styles.simulateBtnText}>Simulate</Text>
+                      </Pressable>
+                    )}
                   </View>
                 </View>
               ))
@@ -715,7 +728,7 @@ export default function StockIntelligenceScreen() {
         )}
 
         {/* ─── TAB 2: PAPER TRADING SANDBOX ─── */}
-        {activeTab === "paper" && (
+        {SHOW_EXPERIMENTAL_TABS && activeTab === "paper" && (
           <View style={styles.section}>
             {/* Sandbox Controls Header */}
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
@@ -1067,7 +1080,7 @@ export default function StockIntelligenceScreen() {
         )}
 
         {/* ─── TAB 4: BACKTEST ─── */}
-        {activeTab === "backtest" && (
+        {SHOW_EXPERIMENTAL_TABS && activeTab === "backtest" && (
           <View style={styles.section}>
             <View style={styles.card}>
               <Text style={styles.cardSectionTitle}>Simulate Strategy on History</Text>

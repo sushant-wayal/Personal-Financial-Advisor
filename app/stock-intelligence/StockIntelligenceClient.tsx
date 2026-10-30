@@ -127,6 +127,10 @@ function formatStatusName(raw: string | null | undefined): string {
   }
 }
 
+// Feature flag: Sandbox and Backtesting tabs are temporarily hidden from the user interface
+// pending architectural re-evaluation. All underlying services and APIs remain fully intact.
+const SHOW_EXPERIMENTAL_TABS = false;
+
 export default function StockIntelligenceClient() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<"recommendations" | "capital" | "paper" | "backtest">("recommendations");
@@ -551,7 +555,7 @@ export default function StockIntelligenceClient() {
         </Card>
       </div>
 
-      {/* Navigation Tabs */}
+      {/* Navigation Tabs — Only Signals and Safeguards exposed */}
       <div className="flex border-b border-border">
         <button
           onClick={() => setActiveTab("recommendations")}
@@ -561,7 +565,7 @@ export default function StockIntelligenceClient() {
             }`}
         >
           <Sparkles className="h-4 w-4" />
-          Daily Recommendations ({buys.length + holds.length + sells.length})
+          Signals ({buys.length + holds.length + sells.length})
         </button>
 
         <button
@@ -572,30 +576,34 @@ export default function StockIntelligenceClient() {
             }`}
         >
           <ShieldAlert className="h-4 w-4" />
-          Capital Safeguards & Risk
+          Safeguards & Risk
         </button>
 
-        <button
-          onClick={() => setActiveTab("paper")}
-          className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-semibold transition ${activeTab === "paper"
-            ? "border-cyan-400 text-cyan-400"
-            : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-        >
-          <Activity className="h-4 w-4" />
-          Paper Trading Sandbox ({paper?.positions?.length ?? 0})
-        </button>
+        {SHOW_EXPERIMENTAL_TABS && (
+          <>
+            <button
+              onClick={() => setActiveTab("paper")}
+              className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-semibold transition ${activeTab === "paper"
+                ? "border-cyan-400 text-cyan-400"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+                }`}
+            >
+              <Activity className="h-4 w-4" />
+              Paper Trading Sandbox ({paper?.positions?.length ?? 0})
+            </button>
 
-        <button
-          onClick={() => setActiveTab("backtest")}
-          className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-semibold transition ${activeTab === "backtest"
-            ? "border-cyan-400 text-cyan-400"
-            : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-        >
-          <Play className="h-4 w-4" />
-          Historical Backtester
-        </button>
+            <button
+              onClick={() => setActiveTab("backtest")}
+              className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-semibold transition ${activeTab === "backtest"
+                ? "border-cyan-400 text-cyan-400"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+                }`}
+            >
+              <Play className="h-4 w-4" />
+              Historical Backtester
+            </button>
+          </>
+        )}
       </div>
 
       {/* ───────────────── TAB 1: RECOMMENDATIONS ───────────────── */}
@@ -769,27 +777,29 @@ export default function StockIntelligenceClient() {
 
                       {/* Action Buttons */}
                       <div className="pt-2 border-t border-border flex items-center justify-end gap-2">
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          className="text-xs"
-                          onClick={() => {
-                            paperOrderMutation.mutate({
-                              action: "BUY",
-                              symbol: buy.symbol,
-                              exchange: buy.exchange,
-                              strategy: buy.strategy,
-                              quantity: buy.quantity,
-                              entryPrice: buy.entryPrice,
-                              stopLoss: buy.stopLoss,
-                              targetPrice: buy.targetPrice,
-                            });
-                          }}
-                          disabled={paperOrderMutation.isPending}
-                        >
-                          <Play className="mr-1.5 h-3 w-3 text-cyan-400" />
-                          Simulate
-                        </Button>
+                        {SHOW_EXPERIMENTAL_TABS && (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            className="text-xs"
+                            onClick={() => {
+                              paperOrderMutation.mutate({
+                                action: "BUY",
+                                symbol: buy.symbol,
+                                exchange: buy.exchange,
+                                strategy: buy.strategy,
+                                quantity: buy.quantity,
+                                entryPrice: buy.entryPrice,
+                                stopLoss: buy.stopLoss,
+                                targetPrice: buy.targetPrice,
+                              });
+                            }}
+                            disabled={paperOrderMutation.isPending}
+                          >
+                            <Play className="mr-1.5 h-3 w-3 text-cyan-400" />
+                            Simulate
+                          </Button>
+                        )}
                         {buy.status === "INVESTED" ? (
                           <Button
                             size="sm"
@@ -1117,7 +1127,7 @@ export default function StockIntelligenceClient() {
       )}
 
       {/* ───────────────── TAB 3: PAPER TRADING SANDBOX ───────────────── */}
-      {activeTab === "paper" && (
+      {SHOW_EXPERIMENTAL_TABS && activeTab === "paper" && (
         <div className="space-y-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -1333,7 +1343,7 @@ export default function StockIntelligenceClient() {
       )}
 
       {/* ───────────────── TAB 4: BACKTESTING ───────────────── */}
-      {activeTab === "backtest" && (
+      {SHOW_EXPERIMENTAL_TABS && activeTab === "backtest" && (
         <div className="space-y-6">
           <Card className="border-border bg-card/60 backdrop-blur">
             <CardHeader>
