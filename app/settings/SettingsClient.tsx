@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Download, FileText, Check, Loader2 } from "lucide-react";
+import { Download, FileText, Check, Loader2, Bell, Send, CheckCircle2 } from "lucide-react";
 
 function formatCurrency(amount: number, currency = "INR") {
     return new Intl.NumberFormat("en-IN", { style: "currency", currency, maximumFractionDigits: 0 }).format(amount || 0);
@@ -15,6 +15,14 @@ export default function SettingsClient() {
     const [input, setInput] = useState("");
     const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
     const [message, setMessage] = useState("");
+
+    // Proactive Notifications state
+    const [pushTokenInput, setPushTokenInput] = useState("");
+    const [webhookUrlInput, setWebhookUrlInput] = useState("");
+    const [notifConfig, setNotifConfig] = useState<any>(null);
+    const [notifStatus, setNotifStatus] = useState<string | null>(null);
+    const [testingNotif, setTestingNotif] = useState(false);
+    const [savingNotif, setSavingNotif] = useState(false);
 
     const [profile, setProfile] = useState<any>(null);
     const [savingProfile, setSavingProfile] = useState(false);
@@ -75,14 +83,16 @@ export default function SettingsClient() {
         let cancelled = false;
         async function load() {
             try {
-                const [resSenders, resProfile, resEF] = await Promise.all([
+                const [resSenders, resProfile, resEF, resNotif] = await Promise.all([
                     fetch("/api/gmail/senders"),
                     fetch("/api/profile"),
                     fetch("/api/emergency-fund"),
+                    fetch("/api/notifications/config"),
                 ]);
                 const dataSenders = await resSenders.json();
                 const dataProfile = await resProfile.json();
                 const dataEF = await resEF.json();
+                const dataNotif = await resNotif.json();
                 if (!cancelled) {
                     setInput((dataSenders.senders || []).join(", "));
                     setProfile(dataProfile.profile || {
@@ -94,6 +104,7 @@ export default function SettingsClient() {
                         monthlyExpenses: 0,
                     });
                     if (dataEF.ok) setEfStatus(dataEF);
+                    if (dataNotif.ok) setNotifConfig(dataNotif);
                 }
             } catch (e: any) {
                 if (!cancelled) setMessage(String(e));
@@ -102,6 +113,49 @@ export default function SettingsClient() {
         load();
         return () => { cancelled = true; };
     }, []);
+
+    async function saveNotificationDestinations() {
+        setSavingNotif(true);
+        setNotifStatus(null);
+        try {
+            const res = await fetch("/api/notifications/register-token", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    expoPushToken: pushTokenInput || undefined,
+                    webhookUrl: webhookUrlInput || undefined,
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok || !data.ok) throw new Error(data.error || "Save failed");
+            setNotifStatus("Preferences saved successfully!");
+            setPushTokenInput("");
+            setWebhookUrlInput("");
+            const cfg = await fetch("/api/notifications/config").then(r => r.json());
+            if (cfg.ok) setNotifConfig(cfg);
+        } catch (e: any) {
+            setNotifStatus(`Error: ${e.message}`);
+        } finally {
+            setSavingNotif(false);
+            setTimeout(() => setNotifStatus(null), 5000);
+        }
+    }
+
+    async function sendTestNotification() {
+        setTestingNotif(true);
+        setNotifStatus(null);
+        try {
+            const res = await fetch("/api/notifications/test", { method: "POST" });
+            const data = await res.json();
+            if (!res.ok || !data.ok) throw new Error(data.error || "Test failed");
+            setNotifStatus(data.message || "Test notification dispatched!");
+        } catch (e: any) {
+            setNotifStatus(`Error: ${e.message}`);
+        } finally {
+            setTestingNotif(false);
+            setTimeout(() => setNotifStatus(null), 6000);
+        }
+    }
 
     // Refresh EF status whenever profile changes
     useEffect(() => {
@@ -758,6 +812,84 @@ export default function SettingsClient() {
                     </CardContent>
                 </Card>
             </div>
+
+            {/* Proactive Notifications & Delivery Channels Card */}
+            <Card className="border-cyan-500/20 bg-gradient-to-br from-cyan-950/20 via-[#111] to-purple-950/20">
+                <CardHeader>
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
+                            <Bell size={20} />
+                        </div>
+                        <div>
+                            <CardTitle>Proactive Notifications & Alerts</CardTitle>
+                            <CardDescription>Configure lock-screen push and webhook alerts for morning swing stocks, IPOs, and mutual funds</CardDescription>
+                        </div>
+                    </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="flex items-center gap-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20 p-3 text-xs text-cyan-200">
+                        <CheckCircle2 className="h-4 w-4 shrink-0 text-cyan-400" />
+                        <span><strong>Persistent In-App Dashboard Intel is Active:</strong> Daily morning actionable alerts automatically appear on both Web and Mobile home screens when opportunities exist.</span>
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                        <div className="space-y-2">
+                            <Label htmlFor="expo-token" className="text-xs font-semibold">
+                                Expo Mobile Push Token {notifConfig?.hasPushToken && <span className="text-emerald-400 font-normal">({notifConfig.maskedPushToken})</span>}
+                            </Label>
+                            <Input
+                                id="expo-token"
+                                placeholder="ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]"
+                                value={pushTokenInput}
+                                onChange={(e) => setPushTokenInput(e.target.value)}
+                                className="font-mono text-xs bg-black/40 border-white/10"
+                            />
+                            <p className="text-[11px] text-muted-foreground">Mobile push destination token generated by Expo.</p>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="webhook-url" className="text-xs font-semibold">
+                                Webhook URL (Discord / Telegram / Slack / NTFY) {notifConfig?.hasWebhookUrl && <span className="text-emerald-400 font-normal">({notifConfig.maskedWebhookUrl})</span>}
+                            </Label>
+                            <Input
+                                id="webhook-url"
+                                placeholder="https://discord.com/api/webhooks/... or https://ntfy.sh/..."
+                                value={webhookUrlInput}
+                                onChange={(e) => setWebhookUrlInput(e.target.value)}
+                                className="font-mono text-xs bg-black/40 border-white/10"
+                            />
+                            <p className="text-[11px] text-muted-foreground">External webhook URL to receive morning notifications.</p>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-3 pt-2">
+                        <Button
+                            onClick={saveNotificationDestinations}
+                            disabled={savingNotif || (!pushTokenInput && !webhookUrlInput)}
+                            className="bg-cyan-500 text-slate-950 font-semibold hover:bg-cyan-400"
+                        >
+                            {savingNotif ? <Loader2 size={16} className="animate-spin mr-2" /> : <Check size={16} className="mr-2" />}
+                            {savingNotif ? "Saving..." : "Save Notification Preferences"}
+                        </Button>
+
+                        <Button
+                            variant="outline"
+                            onClick={sendTestNotification}
+                            disabled={testingNotif}
+                            className="border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/10"
+                        >
+                            {testingNotif ? <Loader2 size={16} className="animate-spin mr-2" /> : <Send size={16} className="mr-2" />}
+                            {testingNotif ? "Dispatching..." : "Send Test Notification"}
+                        </Button>
+                    </div>
+
+                    {notifStatus && (
+                        <div className={`p-2.5 rounded-lg border text-xs font-medium ${notifStatus.includes("Error") ? "bg-rose-500/10 border-rose-500/30 text-rose-300" : "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"}`}>
+                            {notifStatus}
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
 
             {/* Export Financial Context Card */}
             <Card className="border-border bg-gradient-to-br from-[#1A1A1A] to-[#111] lg:col-span-2">

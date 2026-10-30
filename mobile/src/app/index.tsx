@@ -1039,12 +1039,37 @@ export default function Index() {
   const [advisorScrollX] = useState(() => new Animated.Value(0));
   const [dynamicsScrollX] = useState(() => new Animated.Value(0));
   const [patternsScrollX] = useState(() => new Animated.Value(0));
+  const [proactiveNotice, setProactiveNotice] = useState<any>(null);
+
+  const fetchProactiveNotice = async () => {
+    try {
+      const res = await fetch(apiUrl("/api/notifications/latest"));
+      const json = await res.json();
+      if (json.ok && json.notification) {
+        setProactiveNotice(json.notification);
+      } else {
+        setProactiveNotice(null);
+      }
+    } catch {
+      // quiet fallback
+    }
+  };
+
+  const handleDismissProactiveNotice = async () => {
+    setProactiveNotice(null);
+    try {
+      await fetch(apiUrl("/api/notifications/dismiss"), { method: "POST" });
+    } catch {
+      // quiet fallback
+    }
+  };
 
   const insights = useMemo(() => compactInsights(dashboard?.insights ?? []), [dashboard?.insights]);
 
   const load = async (force = false) => {
     setError(null);
     try {
+      void fetchProactiveNotice();
       const nextDashboard = await loadDashboard(force);
       setDashboard(nextDashboard);
       if (nextDashboard.profile) {
@@ -1198,6 +1223,42 @@ export default function Index() {
             </Pressable>
           )}
         </View>
+
+        {/* Proactive Morning Intel Banner */}
+        {proactiveNotice && (
+          <View style={styles.proactiveNoticeCard}>
+            <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 10, flex: 1 }}>
+              <View style={styles.proactiveNoticeIconWrap}>
+                <MaterialIcons name="auto-awesome" size={18} color="#22d3ee" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                  <Text style={styles.proactiveNoticeTag}>MORNING INTEL</Text>
+                  <Text style={styles.proactiveNoticeDate}>• Today</Text>
+                </View>
+                <Text style={styles.proactiveNoticeTitle}>{proactiveNotice.title}</Text>
+                <Text style={styles.proactiveNoticeBody} numberOfLines={2}>
+                  {proactiveNotice.body}
+                </Text>
+              </View>
+            </View>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 8, marginTop: 10 }}>
+              <Pressable
+                onPress={() => router.push(proactiveNotice.route as any)}
+                style={styles.proactiveNoticeActionBtn}
+              >
+                <Text style={styles.proactiveNoticeActionText}>View Setup</Text>
+                <MaterialIcons name="arrow-forward" size={14} color="#000000" />
+              </Pressable>
+              <Pressable
+                onPress={handleDismissProactiveNotice}
+                style={styles.proactiveNoticeDismissBtn}
+              >
+                <MaterialIcons name="close" size={16} color="#888888" />
+              </Pressable>
+            </View>
+          </View>
+        )}
 
         <View style={styles.kpiGrid}>
           <MetricCard
@@ -1386,6 +1447,64 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#131313",
+  },
+  proactiveNoticeCard: {
+    backgroundColor: "rgba(34,211,238,0.06)",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(34,211,238,0.25)",
+    padding: 14,
+    marginHorizontal: 24,
+    marginBottom: 16,
+  },
+  proactiveNoticeIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: "rgba(34,211,238,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  proactiveNoticeTag: {
+    color: "#22d3ee",
+    fontSize: fs(10),
+    fontWeight: "800",
+    letterSpacing: 1,
+  },
+  proactiveNoticeDate: {
+    color: "#888888",
+    fontSize: fs(10),
+  },
+  proactiveNoticeTitle: {
+    color: "#ffffff",
+    fontSize: fs(14),
+    fontWeight: "700",
+    marginTop: 2,
+  },
+  proactiveNoticeBody: {
+    color: "#cccccc",
+    fontSize: fs(11),
+    lineHeight: 16,
+    marginTop: 2,
+  },
+  proactiveNoticeActionBtn: {
+    backgroundColor: "#22d3ee",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  proactiveNoticeActionText: {
+    color: "#000000",
+    fontSize: fs(11),
+    fontWeight: "700",
+  },
+  proactiveNoticeDismissBtn: {
+    padding: 6,
+    borderRadius: 8,
+    backgroundColor: "rgba(255,255,255,0.05)",
   },
   budgetWidgetHeader: {
     flexDirection: "row",

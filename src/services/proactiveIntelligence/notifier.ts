@@ -1,8 +1,10 @@
 /**
  * proactiveIntelligence/notifier.ts — Direct User Notification Dispatcher.
  *
- * Dispatches notifications directly to the user (via Mobile Push and Webhook/Email)
- * WITHOUT storing notifications in the database or requiring an in-app inbox.
+ * Dispatches notifications across multiple channels:
+ * 1. Persistent In-App Morning Intel (stored in AIMemory for instant display on Web & Mobile dashboards)
+ * 2. Mobile Push Notifications via Expo Push HTTP API
+ * 3. External Webhooks (Telegram, Discord, Slack, Pushover, NTFY, etc.)
  */
 
 import axios from "axios";
@@ -17,7 +19,37 @@ export async function dispatchDirectNotification(payload: DirectNotificationPayl
 
   console.info(`[notifier] 🚀 Dispatching notification: "${payload.title}" -> ${payload.body}`);
 
-  // Channel 1: Mobile Push Notification (Expo Push HTTP API)
+  // Channel 1: Persistent In-App Memory (guarantees in-app alert banner on Web & Mobile)
+  try {
+    const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+    const existing = await prisma.aIMemory.findFirst({
+      where: { key: "latest_proactive_notification" },
+    });
+    const notificationValue = JSON.stringify({
+      title: payload.title,
+      body: payload.body,
+      route: payload.route,
+      metadata: payload.metadata,
+      sessionDate: todayStr,
+      createdAt: new Date().toISOString(),
+      dismissed: false,
+    });
+
+    if (existing) {
+      await prisma.aIMemory.update({
+        where: { id: existing.id },
+        data: { value: notificationValue, updatedAt: new Date() },
+      });
+    } else {
+      await prisma.aIMemory.create({
+        data: { key: "latest_proactive_notification", value: notificationValue },
+      });
+    }
+  } catch (err) {
+    console.warn("[notifier] Failed to save in-app notification memory:", err);
+  }
+
+  // Channel 2: Mobile Push Notification (Expo Push HTTP API)
   try {
     const pushDelivered = await sendExpoPushNotification(payload);
     if (pushDelivered) delivered = true;
@@ -25,7 +57,7 @@ export async function dispatchDirectNotification(payload: DirectNotificationPayl
     console.warn("[notifier] Mobile push dispatch notice:", err);
   }
 
-  // Channel 2: External Webhook (Telegram, Discord, Slack, Pushover, NTFY, etc.)
+  // Channel 3: External Webhook (Telegram, Discord, Slack, Pushover, NTFY, etc.)
   try {
     const webhookDelivered = await sendWebhookNotification(payload);
     if (webhookDelivered) delivered = true;
@@ -78,7 +110,10 @@ async function sendExpoPushNotification(payload: DirectNotificationPayload): Pro
  * Send notification to an external webhook (e.g. Discord, Telegram, Pushover, NTFY) if configured.
  */
 async function sendWebhookNotification(payload: DirectNotificationPayload): Promise<boolean> {
-  const webhookUrl = process.env.NOTIFICATION_WEBHOOK_URL;
+  const memoryWebhook = await prisma.aIMemory.findFirst({
+    where: { key: "notification_webhook_url" },
+  });
+  const webhookUrl = memoryWebhook?.value || process.env.NOTIFICATION_WEBHOOK_URL;
   if (!webhookUrl) return false;
 
   const content = `**${payload.title}**\n${payload.body}\n[Open in App](${payload.route})`;
