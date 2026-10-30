@@ -142,6 +142,7 @@ export default function StockIntelligenceClient() {
   const [executedPriceInput, setExecutedPriceInput] = useState<string>("");
   const [executedQtyInput, setExecutedQtyInput] = useState<string>("");
   const [brokerageInput, setBrokerageInput] = useState<string>("20");
+  const [isResetConfirmOpen, setIsResetConfirmOpen] = useState<boolean>(false);
 
   // 1. Fetch Recommendations Run
   const { data: recData } = useQuery<{ ok: boolean; run: RecommendationRun }>({
@@ -1140,14 +1141,140 @@ export default function StockIntelligenceClient() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => paperOrderMutation.mutate({ action: "RESET" })}
+                onClick={() => setIsResetConfirmOpen(true)}
                 disabled={paperOrderMutation.isPending}
+                className="border-rose-500/30 text-rose-400 hover:bg-rose-500/10 hover:text-rose-300"
               >
                 <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
-                Reset (₹1 Lakh)
+                Reset Virtual Equity
               </Button>
             </div>
           </div>
+
+          {/* Sandbox Virtual Equity & Performance KPI Cards Strip */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {/* Virtual Equity Card */}
+            <Card className="border-border bg-card/60 backdrop-blur">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Virtual Equity
+                </CardTitle>
+                <Briefcase className="h-4 w-4 text-cyan-400" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-foreground">
+                  {formatInr(paper?.totalEquity ?? 100000)}
+                </div>
+                <div className="mt-2 flex items-center justify-between">
+                  <span className="text-[11px] text-muted-foreground">
+                    Peak: {formatInr(paper?.equityPeak ?? 100000)}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-[11px] text-rose-400 hover:bg-rose-500/10 hover:text-rose-300"
+                    onClick={() => setIsResetConfirmOpen(true)}
+                    disabled={paperOrderMutation.isPending}
+                  >
+                    <RotateCcw className="mr-1 h-3 w-3" />
+                    Reset
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Virtual Cash */}
+            <Card className="border-border bg-card/60 backdrop-blur">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Simulated Cash
+                </CardTitle>
+                <Layers className="h-4 w-4 text-emerald-400" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-foreground">
+                  {formatInr(paper?.virtualCash ?? 100000)}
+                </div>
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  Initial capital: {formatInr(paper?.initialCash ?? 100000)}
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Simulated Total P&L */}
+            <Card className="border-border bg-card/60 backdrop-blur">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Simulated Total P&L
+                </CardTitle>
+                <Activity className="h-4 w-4 text-amber-400" />
+              </CardHeader>
+              <CardContent>
+                <div className={`text-2xl font-bold ${(paper?.totalPnl ?? 0) >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                  {(paper?.totalPnl ?? 0) >= 0 ? "+" : ""}{formatInr(paper?.totalPnl ?? 0)}
+                </div>
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  Regulatory costs deducted: {formatInr(paper?.totalCosts ?? 0)}
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Win Rate & Drawdown */}
+            <Card className="border-border bg-card/60 backdrop-blur">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Sandbox Win Rate
+                </CardTitle>
+                <ShieldCheck className="h-4 w-4 text-purple-400" />
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-2xl font-bold text-foreground">
+                    {formatDecimal(paper?.winRate ?? 0, 1)}%
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    ({paper?.closedTrades?.length ?? 0} closed)
+                  </span>
+                </div>
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  Max Drawdown: {formatDecimal(paper?.drawdownPct ?? 0, 1)}%
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Reset Virtual Equity Confirmation Dialog */}
+          <Dialog open={isResetConfirmOpen} onOpenChange={setIsResetConfirmOpen}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-foreground">
+                  <RotateCcw className="h-5 w-5 text-rose-400" />
+                  Reset Virtual Equity
+                </DialogTitle>
+                <DialogDescription>
+                  Are you sure you want to reset your sandbox virtual equity to ₹1,00,000? All active simulated positions and trade history will be cleared.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="rounded-lg border border-rose-500/20 bg-rose-500/10 p-3 text-xs text-rose-300">
+                This operation only resets simulated sandbox paper balances. It has zero effect on your real money, bank balances, or live stock portfolio.
+              </div>
+              <DialogFooter className="gap-2 sm:gap-0">
+                <Button variant="outline" onClick={() => setIsResetConfirmOpen(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => {
+                    setIsResetConfirmOpen(false);
+                    paperOrderMutation.mutate({ action: "RESET", initialCash: 100000 });
+                  }}
+                  disabled={paperOrderMutation.isPending}
+                >
+                  Reset Equity to ₹1,00,000
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           {/* Open Positions Table */}
           <Card className="border-border bg-card/60 backdrop-blur">

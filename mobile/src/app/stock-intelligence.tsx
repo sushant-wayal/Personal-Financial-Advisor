@@ -146,7 +146,7 @@ async function safeFetchJson(url: string, options?: RequestInit) {
 export default function StockIntelligenceScreen() {
   useCurrency();
   const router = useRouter();
-  const { showSuccess, showError } = useAlert();
+  const { showSuccess, showError, showAlert } = useAlert();
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -260,6 +260,54 @@ export default function StockIntelligenceScreen() {
       loadData();
     } catch (e: any) {
       showError("Error", e.message || String(e));
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleResetPaper = () => {
+    showAlert({
+      title: "Reset Virtual Equity",
+      message: "Are you sure you want to reset your sandbox virtual equity to ₹1,00,000? All active simulated positions and trade history will be cleared.",
+      type: "warning",
+      buttons: [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Reset",
+          style: "destructive",
+          onPress: async () => {
+            setActionLoading(true);
+            try {
+              await safeFetchJson(apiUrl("/api/stock-intelligence/paper"), {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "RESET", initialCash: 100000 }),
+              });
+              showSuccess("Sandbox Reset", "Virtual equity has been reset to ₹1,00,000.");
+              loadData();
+            } catch (e: any) {
+              showError("Reset Error", e.message || String(e));
+            } finally {
+              setActionLoading(false);
+            }
+          },
+        },
+      ],
+    });
+  };
+
+  const handleSyncPaper = async () => {
+    setActionLoading(true);
+    try {
+      await safeFetchJson(apiUrl("/api/stock-intelligence/paper"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "SYNC" }),
+      });
+      showSuccess("Mark to Market", "Simulated positions updated against latest market prices.");
+      loadData();
+    } catch (e: any) {
+      showError("Sync Error", e.message || String(e));
     } finally {
       setActionLoading(false);
     }
@@ -669,16 +717,88 @@ export default function StockIntelligenceScreen() {
         {/* ─── TAB 2: PAPER TRADING SANDBOX ─── */}
         {activeTab === "paper" && (
           <View style={styles.section}>
+            {/* Sandbox Controls Header */}
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <View style={{ flex: 1, paddingRight: 8 }}>
+                <Text style={styles.sectionTitle}>Paper Trading Sandbox</Text>
+                <Text style={{ fontSize: 11, color: "#888888", marginTop: 2 }}>
+                  Simulated execution with ₹0 real money at risk.
+                </Text>
+              </View>
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                <Pressable
+                  onPress={handleSyncPaper}
+                  disabled={actionLoading}
+                  style={({ pressed }) => [styles.actionPill, pressed ? { opacity: 0.7 } : null]}
+                >
+                  <MaterialIcons name="refresh" size={14} color="#06b6d4" />
+                  <Text style={styles.actionPillText}>Sync</Text>
+                </Pressable>
+                <Pressable
+                  onPress={handleResetPaper}
+                  disabled={actionLoading}
+                  style={({ pressed }) => [styles.actionPillDanger, pressed ? { opacity: 0.7 } : null]}
+                >
+                  <MaterialIcons name="restart-alt" size={14} color="#f43f5e" />
+                  <Text style={styles.actionPillDangerText}>Reset Equity</Text>
+                </Pressable>
+              </View>
+            </View>
+
+            {/* Virtual Equity & Sandbox KPI Hero Card */}
             <View style={styles.heroCard}>
               <View style={styles.heroRow}>
                 <View style={styles.heroCol}>
                   <Text style={styles.heroLabel}>VIRTUAL EQUITY</Text>
                   <Text style={styles.heroValue}>{formatCurrencyAmount(paperData?.totalEquity ?? 100000, "INR")}</Text>
+                  <Text style={[styles.heroSubText, { color: "#888888", marginTop: 2 }]}>
+                    Cash: {formatCurrencyAmount(paperData?.virtualCash ?? 100000, "INR")}
+                  </Text>
                 </View>
                 <View style={styles.heroCol}>
                   <Text style={styles.heroLabel}>WIN RATE</Text>
                   <Text style={[styles.heroValue, { color: "#10b981" }]}>{paperData?.winRate ?? 0}%</Text>
+                  <Text style={[styles.heroSubText, { color: "#888888", marginTop: 2 }]}>
+                    Closed: {paperData?.closedTradesCount ?? (paperData?.closedTrades?.length ?? 0)}
+                  </Text>
                 </View>
+                <View style={styles.heroCol}>
+                  <Text style={styles.heroLabel}>TOTAL P&L</Text>
+                  <Text style={[styles.heroValue, { color: (paperData?.totalPnl ?? 0) >= 0 ? "#10b981" : "#f43f5e" }]}>
+                    {(paperData?.totalPnl ?? 0) >= 0 ? "+" : ""}{formatCurrencyAmount(paperData?.totalPnl ?? 0, "INR")}
+                  </Text>
+                  <Text style={[styles.heroSubText, { color: "#888888", marginTop: 2 }]}>
+                    {paperData?.totalPnlPct ?? 0}%
+                  </Text>
+                </View>
+              </View>
+
+              {/* Dedicated Reset Virtual Equity Button inside Card */}
+              <View style={{ marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.06)", flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                <Text style={{ fontSize: 11, color: "#888888" }}>
+                  Default virtual capital: ₹1,00,000
+                </Text>
+                <Pressable
+                  onPress={handleResetPaper}
+                  disabled={actionLoading}
+                  style={({ pressed }) => [
+                    {
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 4,
+                      backgroundColor: "rgba(244,63,94,0.12)",
+                      paddingHorizontal: 10,
+                      paddingVertical: 5,
+                      borderRadius: 6,
+                      borderWidth: 1,
+                      borderColor: "rgba(244,63,94,0.3)",
+                    },
+                    pressed ? { opacity: 0.7 } : null,
+                  ]}
+                >
+                  <MaterialIcons name="restart-alt" size={13} color="#f43f5e" />
+                  <Text style={{ fontSize: 11, fontWeight: "700", color: "#f43f5e" }}>Reset Virtual Equity</Text>
+                </Pressable>
               </View>
             </View>
 
@@ -1191,6 +1311,18 @@ const styles = StyleSheet.create({
     borderColor: "rgba(6,182,212,0.25)",
   },
   actionPillText: { fontSize: 12, fontWeight: "600", color: "#06b6d4" },
+  actionPillDanger: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "rgba(244,63,94,0.12)",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(244,63,94,0.25)",
+  },
+  actionPillDangerText: { fontSize: 12, fontWeight: "600", color: "#f43f5e" },
   scroll: { flex: 1 },
   scrollContent: { padding: 16, paddingBottom: 180 },
   headerBlock: { marginBottom: 16 },
