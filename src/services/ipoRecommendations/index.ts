@@ -315,6 +315,9 @@ async function formatPersistedIpoRun(run: any): Promise<IpoRunResult> {
   });
 
   const bestPick = items.find((i) => i.isBestPick) || null;
+  const capitalAllocation = await calculateCapitalAllocation(run.marketRegime || "NEUTRAL");
+  const deployableBudget = capitalAllocation.eligibleNewPurchaseBudget;
+  const minRequired = bestPick ? bestPick.minInvestment : 15000;
 
   return {
     id: run.id,
@@ -329,10 +332,10 @@ async function formatPersistedIpoRun(run: any): Promise<IpoRunResult> {
     upcomingIpos,
     closedIpos,
     personalBudget: {
-      deployableBudget: 50000,
-      financialPhase: "WEALTH_BUILDING",
-      canAffordOneLot: true,
-      minimumLotRequired: bestPick?.minInvestment || 15000,
+      deployableBudget,
+      financialPhase: capitalAllocation.financialPhase,
+      canAffordOneLot: deployableBudget >= minRequired,
+      minimumLotRequired: minRequired,
     },
   };
 }

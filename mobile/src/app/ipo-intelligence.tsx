@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useState } from "react";
 import {
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -12,7 +14,7 @@ import {
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { API_BASE_URL } from "../lib/apiBaseUrl";
 import { formatCurrencyAmount, useCurrency } from "../providers/CurrencyProvider";
 import { useAlert } from "../providers/AlertProvider";
@@ -38,6 +40,7 @@ async function safeFetchJson(url: string, options?: RequestInit) {
 export default function IpoIntelligenceScreen() {
   useCurrency();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { showSuccess, showError } = useAlert();
 
   const [refreshing, setRefreshing] = useState(false);
@@ -177,8 +180,10 @@ export default function IpoIntelligenceScreen() {
         {budget && (
           <View style={styles.statsRow}>
             <View style={styles.statChip}>
-              <Text style={styles.statChipLabel}>Surplus</Text>
-              <Text style={styles.statChipValue}>{formatCurrencyAmount(budget.deployableBudget, "INR")}</Text>
+              <Text style={styles.statChipLabel}>Safe Budget</Text>
+              <Text style={[styles.statChipValue, { color: budget.canAffordOneLot ? "#34d399" : "#fbbf24" }]}>
+                {formatCurrencyAmount(budget.deployableBudget, "INR")}
+              </Text>
             </View>
 
             <View style={styles.statChip}>
@@ -374,9 +379,15 @@ export default function IpoIntelligenceScreen() {
 
                 <View style={styles.listMetricsRow}>
                   <View>
-                    <Text style={styles.listMetricLabel}>Est. Listing Pop</Text>
+                    <Text style={styles.listMetricLabel}>Est. GMP Gain</Text>
                     <Text style={[styles.listMetricValue, { color: "#34d399" }]}>
-                      +{ipo.expectedListingGain.toFixed(1)}%
+                      {ipo.gmpAmount > 0 ? `+${ipo.expectedListingGain.toFixed(1)}%` : "0% (Par)"}
+                    </Text>
+                  </View>
+                  <View>
+                    <Text style={styles.listMetricLabel}>Demand</Text>
+                    <Text style={[styles.listMetricValue, { color: "#38bdf8" }]}>
+                      {ipo.totalSub > 0 ? `${ipo.totalSub}x Sub` : "0x"}
                     </Text>
                   </View>
                   <View>
@@ -489,8 +500,12 @@ export default function IpoIntelligenceScreen() {
 
       {/* APPLICATION MODAL */}
       <Modal visible={selectedIpoForApp != null} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          style={styles.modalOverlay}
+        >
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setSelectedIpoForApp(null)} />
+          <View style={[styles.modalContent, { paddingBottom: Math.max(28, insets.bottom + 16) }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Track IPO Application</Text>
               <Pressable onPress={() => setSelectedIpoForApp(null)}>
@@ -565,7 +580,7 @@ export default function IpoIntelligenceScreen() {
               </View>
             )}
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );

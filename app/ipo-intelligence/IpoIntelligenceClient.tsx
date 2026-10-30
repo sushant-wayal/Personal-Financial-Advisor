@@ -175,7 +175,7 @@ export default function IpoIntelligenceClient() {
           <Card className="bg-card/40 border-border/50">
             <CardContent className="p-4 flex items-center justify-between">
               <div>
-                <p className="text-xs text-muted-foreground uppercase font-medium">Deployable Surplus</p>
+                <p className="text-xs text-muted-foreground uppercase font-medium">Safe Trading Budget</p>
                 <p className="text-xl font-bold text-foreground mt-0.5">
                   {formatInr(run.personalBudget.deployableBudget)}
                 </p>
