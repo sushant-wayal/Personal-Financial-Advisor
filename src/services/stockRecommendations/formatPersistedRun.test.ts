@@ -200,4 +200,68 @@ describe("formatPersistedRun — Stock Recommendation Serialization", () => {
     expect(calculateStockBrokerage(0)).toBe(0);
     expect(calculateStockBrokerage(-100)).toBe(0);
   });
+
+  it("incorporates live capital allocation when passed to formatPersistedRun", () => {
+    const rawRecord = {
+      id: "run-live-alloc",
+      marketSessionDate: new Date("2026-10-30T00:00:00.000Z"),
+      marketRegime: "NEUTRAL",
+      financialPhase: "EF_BUILDING",
+      capitalAllocation: JSON.stringify({ eligibleNewPurchaseBudget: 597 }),
+      dataQuality: "VALID",
+      strategyVersions: "{}",
+      candidateCount: 1,
+      eligibleCount: 1,
+      rejections: "[]",
+      warnings: "[]",
+      aiExplanation: null,
+      status: "COMPLETE",
+      pipelineDurationMs: 100,
+      createdAt: new Date("2026-10-30T04:14:52.943Z"),
+      items: [],
+    };
+
+    const liveAllocation = {
+      timestamp: new Date(),
+      status: "ACTIVE" as const,
+      statusReason: "Verified",
+      verifiedLiquidCash: 10000,
+      efTargetAmount: 50000,
+      efAllocatedCash: 50000,
+      efShortfall: 0,
+      protectedEmergencyReserve: 50000,
+      essentialExpensesCash: 0,
+      nearTermGoalCommitments: 0,
+      upcomingObligations: 0,
+      otherProtectedCash: 0,
+      totalDeductions: 0,
+      potentiallyDeployableCash: 454,
+      financialPhase: "WEALTH_BUILDING" as const,
+      phaseMaxPct: 20,
+      phaseLimitedCapital: 454,
+      marketRegime: "NEUTRAL" as const,
+      marketRegimeFactor: 0.65,
+      regimeLimitedCapital: 295,
+      totalTradingBase: 1000,
+      maxPermittedExposure: 500,
+      remainingExposureCapacity: 112,
+      deployedCapital: 686,
+      eligibleNewPurchaseBudget: 112,
+      bindingConstraint: "exposure_cap_limit",
+      deductions: [],
+      dataTimestamp: new Date(),
+      warnings: [],
+      cycleStockTradingPool: 1147,
+      remainingCycleStockBalance: 454,
+      cycleMfInvestable: 0,
+      drawdownThrottleFactor: 1,
+      availablePositionSlots: 4,
+      slotCapacity: 127,
+    };
+
+    const run = formatPersistedRun(rawRecord, liveAllocation);
+    expect(run.capitalAllocation.eligibleNewPurchaseBudget).toBe(112);
+    expect(run.capitalAllocation.remainingCycleStockBalance).toBe(454);
+    expect(run.capitalAllocation.cycleStockTradingPool).toBe(1147);
+  });
 });

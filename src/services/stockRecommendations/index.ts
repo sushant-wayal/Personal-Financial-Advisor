@@ -64,14 +64,18 @@ export async function generateDailyRecommendations(options?: {
   });
   const sessionDateObj = new Date(sessionDateStr);
 
-  // If already run for today and not forced, return cached run
-  if (!options?.forceRerun) {
-    const existingRun = await prisma.stockRecommendationRun.findUnique({
-      where: { marketSessionDate: sessionDateObj },
-      include: { items: true },
-    });
+  // Check if a run already exists for today's market session
+  const existingRun = await prisma.stockRecommendationRun.findUnique({
+    where: { marketSessionDate: sessionDateObj },
+    include: { items: true },
+  });
 
-    if (existingRun) {
+  if (existingRun) {
+    const hasInvestedItems = existingRun.items.some((i) => i.status === "INVESTED");
+    // Once a user has executed/invested in a daily recommendation, the daily plan is locked
+    // for that entire market session date to maintain strict single-session trading discipline
+    // and prevent overtrading or contradictory suggestions later in the day.
+    if (!options?.forceRerun || hasInvestedItems) {
       return formatPersistedRun(existingRun);
     }
   }
@@ -402,9 +406,21 @@ export async function generateDailyRecommendations(options?: {
   const holdRecommendations: HoldRecommendation[] = [];
   const sellRecommendations: SellRecommendation[] = [];
 
+  // Exclude symbols that were recommended or bought today as fresh swing entries.
+  // Today's buys are evaluated for HOLD/SELL starting on the subsequent market day.
+  const todayBoughtSymbols = new Set(buyRecommendations.map((b) => b.symbol.toUpperCase()));
+  if (existingRun) {
+    for (const item of existingRun.items) {
+      if (item.type === "BUY" && item.status === "INVESTED") {
+        todayBoughtSymbols.add(item.symbol.toUpperCase());
+      }
+    }
+  }
+
   const existingStocks = await prisma.stock.findMany();
   for (const st of existingStocks) {
     if (st.currentQuantity <= 0) continue;
+    if (todayBoughtSymbols.has(st.symbol.toUpperCase())) continue;
 
     // Load recent bar
     const latestBar = await prisma.stockMarketBar.findFirst({
@@ -546,12 +562,23 @@ export async function generateDailyRecommendations(options?: {
     },
   });
 
-  // Re-create items
+  // Re-create items, NEVER deleting items that have already been executed/invested!
   await prisma.stockRecommendationItem.deleteMany({
-    where: { runId: savedRun.id },
+    where: {
+      runId: savedRun.id,
+      status: { not: "INVESTED" },
+    },
   });
 
+  const existingInvestedItems = await prisma.stockRecommendationItem.findMany({
+    where: { runId: savedRun.id, status: "INVESTED" },
+  });
+  const investedSymbols = new Set(existingInvestedItems.map((i) => i.symbol.toUpperCase()));
+
   for (const rec of allRecommendations) {
+    if (investedSymbols.has(rec.symbol.toUpperCase())) {
+      continue;
+    }
     await prisma.stockRecommendationItem.create({
       data: {
         runId: savedRun.id,
@@ -590,33 +617,36 @@ export async function generateDailyRecommendations(options?: {
 /**
  * Format a persisted database run record to a domain RecommendationRun.
  */
-export function formatPersistedRun(record: {
-  id: string;
-  marketSessionDate: Date;
-  marketRegime: string;
-  financialPhase: string;
-  capitalAllocation: string;
-  dataQuality: string;
-  strategyVersions: string;
-  candidateCount: number;
-  eligibleCount: number;
-  rejections: string;
-  warnings: string;
-  aiExplanation: string | null;
-  status: string;
-  pipelineDurationMs: number;
-  createdAt: Date;
-  items: Array<{
+export function formatPersistedRun(
+  record: {
     id: string;
-    symbol: string;
-    exchange: string;
-    type: string;
-    detail: string;
-    status?: string;
-    investedAt?: Date | null;
-    investedAmount?: number | null;
-  }>;
-}): RecommendationRun {
+    marketSessionDate: Date;
+    marketRegime: string;
+    financialPhase: string;
+    capitalAllocation: string;
+    dataQuality: string;
+    strategyVersions: string;
+    candidateCount: number;
+    eligibleCount: number;
+    rejections: string;
+    warnings: string;
+    aiExplanation: string | null;
+    status: string;
+    pipelineDurationMs: number;
+    createdAt: Date;
+    items: Array<{
+      id: string;
+      symbol: string;
+      exchange: string;
+      type: string;
+      detail: string;
+      status?: string;
+      investedAt?: Date | null;
+      investedAmount?: number | null;
+    }>;
+  },
+  liveCapitalAllocation?: CapitalAllocation,
+): RecommendationRun {
   const recommendations: Recommendation[] = (record.items || []).map((item) => {
     try {
       const parsed = JSON.parse(item.detail) as Recommendation;
@@ -642,12 +672,16 @@ export function formatPersistedRun(record: {
   });
 
   let capitalAllocation: CapitalAllocation;
-  try {
-    capitalAllocation = typeof record.capitalAllocation === "string"
-      ? JSON.parse(record.capitalAllocation)
-      : record.capitalAllocation;
-  } catch {
-    capitalAllocation = {} as CapitalAllocation;
+  if (liveCapitalAllocation) {
+    capitalAllocation = liveCapitalAllocation;
+  } else {
+    try {
+      capitalAllocation = typeof record.capitalAllocation === "string"
+        ? JSON.parse(record.capitalAllocation)
+        : record.capitalAllocation;
+    } catch {
+      capitalAllocation = {} as CapitalAllocation;
+    }
   }
 
   let strategyVersions: Record<StrategyName, string>;

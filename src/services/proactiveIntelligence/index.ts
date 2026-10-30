@@ -32,8 +32,8 @@ export async function runDailyProactiveIntelligence(options?: {
     console.warn("[proactiveIntelligence] Market data sync notice:", err);
   }
 
-  // 2. Pre-calculate Stock Intelligence Recommendations
-  const stockRun = await generateDailyRecommendations({ forceRerun: true });
+  // 2. Pre-calculate Stock Intelligence Recommendations (obey daily session plan)
+  const stockRun = await generateDailyRecommendations();
   const stockBuys = stockRun.recommendations.filter((r) => r.type === "BUY");
   const stockSells = stockRun.recommendations.filter((r) => r.type === "SELL");
 

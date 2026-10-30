@@ -194,8 +194,15 @@ export default function StockIntelligenceClient() {
       if (!res.ok) throw new Error("Pipeline run failed");
       return res.json();
     },
-    onSuccess: () => {
-      setStatusMessage({ type: "success", text: "Daily quantitative pipeline completed successfully!" });
+    onSuccess: (data: { ok?: boolean; isSessionLocked?: boolean; message?: string }) => {
+      if (data?.isSessionLocked) {
+        setStatusMessage({
+          type: "info",
+          text: data.message || "Today's daily recommendation plan is active with executed trades. Daily session plan is locked to prevent overtrading.",
+        });
+      } else {
+        setStatusMessage({ type: "success", text: "Daily quantitative pipeline completed successfully!" });
+      }
       void queryClient.invalidateQueries({ queryKey: ["stockRecommendations"] });
       void queryClient.invalidateQueries({ queryKey: ["stockCapital"] });
       setTimeout(() => setStatusMessage(null), 5000);

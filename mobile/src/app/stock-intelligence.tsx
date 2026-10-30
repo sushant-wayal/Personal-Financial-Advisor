@@ -199,12 +199,16 @@ export default function StockIntelligenceScreen() {
   const handleRunAnalysis = async () => {
     setActionLoading(true);
     try {
-      await safeFetchJson(apiUrl("/api/stock-intelligence/run"), {
+      const res: any = await safeFetchJson(apiUrl("/api/stock-intelligence/run"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ forceRerun: true }),
       });
-      showSuccess("Analysis Complete", "Daily quantitative swing recommendations updated!");
+      if (res?.isSessionLocked) {
+        showSuccess("Session Locked", res.message || "Daily session is locked with executed trades.");
+      } else {
+        showSuccess("Analysis Complete", "Daily quantitative swing recommendations updated!");
+      }
       loadData();
     } catch (e: any) {
       showError("Analysis Error", e.message || String(e));

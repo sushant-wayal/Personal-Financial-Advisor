@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "../../../../src/lib/prisma";
+import { DATA_FRESHNESS_CONFIG } from "../../../../src/config/stockEngineDefaults";
 import {
   generateDailyRecommendations,
   formatPersistedRun,
 } from "../../../../src/services/stockRecommendations";
+import { calculateCapitalAllocation } from "../../../../src/services/stockRisk";
+import { detectMarketRegime } from "../../../../src/services/stockAnalysis/regime";
 
 export async function GET(req: NextRequest) {
   try {
@@ -34,7 +37,24 @@ export async function GET(req: NextRequest) {
     });
 
     if (latestRun) {
-      return NextResponse.json({ ok: true, run: formatPersistedRun(latestRun) });
+      const todayStr = new Date().toLocaleDateString("en-CA", {
+        timeZone: DATA_FRESHNESS_CONFIG.exchangeTimezone,
+      });
+      const runDateStr = latestRun.marketSessionDate.toISOString().slice(0, 10);
+      let liveCapitalAllocation;
+      if (todayStr === runDateStr) {
+        try {
+          const regime = await detectMarketRegime();
+          liveCapitalAllocation = await calculateCapitalAllocation(regime);
+        } catch {
+          // Fall back to persisted allocation if live calculation fails
+        }
+      }
+
+      return NextResponse.json({
+        ok: true,
+        run: formatPersistedRun(latestRun, liveCapitalAllocation),
+      });
     }
 
     // If no run exists at all, generate the initial daily run
