@@ -43,7 +43,7 @@ export default function IpoIntelligenceScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
 
-  const [activeTab, setActiveTab] = useState<"open" | "upcoming" | "past" | "applications">("open");
+  const [activeTab, setActiveTab] = useState<"open" | "upcoming" | "applications">("open");
   const [recData, setRecData] = useState<any>(null);
   const [userApplications, setUserApplications] = useState<any[]>([]);
 
@@ -123,7 +123,6 @@ export default function IpoIntelligenceScreen() {
   const bestPick = recData?.bestPick;
   const openIpos = recData?.openIpos || [];
   const upcomingIpos = recData?.upcomingIpos || [];
-  const closedIpos = recData?.closedIpos || [];
   const budget = recData?.personalBudget;
 
   return (
@@ -345,14 +344,6 @@ export default function IpoIntelligenceScreen() {
             </Text>
           </Pressable>
 
-          <Pressable
-            onPress={() => setActiveTab("past")}
-            style={[styles.tabButton, activeTab === "past" ? styles.tabButtonActive : null]}
-          >
-            <Text style={[styles.tabText, activeTab === "past" ? styles.tabTextActive : null]}>
-              Closed ({closedIpos.length})
-            </Text>
-          </Pressable>
 
           <Pressable
             onPress={() => setActiveTab("applications")}
@@ -451,61 +442,6 @@ export default function IpoIntelligenceScreen() {
           </View>
         )}
 
-        {/* TAB 3: PAST & LISTED */}
-        {activeTab === "past" && (
-          <View style={styles.cardsList}>
-            {closedIpos.map((ipo: any) => (
-              <View key={ipo.symbol} style={styles.listItemCard}>
-                <View style={styles.listItemTop}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.listItemName}>{ipo.companyName}</Text>
-                    <Text style={styles.listItemSymbol}>{ipo.symbol}</Text>
-                  </View>
-                  {ipo.listingGainPct != null && (
-                    <View
-                      style={[
-                        styles.listScoreBadge,
-                        {
-                          backgroundColor:
-                            ipo.listingGainPct >= 0 ? "rgba(16,185,129,0.15)" : "rgba(244,63,94,0.15)",
-                          borderColor:
-                            ipo.listingGainPct >= 0 ? "rgba(16,185,129,0.3)" : "rgba(244,63,94,0.3)",
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.listScoreText,
-                          { color: ipo.listingGainPct >= 0 ? "#34d399" : "#fb7185" },
-                        ]}
-                      >
-                        {ipo.listingGainPct >= 0 ? "+" : ""}
-                        {ipo.listingGainPct.toFixed(1)}%
-                      </Text>
-                    </View>
-                  )}
-                </View>
-
-                <View style={styles.listMetricsRow}>
-                  <View>
-                    <Text style={styles.listMetricLabel}>Issue Price</Text>
-                    <Text style={styles.listMetricValue}>₹{ipo.priceCap}</Text>
-                  </View>
-                  <View>
-                    <Text style={styles.listMetricLabel}>Listing Price</Text>
-                    <Text style={styles.listMetricValue}>
-                      {ipo.listingPrice ? `₹${ipo.listingPrice}` : "N/A"}
-                    </Text>
-                  </View>
-                  <View>
-                    <Text style={styles.listMetricLabel}>QIB Demand</Text>
-                    <Text style={styles.listMetricValue}>{ipo.qibSub}x</Text>
-                  </View>
-                </View>
-              </View>
-            ))}
-          </View>
-        )}
 
         {/* TAB 4: MY APPLICATIONS */}
         {activeTab === "applications" && (

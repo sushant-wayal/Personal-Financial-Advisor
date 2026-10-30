@@ -49,7 +49,7 @@ function getVerdictBadge(verdict: string) {
 
 export default function IpoIntelligenceClient() {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<"open" | "upcoming" | "past" | "applications">("open");
+  const [activeTab, setActiveTab] = useState<"open" | "upcoming" | "applications">("open");
   const [appliedModalIpo, setAppliedModalIpo] = useState<IpoRecommendationItemData | null>(null);
   const [lotCount, setLotCount] = useState(1);
   const [upiId, setUpiId] = useState("");
@@ -123,7 +123,6 @@ export default function IpoIntelligenceClient() {
   const bestPick = run?.bestPick;
   const openIpos = run?.openIpos ?? [];
   const upcomingIpos = run?.upcomingIpos ?? [];
-  const closedIpos = run?.closedIpos ?? [];
   const userApplications = appData?.applications ?? [];
 
   return (
@@ -476,16 +475,6 @@ export default function IpoIntelligenceClient() {
           Upcoming Pipeline ({upcomingIpos.length})
         </button>
 
-        <button
-          onClick={() => setActiveTab("past")}
-          className={`px-4 py-2 rounded-lg text-xs font-semibold transition ${
-            activeTab === "past"
-              ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
-              : "text-muted-foreground hover:bg-muted/40 hover:text-foreground"
-          }`}
-        >
-          Closed & Performance ({closedIpos.length})
-        </button>
 
         <button
           onClick={() => setActiveTab("applications")}
@@ -642,59 +631,6 @@ export default function IpoIntelligenceClient() {
         </div>
       )}
 
-      {/* TAB CONTENT 3: PAST LISTINGS & VERIFICATION */}
-      {activeTab === "past" && (
-        <div className="border border-border/40 rounded-xl overflow-hidden bg-card/30">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-muted/40 text-muted-foreground border-b border-border/40">
-                <tr>
-                  <th className="p-3 font-semibold">Company / Symbol</th>
-                  <th className="p-3 font-semibold">Listing Date</th>
-                  <th className="p-3 font-semibold">Issue Price</th>
-                  <th className="p-3 font-semibold">Listing Day Price</th>
-                  <th className="p-3 font-semibold">Actual Listing Return</th>
-                  <th className="p-3 font-semibold">QIB Demand</th>
-                  <th className="p-3 font-semibold">Total Sub</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/20">
-                {closedIpos.map((ipo: IpoDetails) => (
-                  <tr key={ipo.symbol} className="hover:bg-muted/20 transition">
-                    <td className="p-3">
-                      <div className="font-bold text-foreground">{ipo.companyName}</div>
-                      <div className="text-[11px] text-muted-foreground font-mono">{ipo.symbol}</div>
-                    </td>
-                    <td className="p-3 text-muted-foreground">
-                      {ipo.listingDate ? (typeof ipo.listingDate === "string" ? ipo.listingDate : ipo.listingDate.toISOString().slice(0, 10)) : "Listed"}
-                    </td>
-                    <td className="p-3 font-mono">₹{ipo.priceCap}</td>
-                    <td className="p-3 font-mono font-bold">
-                      {ipo.listingPrice ? `₹${ipo.listingPrice}` : "N/A"}
-                    </td>
-                    <td className="p-3 font-bold font-mono">
-                      {ipo.listingGainPct != null ? (
-                        <span
-                          className={
-                            ipo.listingGainPct >= 0 ? "text-emerald-400" : "text-rose-400"
-                          }
-                        >
-                          {ipo.listingGainPct >= 0 ? "+" : ""}
-                          {ipo.listingGainPct.toFixed(1)}%
-                        </span>
-                      ) : (
-                        "Pending"
-                      )}
-                    </td>
-                    <td className="p-3 font-mono">{ipo.qibSub}x</td>
-                    <td className="p-3 font-mono">{ipo.totalSub}x</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
 
       {/* TAB CONTENT 4: MY APPLICATIONS */}
       {activeTab === "applications" && (
