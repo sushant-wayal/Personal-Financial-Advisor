@@ -47,7 +47,7 @@ async function sendExpoPushNotification(payload: DirectNotificationPayload): Pro
 
   const pushToken = tokenRecord?.value || process.env.EXPO_PUSH_TOKEN;
   if (!pushToken || typeof pushToken !== "string") {
-    // No registered device token yet
+    console.info("[notifier] No registered Expo push token found in AIMemory or EXPO_PUSH_TOKEN. Push notification skipped.");
     return false;
   }
 
@@ -70,6 +70,15 @@ async function sendExpoPushNotification(payload: DirectNotificationPayload): Pro
       timeout: 5000,
     },
   );
+
+  const ticketData = res.data?.data;
+  if (ticketData?.status === "ok") {
+    console.info(`[notifier] Expo Push dispatched successfully. Ticket ID: ${ticketData.id}`);
+    return true;
+  } else if (ticketData?.status === "error") {
+    console.warn(`[notifier] Expo Push returned error status: ${ticketData.message ?? ticketData.details?.error ?? "Unknown error"}`);
+    return false;
+  }
 
   return res.status >= 200 && res.status < 300;
 }

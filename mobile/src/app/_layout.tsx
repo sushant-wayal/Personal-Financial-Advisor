@@ -19,6 +19,7 @@ import { UserProfileProvider } from "../providers/UserProfileProvider";
 import { API_BASE_URL } from "../lib/apiBaseUrl";
 import { shouldStartAppSwipe } from "../lib/horizontalScrollPriority";
 import { fetchCachedValue } from "../lib/clientCache";
+import { registerForPushNotificationsAsync } from "../lib/pushNotifications";
 
 const MAIN_ROUTES = ["/", "/transactions", "/goals", "/settings"] as const;
 
@@ -284,6 +285,11 @@ export default function RootLayout() {
   useEffect(() => {
     void loadFonts();
   }, [loadFonts]);
+
+  useEffect(() => {
+    // Automatically register device push token on startup
+    void registerForPushNotificationsAsync();
+  }, []);
 
   useEffect(() => {
     let mounted = true;
