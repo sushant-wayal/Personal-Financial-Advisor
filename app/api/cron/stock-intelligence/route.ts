@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchUniverseData } from "../../../../src/services/marketData";
+import { fetchUniverseData, isStockTradingDay } from "../../../../src/services/marketData";
 import { generateDailyRecommendations } from "../../../../src/services/stockRecommendations";
 import { syncPaperPortfolioWithMarketBars } from "../../../../src/services/paperTrading";
 import { DEFAULT_UNIVERSE_SYMBOLS } from "../../../../src/config/stockEngineDefaults";
@@ -15,6 +15,19 @@ export async function GET(req: NextRequest) {
       if (!isDev) {
         return NextResponse.json({ ok: false, error: "Unauthorized cron request" }, { status: 401 });
       }
+    }
+
+    // Check whether today is an official stock trading day (Monday-Friday and not an exchange holiday)
+    const tradingDayCheck = isStockTradingDay(new Date());
+    if (!tradingDayCheck.isTradingDay) {
+      console.info(`[cron/stock-intelligence] Skipping daily pipeline on ${tradingDayCheck.dateStr}: ${tradingDayCheck.reason}`);
+      return NextResponse.json({
+        ok: true,
+        skipped: true,
+        isTradingDay: false,
+        sessionDate: tradingDayCheck.dateStr,
+        reason: tradingDayCheck.reason,
+      });
     }
 
     console.info("[cron] Starting North Stock Intelligence daily pipeline...");

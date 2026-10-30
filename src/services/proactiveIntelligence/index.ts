@@ -13,7 +13,7 @@
 import { getOrGenerateInvestmentSuggestion } from "../investmentEngine";
 import { generateDailyRecommendations } from "../stockRecommendations";
 import { generateDailyIpoRecommendations } from "../ipoRecommendations";
-import { fetchUniverseData } from "../marketData";
+import { fetchUniverseData, isStockTradingDay } from "../marketData";
 import { DEFAULT_UNIVERSE_SYMBOLS } from "../../config/stockEngineDefaults";
 import { dispatchDirectNotification } from "./notifier";
 import type { ActionableIntelligenceReport } from "./types";
@@ -24,18 +24,26 @@ export async function runDailyProactiveIntelligence(options?: {
   const startTime = Date.now();
   console.info("[proactiveIntelligence] 🌅 Starting master daily pre-computation pipeline...");
 
-  // 1. Ingest/Sync daily market candles for primary universe (NSE)
-  try {
-    const symbols = DEFAULT_UNIVERSE_SYMBOLS.slice(0, 30);
-    await fetchUniverseData(symbols, "NSE", 250);
-  } catch (err) {
-    console.warn("[proactiveIntelligence] Market data sync notice:", err);
-  }
+  // 1 & 2. Stock Intelligence (only executes on open stock market trading days)
+  const tradingDayCheck = isStockTradingDay();
+  let stockRun: any = null;
+  let stockBuys: any[] = [];
+  let stockSells: any[] = [];
 
-  // 2. Pre-calculate Stock Intelligence Recommendations (obey daily session plan)
-  const stockRun = await generateDailyRecommendations();
-  const stockBuys = stockRun.recommendations.filter((r) => r.type === "BUY");
-  const stockSells = stockRun.recommendations.filter((r) => r.type === "SELL");
+  if (tradingDayCheck.isTradingDay) {
+    try {
+      const symbols = DEFAULT_UNIVERSE_SYMBOLS.slice(0, 30);
+      await fetchUniverseData(symbols, "NSE", 250);
+    } catch (err) {
+      console.warn("[proactiveIntelligence] Market data sync notice:", err);
+    }
+
+    stockRun = await generateDailyRecommendations();
+    stockBuys = stockRun.recommendations.filter((r: any) => r.type === "BUY");
+    stockSells = stockRun.recommendations.filter((r: any) => r.type === "SELL");
+  } else {
+    console.info(`[proactiveIntelligence] Stock market closed today (${tradingDayCheck.reason}). Skipping stock pre-computation.`);
+  }
 
   // 3. Pre-calculate IPO Intelligence Recommendations
   const ipoRun = await generateDailyIpoRecommendations({ forceRerun: true });

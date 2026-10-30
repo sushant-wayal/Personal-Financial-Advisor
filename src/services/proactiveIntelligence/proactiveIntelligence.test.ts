@@ -7,6 +7,7 @@ import * as notifierService from "./notifier";
 
 vi.mock("../marketData", () => ({
   fetchUniverseData: vi.fn().mockResolvedValue({ successCount: 30 }),
+  isStockTradingDay: vi.fn().mockReturnValue({ isTradingDay: true, dateStr: "2026-10-27" }),
 }));
 
 vi.mock("../stockRecommendations", () => ({

@@ -5,6 +5,7 @@ import {
   generateDailyRecommendations,
   formatPersistedRun,
 } from "../../../../src/services/stockRecommendations";
+import { isStockTradingDay } from "../../../../src/services/marketData";
 
 export async function POST(req: NextRequest) {
   try {
@@ -31,6 +32,23 @@ export async function POST(req: NextRequest) {
         message: "Today's recommendation plan is active with executed trades. Daily session plan is locked to prevent overtrading.",
         run: formatPersistedRun(existingRun),
         isSessionLocked: true,
+      });
+    }
+
+    // Check whether today is a stock trading day (Monday-Friday and not an exchange holiday)
+    const tradingDayCheck = isStockTradingDay(new Date());
+    if (!tradingDayCheck.isTradingDay) {
+      const latestRun = existingRun || await prisma.stockRecommendationRun.findFirst({
+        orderBy: { marketSessionDate: "desc" },
+        include: { items: true },
+      });
+
+      return NextResponse.json({
+        ok: true,
+        message: `Stock exchange (NSE) is closed today (${tradingDayCheck.reason}). Daily recommendations only run on trading days.`,
+        run: latestRun ? formatPersistedRun(latestRun) : null,
+        isMarketClosed: true,
+        reason: tradingDayCheck.reason,
       });
     }
 

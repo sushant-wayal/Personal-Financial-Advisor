@@ -31,7 +31,7 @@ import type {
   StockScore,
   CapitalAllocation,
 } from "../../types/stockIntelligence";
-import { getDataProviderStatus, fetchUniverseData } from "../marketData";
+import { getDataProviderStatus, fetchUniverseData, isStockTradingDay } from "../marketData";
 import { detectMarketRegime } from "../stockAnalysis/regime";
 import { computeIndicators } from "../stockAnalysis/indicators";
 import { computeStockScore, screenUniverse } from "../stockAnalysis/scoring";
@@ -64,6 +64,9 @@ export async function generateDailyRecommendations(options?: {
   });
   const sessionDateObj = new Date(sessionDateStr);
 
+  // Check whether today is an official stock trading day (open market session)
+  const tradingDayCheck = isStockTradingDay(now);
+
   // Check if a run already exists for today's market session
   const existingRun = await prisma.stockRecommendationRun.findUnique({
     where: { marketSessionDate: sessionDateObj },
@@ -75,8 +78,21 @@ export async function generateDailyRecommendations(options?: {
     // Once a user has executed/invested in a daily recommendation, the daily plan is locked
     // for that entire market session date to maintain strict single-session trading discipline
     // and prevent overtrading or contradictory suggestions later in the day.
-    if (!options?.forceRerun || hasInvestedItems) {
+    // Furthermore, on non-trading days (weekends or exchange holidays), do not rerun closed sessions.
+    if (!options?.forceRerun || hasInvestedItems || !tradingDayCheck.isTradingDay) {
       return formatPersistedRun(existingRun);
+    }
+  }
+
+  // If today is NOT a trading day (weekend or exchange holiday) and no run was previously persisted for today:
+  if (!tradingDayCheck.isTradingDay) {
+    // Return the latest active trading session run from history
+    const latestRun = await prisma.stockRecommendationRun.findFirst({
+      orderBy: { marketSessionDate: "desc" },
+      include: { items: true },
+    });
+    if (latestRun) {
+      return formatPersistedRun(latestRun);
     }
   }
 
