@@ -5,6 +5,16 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
   ShieldAlert,
   ShieldCheck,
   Activity,
@@ -29,6 +39,7 @@ import type {
   PortfolioRiskSnapshot,
 } from "@/src/types/stockIntelligence";
 import type { StrategyName } from "@/src/config/stockEngineDefaults";
+import { calculateStockBrokerage, calculateStockCharges } from "@/src/services/shared";
 
 import ReactMarkdown from "react-markdown";
 
@@ -125,6 +136,12 @@ export default function StockIntelligenceClient() {
   const [backtestStrategy, setBacktestStrategy] = useState<StrategyName>("TREND_PULLBACK");
   const [backtestCapital, setBacktestCapital] = useState<number>(100000);
   const [backtestSlippage, setBacktestSlippage] = useState<number>(0.2);
+
+  // Live stock investment confirmation dialog state
+  const [investModalBuy, setInvestModalBuy] = useState<BuyRecommendation | null>(null);
+  const [executedPriceInput, setExecutedPriceInput] = useState<string>("");
+  const [executedQtyInput, setExecutedQtyInput] = useState<string>("");
+  const [brokerageInput, setBrokerageInput] = useState<string>("20");
 
   // 1. Fetch Recommendations Run
   const { data: recData } = useQuery<{ ok: boolean; run: RecommendationRun }>({
@@ -247,7 +264,15 @@ export default function StockIntelligenceClient() {
 
   // 7. Live / Cycle Stock Investment Mutation
   const investStockMutation = useMutation({
-    mutationFn: async (payload: { symbol: string; amount?: number; quantity?: number; entryPrice?: number }) => {
+    mutationFn: async (payload: {
+      itemId?: string;
+      symbol: string;
+      amount?: number;
+      quantity?: number;
+      executedPrice?: number;
+      brokerage?: number;
+      entryPrice?: number;
+    }) => {
       const res = await fetch("/api/stock-intelligence/recommendations/invest", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -261,8 +286,10 @@ export default function StockIntelligenceClient() {
     },
     onSuccess: (data) => {
       setStatusMessage({ type: "success", text: data.message || "Stock investment recorded successfully!" });
+      setInvestModalBuy(null);
       void queryClient.invalidateQueries({ queryKey: ["stockCapitalAllocation"] });
       void queryClient.invalidateQueries({ queryKey: ["stockRecommendations"] });
+      void queryClient.invalidateQueries({ queryKey: ["stockCapital"] });
       void queryClient.invalidateQueries({ queryKey: ["emergencyFundStatus"] });
       setTimeout(() => setStatusMessage(null), 5000);
     },
@@ -272,6 +299,36 @@ export default function StockIntelligenceClient() {
       setTimeout(() => setStatusMessage(null), 6000);
     },
   });
+
+  const handleOpenInvestModal = (buy: BuyRecommendation) => {
+    setInvestModalBuy(buy);
+    const initialPrice = buy.entryPrice ?? 0;
+    const initialQty = buy.quantity ?? 1;
+    setExecutedPriceInput(String(initialPrice || ""));
+    setExecutedQtyInput(String(initialQty || 1));
+    const autoBrokerage = calculateStockBrokerage(initialPrice * initialQty);
+    setBrokerageInput(String(autoBrokerage || ""));
+  };
+
+  const parsedPrice = parseFloat(executedPriceInput) || 0;
+  const parsedQty = parseInt(executedQtyInput, 10) || 0;
+  const modalTradeValue = Math.round(parsedPrice * parsedQty * 100) / 100;
+  const itemizedCharges = calculateStockCharges(modalTradeValue);
+  const autoComputedBrokerage = itemizedCharges.totalCharges;
+  const parsedBrokerage = brokerageInput !== "" ? (parseFloat(brokerageInput) || 0) : autoComputedBrokerage;
+  const modalTotalDeducted = Math.round((modalTradeValue + parsedBrokerage) * 100) / 100;
+
+  const handleConfirmInvestment = () => {
+    if (!investModalBuy) return;
+    if (parsedPrice <= 0 || parsedQty <= 0) return;
+    investStockMutation.mutate({
+      itemId: investModalBuy.id,
+      symbol: investModalBuy.symbol,
+      executedPrice: parsedPrice,
+      quantity: parsedQty,
+      brokerage: parsedBrokerage,
+    });
+  };
 
   // 8. Backtest Mutation
   const [backtestResult, setBacktestResult] = useState<BacktestResult | null>(null);
@@ -605,6 +662,11 @@ export default function StockIntelligenceClient() {
                             <span className="rounded bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-400 border border-emerald-500/20">
                               BUY {buy.quantity} shares
                             </span>
+                            {buy.status === "INVESTED" && (
+                              <span className="rounded bg-emerald-500/20 px-2 py-0.5 text-xs font-semibold text-emerald-300 border border-emerald-500/40 flex items-center gap-1">
+                                <CheckCircle2 className="h-3 w-3 text-emerald-400" /> INVESTED
+                              </span>
+                            )}
                             {buy.isAiDiscovered && (
                               <span className="rounded bg-purple-500/10 px-2 py-0.5 text-xs font-medium text-purple-300 border border-purple-500/30 flex items-center gap-1">
                                 <Sparkles className="h-3 w-3" /> AI Scouted
@@ -650,6 +712,28 @@ export default function StockIntelligenceClient() {
                           </div>
                         </div>
                       </div>
+
+                      {/* Executed Live Position Banner if Invested */}
+                      {buy.status === "INVESTED" && (
+                        <div className="rounded-lg border border-emerald-500/30 bg-emerald-950/20 p-2.5 text-xs text-emerald-200">
+                          <div className="font-semibold text-emerald-300 flex items-center justify-between">
+                            <span className="flex items-center gap-1.5">
+                              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" /> Live Position Recorded
+                            </span>
+                            <span className="font-mono font-bold text-emerald-100">
+                              Invested: ₹{formatDecimal(buy.investedAmount ?? ((buy.executedPrice ?? buy.entryPrice) * buy.quantity))}
+                            </span>
+                          </div>
+                          <div className="text-muted-foreground text-[11px] mt-1.5 flex items-center justify-between">
+                            <span>
+                              {buy.quantity} shares @ ₹{formatDecimal(buy.executedPrice ?? buy.entryPrice)}
+                            </span>
+                            <span>
+                              Charges: ₹{formatDecimal(buy.brokerage ?? calculateStockBrokerage((buy.executedPrice ?? buy.entryPrice) * buy.quantity))} · Budget used: ₹{formatDecimal((buy.investedAmount ?? ((buy.executedPrice ?? buy.entryPrice) * buy.quantity)) + (buy.brokerage ?? calculateStockBrokerage((buy.executedPrice ?? buy.entryPrice) * buy.quantity)))}
+                            </span>
+                          </div>
+                        </div>
+                      )}
 
                       {/* AI Catalyst Thesis if AI Scouted */}
                       {buy.aiThesis && (
@@ -698,22 +782,26 @@ export default function StockIntelligenceClient() {
                           <Play className="mr-1.5 h-3 w-3 text-cyan-400" />
                           Simulate
                         </Button>
-                        <Button
-                          size="sm"
-                          className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold"
-                          onClick={() => {
-                            investStockMutation.mutate({
-                              symbol: buy.symbol,
-                              amount: buy.estimatedCapital,
-                              quantity: buy.quantity,
-                              entryPrice: buy.entryPrice,
-                            });
-                          }}
-                          disabled={investStockMutation.isPending}
-                        >
-                          <CheckCircle2 className="mr-1.5 h-3 w-3 text-white" />
-                          Mark as Invested
-                        </Button>
+                        {buy.status === "INVESTED" ? (
+                          <Button
+                            size="sm"
+                            disabled
+                            className="bg-emerald-950/60 text-emerald-400 border border-emerald-500/30 text-xs font-semibold cursor-not-allowed opacity-90"
+                          >
+                            <CheckCircle2 className="mr-1.5 h-3.5 w-3.5 text-emerald-400" />
+                            Invested
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold"
+                            onClick={() => handleOpenInvestModal(buy)}
+                            disabled={investStockMutation.isPending}
+                          >
+                            <CheckCircle2 className="mr-1.5 h-3 w-3 text-white" />
+                            Mark as Invested
+                          </Button>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
@@ -1226,6 +1314,153 @@ export default function StockIntelligenceClient() {
           </Card>
         </div>
       )}
+
+      {/* Live Investment Execution Confirmation Modal */}
+      <Dialog
+        open={!!investModalBuy}
+        onOpenChange={(open) => {
+          if (!open && !investStockMutation.isPending) {
+            setInvestModalBuy(null);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-foreground">
+              <CheckCircle2 className="h-5 w-5 text-emerald-400" />
+              Record Stock Execution: {investModalBuy?.symbol}
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground text-xs">
+              Confirm your broker fill price and quantity. Delivery charges (brokerage, STT, stamp duty, exchange, SEBI, GST) are computed and deducted from your cycle stock budget.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="executed-price" className="text-xs text-muted-foreground">
+                  Executed Price / Share (₹)
+                </Label>
+                <Input
+                  id="executed-price"
+                  type="number"
+                  step="0.05"
+                  min="0.01"
+                  value={executedPriceInput}
+                  onChange={(e) => setExecutedPriceInput(e.target.value)}
+                  className="font-mono text-sm border-border bg-background px-3 py-2 rounded-md"
+                  placeholder="343.00"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="executed-qty" className="text-xs text-muted-foreground">
+                  Executed Quantity (Shares)
+                </Label>
+                <Input
+                  id="executed-qty"
+                  type="number"
+                  step="1"
+                  min="1"
+                  value={executedQtyInput}
+                  onChange={(e) => setExecutedQtyInput(e.target.value)}
+                  className="font-mono text-sm border-border bg-background px-3 py-2 rounded-md"
+                  placeholder="2"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="brokerage-fee" className="text-xs text-muted-foreground">
+                  Brokerage & Total Charges (₹)
+                </Label>
+                <button
+                  type="button"
+                  onClick={() => setBrokerageInput(String(autoComputedBrokerage))}
+                  className="text-[11px] text-cyan-400 hover:text-cyan-300 underline font-mono"
+                >
+                  Auto: ₹{formatDecimal(autoComputedBrokerage)}
+                </button>
+              </div>
+              <Input
+                id="brokerage-fee"
+                type="number"
+                step="0.01"
+                min="0"
+                value={brokerageInput}
+                onChange={(e) => setBrokerageInput(e.target.value)}
+                className="font-mono text-sm border-border bg-background px-3 py-2 rounded-md"
+                placeholder={String(autoComputedBrokerage)}
+              />
+            </div>
+
+            {/* Financial Deduction Breakdown Box */}
+            <div className="rounded-lg border border-border bg-muted/40 p-3 text-xs space-y-1.5">
+              <div className="flex justify-between text-muted-foreground">
+                <span>Stock Trade Value ({parsedQty} × ₹{formatDecimal(parsedPrice)}):</span>
+                <span className="font-mono text-foreground font-semibold">₹{formatDecimal(modalTradeValue)}</span>
+              </div>
+              <div className="flex justify-between text-muted-foreground">
+                <span>Brokerage & Statutory Charges:</span>
+                <span className="font-mono text-foreground font-semibold">+ ₹{formatDecimal(parsedBrokerage)}</span>
+              </div>
+
+              {/* Itemized Charges Sub-panel */}
+              <div className="text-[11px] text-muted-foreground pl-2.5 space-y-0.5 border-l-2 border-border/70 py-0.5 my-1">
+                <div className="flex justify-between">
+                  <span>• Brokerage (max(₹5, min(0.001×Trade, ₹20))):</span>
+                  <span className="font-mono text-foreground/80">₹{formatDecimal(itemizedCharges.brokerage)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>• STT (0.001×Trade):</span>
+                  <span className="font-mono text-foreground/80">₹{formatDecimal(itemizedCharges.stt)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>• Stamp Duty (0.00015×Trade):</span>
+                  <span className="font-mono text-foreground/80">₹{formatDecimal(itemizedCharges.stampDuty)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>• Exchange & SEBI:</span>
+                  <span className="font-mono text-foreground/80">₹{formatDecimal(itemizedCharges.exchangeCharges + itemizedCharges.sebiCharges)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>• GST (18% on fees):</span>
+                  <span className="font-mono text-foreground/80">₹{formatDecimal(itemizedCharges.gst)}</span>
+                </div>
+              </div>
+
+              <div className="border-t border-border pt-1.5 flex justify-between font-bold text-sm">
+                <span className="text-foreground">Cycle Stock Budget Used:</span>
+                <span className="font-mono text-emerald-400">₹{formatDecimal(modalTotalDeducted)}</span>
+              </div>
+              <p className="text-[11px] text-muted-foreground pt-1 leading-normal">
+                Deducted from your monthly cycle stock budget. Bank account balance is not deducted here (money transfers to Groww are tracked via bank debits).
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setInvestModalBuy(null)}
+              disabled={investStockMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold"
+              onClick={handleConfirmInvestment}
+              disabled={investStockMutation.isPending || parsedPrice <= 0 || parsedQty <= 0}
+            >
+              {investStockMutation.isPending ? "Recording..." : `Confirm Investment (₹${formatDecimal(modalTradeValue)} in shares)`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

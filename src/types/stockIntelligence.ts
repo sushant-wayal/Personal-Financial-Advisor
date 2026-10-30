@@ -276,9 +276,15 @@ export type PositionSize = {
 export type RecommendationType = "BUY" | "HOLD" | "SELL";
 
 export type BuyRecommendation = {
+  id?: string;
   type: "BUY";
   symbol: string;
   exchange: string;
+  status?: "PENDING" | "INVESTED" | "SKIPPED";
+  investedAt?: Date | string | null;
+  investedAmount?: number | null;
+  executedPrice?: number | null;
+  brokerage?: number | null;
   timestamp: Date;
   latestPrice: number;
   latestPriceTimestamp: Date;
@@ -308,9 +314,13 @@ export type BuyRecommendation = {
 };
 
 export type HoldRecommendation = {
+  id?: string;
   type: "HOLD";
   symbol: string;
   exchange: string;
+  status?: "PENDING" | "INVESTED" | "SKIPPED";
+  investedAt?: Date | string | null;
+  investedAmount?: number | null;
   timestamp: Date;
   quantity: number;
   averageCost: number | null;
@@ -329,9 +339,13 @@ export type HoldRecommendation = {
 };
 
 export type SellRecommendation = {
+  id?: string;
   type: "SELL";
   symbol: string;
   exchange: string;
+  status?: "PENDING" | "INVESTED" | "SKIPPED";
+  investedAt?: Date | string | null;
+  investedAmount?: number | null;
   timestamp: Date;
   heldQuantity: number;
   sellQuantity: number;

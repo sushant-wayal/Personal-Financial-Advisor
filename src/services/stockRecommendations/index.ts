@@ -619,9 +619,20 @@ export function formatPersistedRun(record: {
 }): RecommendationRun {
   const recommendations: Recommendation[] = (record.items || []).map((item) => {
     try {
-      return JSON.parse(item.detail) as Recommendation;
+      const parsed = JSON.parse(item.detail) as Recommendation;
+      return {
+        ...parsed,
+        id: item.id,
+        status: (item.status as "PENDING" | "INVESTED" | "SKIPPED") || parsed.status || "PENDING",
+        investedAt: item.investedAt != null ? item.investedAt : parsed.investedAt,
+        investedAmount: item.investedAmount != null ? item.investedAmount : parsed.investedAmount,
+      };
     } catch {
       return {
+        id: item.id,
+        status: (item.status as "PENDING" | "INVESTED" | "SKIPPED") || "PENDING",
+        investedAt: item.investedAt,
+        investedAmount: item.investedAmount,
         type: item.type as "BUY" | "HOLD" | "SELL",
         symbol: item.symbol,
         exchange: item.exchange,

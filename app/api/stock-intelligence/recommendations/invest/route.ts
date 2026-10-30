@@ -1,10 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/src/lib/prisma";
+import { calculateStockBrokerage, calculateStockCharges } from "@/src/services/shared";
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
-    const { itemId, symbol: rawSymbol, amount: rawAmount } = body;
+    const {
+      itemId,
+      symbol: rawSymbol,
+      amount: rawAmount,
+      executedPrice: rawExecutedPrice,
+      quantity: rawQuantity,
+      brokerage: rawBrokerage,
+    } = body;
 
     let item = itemId
       ? await prisma.stockRecommendationItem.findUnique({ where: { id: itemId } })
@@ -12,12 +20,12 @@ export async function POST(req: NextRequest) {
 
     if (!item && rawSymbol) {
       item = await prisma.stockRecommendationItem.findFirst({
-        where: { symbol: rawSymbol, type: "BUY", status: "PENDING" },
+        where: { symbol: rawSymbol, type: "BUY" },
         orderBy: { createdAt: "desc" },
       });
     }
 
-    let detail: any = {};
+    let detail: Record<string, unknown> = {};
     if (item?.detail) {
       try {
         detail = JSON.parse(item.detail);
@@ -26,17 +34,39 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const symbol = item?.symbol || rawSymbol || detail.symbol;
+    const symbol = item?.symbol || rawSymbol || (detail.symbol as string);
     if (!symbol) {
       return NextResponse.json({ ok: false, error: "Symbol or recommendation item ID is required" }, { status: 400 });
     }
 
-    const quantity = Number(detail.quantity || body.quantity || 1);
-    const entryPrice = Number(detail.entryPrice || body.entryPrice || 0);
-    const estimatedCapital = Number(detail.estimatedCapital || rawAmount || entryPrice * quantity || 0);
-    const investedAmount = rawAmount ? Number(rawAmount) : estimatedCapital;
+    // Sized quantity
+    const quantity = Number(rawQuantity || body.quantity || detail.quantity || 1);
 
-    // 1. Fetch active cycle investment suggestion
+    // Executed price per share & calculations
+    let executedPrice: number;
+    let tradeValue: number;
+    let brokerage: number;
+    let totalDeduction: number;
+
+    if (rawExecutedPrice != null || body.executedPrice != null) {
+      executedPrice = Number(rawExecutedPrice ?? body.executedPrice);
+      tradeValue = Number((executedPrice * quantity).toFixed(2));
+      brokerage = rawBrokerage != null ? Number(rawBrokerage) : (body.brokerage != null ? Number(body.brokerage) : calculateStockBrokerage(tradeValue));
+      totalDeduction = Number((tradeValue + brokerage).toFixed(2));
+    } else if (rawAmount != null || body.amount != null) {
+      totalDeduction = Number(rawAmount ?? body.amount);
+      executedPrice = quantity > 0 ? Number((((totalDeduction - 5) / quantity)).toFixed(2)) : Number((detail.entryPrice as number) || 0);
+      tradeValue = Number((executedPrice * quantity).toFixed(2));
+      brokerage = rawBrokerage != null ? Number(rawBrokerage) : (body.brokerage != null ? Number(body.brokerage) : calculateStockBrokerage(tradeValue));
+      tradeValue = Math.max(0, Number((totalDeduction - brokerage).toFixed(2)));
+    } else {
+      executedPrice = Number((detail.entryPrice as number) || body.entryPrice || 0);
+      tradeValue = Number((executedPrice * quantity).toFixed(2));
+      brokerage = rawBrokerage != null ? Number(rawBrokerage) : (body.brokerage != null ? Number(body.brokerage) : calculateStockBrokerage(tradeValue));
+      totalDeduction = Number((tradeValue + brokerage).toFixed(2));
+    }
+
+    // 1. Fetch active cycle investment suggestion and deduct totalDeduction
     const activeSuggestion = await prisma.investmentSuggestion.findFirst({
       where: { status: "ACTIVE" },
       orderBy: { createdAt: "desc" },
@@ -47,7 +77,7 @@ export async function POST(req: NextRequest) {
       const currentRemaining = activeSuggestion.remainingStockBalance != null
         ? activeSuggestion.remainingStockBalance
         : (activeSuggestion.totalStockInvestable || 0);
-      newRemainingStockBalance = Math.max(0, currentRemaining - investedAmount);
+      newRemainingStockBalance = Math.max(0, currentRemaining - totalDeduction);
 
       await prisma.investmentSuggestion.update({
         where: { id: activeSuggestion.id },
@@ -56,13 +86,28 @@ export async function POST(req: NextRequest) {
     }
 
     // 2. Mark Recommendation Item as INVESTED if found
+    const chargesBreakdown = calculateStockCharges(tradeValue);
+    const updatedDetail = {
+      ...detail,
+      status: "INVESTED",
+      executedPrice,
+      quantity,
+      tradeValue,
+      investedAmount: tradeValue, // Exactly what was invested in the stock asset
+      brokerage,                  // Regulatory & broker fees
+      totalDeduction,             // Total budget outflow (tradeValue + brokerage)
+      chargesBreakdown,
+      investedAt: new Date().toISOString(),
+    };
+
     if (item) {
       await prisma.stockRecommendationItem.update({
         where: { id: item.id },
         data: {
           status: "INVESTED",
           investedAt: new Date(),
-          investedAmount,
+          investedAmount: tradeValue,
+          detail: JSON.stringify(updatedDetail),
         },
       });
     }
@@ -75,12 +120,12 @@ export async function POST(req: NextRequest) {
 
       if (existingStock) {
         const newQty = existingStock.currentQuantity + quantity;
-        const newWorth = (existingStock.currentWorth ?? 0) + investedAmount;
+        const newWorth = (existingStock.currentWorth ?? 0) + tradeValue;
         await prisma.stock.update({
           where: { id: existingStock.id },
           data: {
             currentQuantity: newQty,
-            currentPrice: entryPrice > 0 ? entryPrice : existingStock.currentPrice,
+            currentPrice: executedPrice > 0 ? executedPrice : existingStock.currentPrice,
             currentWorth: newWorth,
           },
         });
@@ -88,33 +133,30 @@ export async function POST(req: NextRequest) {
         await prisma.stock.create({
           data: {
             symbol,
-            exchange: detail.exchange || "NSE",
+            exchange: (detail.exchange as string) || "NSE",
             currentQuantity: quantity,
-            currentPrice: entryPrice,
-            currentWorth: investedAmount,
+            currentPrice: executedPrice,
+            currentWorth: tradeValue,
           },
         });
       }
     }
 
-    // 4. Update FinancialProfile balance (deduct invested cash from liquid bank account)
-    const profile = await prisma.financialProfile.findFirst();
-    if (profile && profile.balance > 0) {
-      await prisma.financialProfile.update({
-        where: { id: profile.id },
-        data: {
-          balance: Math.max(0, profile.balance - investedAmount),
-        },
-      });
-    }
+    // Note: Bank profile balance is preserved untouched here because transfers
+    // to broker funds (Groww) are automatically tracked via debit transactions.
 
     return NextResponse.json({
       ok: true,
       symbol,
-      investedAmount,
+      executedPrice,
       quantity,
+      tradeValue,
+      brokerage,
+      chargesBreakdown,
+      totalDeduction,
+      investedAmount: tradeValue,
       remainingStockBalance: newRemainingStockBalance,
-      message: `Successfully recorded purchase of ${quantity} shares of ${symbol} for ₹${investedAmount.toLocaleString("en-IN")}.`,
+      message: `Successfully recorded purchase of ${quantity} shares of ${symbol} @ ₹${executedPrice.toFixed(2)} (Invested: ₹${tradeValue.toFixed(2)}, Charges: ₹${brokerage.toFixed(2)}, Budget Used: ₹${totalDeduction.toFixed(2)}).`,
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Failed to record stock investment";

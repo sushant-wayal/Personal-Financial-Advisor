@@ -1,11 +1,13 @@
 import React, { useCallback, useEffect, useState } from "react";
 import {
+  Modal,
   Pressable,
   RefreshControl,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -17,6 +19,42 @@ import { useAlert } from "../providers/AlertProvider";
 
 import { InvestmentsSkeleton } from "../components/LoadingSkeleton";
 import Markdown from "react-native-markdown-display";
+
+function calculateStockCharges(tradeValue: number) {
+  if (!tradeValue || tradeValue <= 0) {
+    return {
+      brokerage: 0,
+      stt: 0,
+      stampDuty: 0,
+      exchangeCharges: 0,
+      sebiCharges: 0,
+      gst: 0,
+      totalCharges: 0,
+    };
+  }
+
+  const brokerage = Math.max(5, Math.min(20, tradeValue * 0.001));
+  const stt = tradeValue * 0.001;
+  const stampDuty = tradeValue * 0.00015;
+  const exchangeCharges = tradeValue * 0.0000297;
+  const sebiCharges = tradeValue * 0.000001;
+  const gst = 0.18 * (brokerage + exchangeCharges + sebiCharges);
+  const total = brokerage + stt + stampDuty + exchangeCharges + sebiCharges + gst;
+
+  return {
+    brokerage: Math.round(brokerage * 100) / 100,
+    stt: Math.round(stt * 100) / 100,
+    stampDuty: Math.round(stampDuty * 100) / 100,
+    exchangeCharges: Math.round(exchangeCharges * 100) / 100,
+    sebiCharges: Math.round(sebiCharges * 100) / 100,
+    gst: Math.round(gst * 100) / 100,
+    totalCharges: Math.round(total * 100) / 100,
+  };
+}
+
+function calculateStockBrokerage(tradeValue: number): number {
+  return calculateStockCharges(tradeValue).totalCharges;
+}
 
 function formatBindingConstraint(raw: string | null | undefined): string {
   if (!raw) return "Optimal Sizing";
@@ -120,6 +158,12 @@ export default function StockIntelligenceScreen() {
   const [backtestResult, setBacktestResult] = useState<any>(null);
 
   const [actionLoading, setActionLoading] = useState(false);
+
+  // Live stock investment dialog state
+  const [investModalBuy, setInvestModalBuy] = useState<any | null>(null);
+  const [executedPriceText, setExecutedPriceText] = useState<string>("");
+  const [executedQtyText, setExecutedQtyText] = useState<string>("");
+  const [brokerageText, setBrokerageText] = useState<string>("20");
 
   const loadData = useCallback(async () => {
     try {
@@ -234,20 +278,49 @@ export default function StockIntelligenceScreen() {
     }
   };
 
-  const handleInvestStock = async (buy: any) => {
+  const openInvestModal = (buy: any) => {
+    setInvestModalBuy(buy);
+    const initialPrice = buy.entryPrice || 0;
+    const initialQty = buy.quantity || 1;
+    setExecutedPriceText(initialPrice ? String(initialPrice) : "");
+    setExecutedQtyText(initialQty ? String(initialQty) : "1");
+    const autoBrokerage = calculateStockBrokerage(initialPrice * initialQty);
+    setBrokerageText(String(autoBrokerage || ""));
+  };
+
+  const handleConfirmInvest = async () => {
+    if (!investModalBuy) return;
+    const price = parseFloat(executedPriceText);
+    const qty = parseInt(executedQtyText, 10);
+    const tradeValue = (price || 0) * (qty || 0);
+    const autoBrokerage = calculateStockBrokerage(tradeValue);
+    const brokerage = brokerageText !== "" ? (parseFloat(brokerageText) || 0) : autoBrokerage;
+
+    if (!price || price <= 0 || !qty || qty <= 0) {
+      showError("Invalid Input", "Please enter a valid executed price and quantity.");
+      return;
+    }
+
+    const total = Math.round((tradeValue + brokerage) * 100) / 100;
+
     setActionLoading(true);
     try {
       const res = await safeFetchJson(apiUrl("/api/stock-intelligence/recommendations/invest"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          symbol: buy.symbol,
-          quantity: buy.quantity,
-          entryPrice: buy.entryPrice,
-          amount: buy.estimatedCapital,
+          itemId: investModalBuy.id,
+          symbol: investModalBuy.symbol,
+          executedPrice: price,
+          quantity: qty,
+          brokerage,
         }),
       });
-      showSuccess("Investment Recorded", res.message || `Recorded ₹${buy.estimatedCapital?.toLocaleString("en-IN")} investment in ${buy.symbol}`);
+      setInvestModalBuy(null);
+      showSuccess(
+        "Investment Recorded",
+        res.message || `Invested ₹${tradeValue.toLocaleString("en-IN")} in ${investModalBuy.symbol} (Charges: ₹${brokerage.toFixed(2)}, Budget: ₹${total.toLocaleString("en-IN")})`
+      );
       loadData();
     } catch (e: any) {
       showError("Investment Error", e.message || String(e));
@@ -436,6 +509,11 @@ export default function StockIntelligenceScreen() {
                         <View style={styles.buyBadge}>
                           <Text style={styles.buyBadgeText}>BUY {buy.quantity} shares</Text>
                         </View>
+                        {buy.status === "INVESTED" ? (
+                          <View style={[styles.buyBadge, { backgroundColor: "rgba(16,185,129,0.2)", borderColor: "rgba(16,185,129,0.5)" }]}>
+                            <Text style={[styles.buyBadgeText, { color: "#34d399", fontWeight: "700" }]}>✓ INVESTED</Text>
+                          </View>
+                        ) : null}
                         {buy.isAiDiscovered ? (
                           <View style={styles.aiScoutBadge}>
                             <MaterialIcons name="auto-awesome" size={11} color="#c084fc" />
@@ -478,26 +556,55 @@ export default function StockIntelligenceScreen() {
                     </View>
                   ) : null}
 
+                  {/* Executed Live Position Banner if Invested */}
+                  {buy.status === "INVESTED" ? (
+                    <View style={styles.investedBox}>
+                      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                          <MaterialIcons name="check-circle" size={14} color="#10b981" />
+                          <Text style={{ fontSize: 12, fontWeight: "700", color: "#34d399" }}>Live Position Recorded</Text>
+                        </View>
+                        <Text style={{ fontSize: 12, fontWeight: "800", color: "#ffffff" }}>
+                          Invested: ₹{(buy.investedAmount ?? ((buy.executedPrice || buy.entryPrice) * buy.quantity)).toFixed(2)}
+                        </Text>
+                      </View>
+                      <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 4 }}>
+                        <Text style={{ fontSize: 11, color: "#888888" }}>
+                          {buy.quantity} shares @ ₹{(buy.executedPrice || buy.entryPrice).toFixed(2)}
+                        </Text>
+                        <Text style={{ fontSize: 11, color: "#888888" }}>
+                          Charges: ₹{(buy.brokerage ?? calculateStockBrokerage((buy.executedPrice || buy.entryPrice) * buy.quantity)).toFixed(2)} · Budget: ₹{((buy.investedAmount ?? ((buy.executedPrice || buy.entryPrice) * buy.quantity)) + (buy.brokerage ?? calculateStockBrokerage((buy.executedPrice || buy.entryPrice) * buy.quantity))).toFixed(2)}
+                        </Text>
+                      </View>
+                    </View>
+                  ) : null}
+
                   {/* Actions Row */}
                   <View style={{ flexDirection: "row", gap: 8, marginTop: 4 }}>
-                    <Pressable
-                      onPress={() => handleInvestStock(buy)}
-                      disabled={actionLoading || buy.status === "INVESTED"}
-                      style={({ pressed }) => [
-                        styles.investBtn,
-                        buy.status === "INVESTED" ? { backgroundColor: "rgba(16,185,129,0.2)" } : null,
-                        pressed ? { opacity: 0.7 } : null,
-                      ]}
-                    >
-                      <MaterialIcons
-                        name={buy.status === "INVESTED" ? "check-circle" : "check"}
-                        size={16}
-                        color="#10b981"
-                      />
-                      <Text style={styles.investBtnText}>
-                        {buy.status === "INVESTED" ? "Invested" : "Mark as Invested"}
-                      </Text>
-                    </Pressable>
+                    {buy.status === "INVESTED" ? (
+                      <Pressable
+                        disabled
+                        style={[
+                          styles.investBtn,
+                          { backgroundColor: "rgba(16,185,129,0.18)", borderColor: "rgba(16,185,129,0.4)" },
+                        ]}
+                      >
+                        <MaterialIcons name="check-circle" size={16} color="#10b981" />
+                        <Text style={styles.investBtnText}>Invested</Text>
+                      </Pressable>
+                    ) : (
+                      <Pressable
+                        onPress={() => openInvestModal(buy)}
+                        disabled={actionLoading}
+                        style={({ pressed }) => [
+                          styles.investBtn,
+                          pressed ? { opacity: 0.7 } : null,
+                        ]}
+                      >
+                        <MaterialIcons name="check" size={16} color="#10b981" />
+                        <Text style={styles.investBtnText}>Mark as Invested</Text>
+                      </Pressable>
+                    )}
 
                     <Pressable
                       onPress={() => handlePaperBuy(buy)}
@@ -909,6 +1016,148 @@ export default function StockIntelligenceScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* Interactive Stock Execution Confirmation Modal */}
+      <Modal
+        visible={!!investModalBuy}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          if (!actionLoading) setInvestModalBuy(null);
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 }}>
+              <MaterialIcons name="check-circle" size={20} color="#10b981" />
+              <Text style={styles.modalTitle}>Record Stock Fill: {investModalBuy?.symbol}</Text>
+            </View>
+            <Text style={styles.modalSub}>
+              Enter actual broker fill price and quantity. Delivery charges (brokerage, STT, stamp duty, exchange, SEBI, GST) are computed and deducted from cycle stock budget.
+            </Text>
+
+            <View style={{ marginTop: 12, gap: 10 }}>
+              <View>
+                <Text style={styles.inputLabel}>Executed Price / Share (₹)</Text>
+                <TextInput
+                  style={styles.textInput}
+                  keyboardType="decimal-pad"
+                  value={executedPriceText}
+                  onChangeText={setExecutedPriceText}
+                  placeholder="343.00"
+                  placeholderTextColor="#666666"
+                />
+              </View>
+
+              <View>
+                <Text style={styles.inputLabel}>Executed Quantity (Shares)</Text>
+                <TextInput
+                  style={styles.textInput}
+                  keyboardType="number-pad"
+                  value={executedQtyText}
+                  onChangeText={setExecutedQtyText}
+                  placeholder="2"
+                  placeholderTextColor="#666666"
+                />
+              </View>
+
+              <View>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                  <Text style={styles.inputLabel}>Brokerage & Fee (₹)</Text>
+                  <Pressable onPress={() => {
+                    const p = parseFloat(executedPriceText) || 0;
+                    const q = parseInt(executedQtyText, 10) || 0;
+                    setBrokerageText(String(calculateStockBrokerage(p * q)));
+                  }}>
+                    <Text style={{ fontSize: 10, color: "#22d3ee", textDecorationLine: "underline" }}>
+                      Auto-Calculate
+                    </Text>
+                  </Pressable>
+                </View>
+                <TextInput
+                  style={styles.textInput}
+                  keyboardType="decimal-pad"
+                  value={brokerageText}
+                  onChangeText={setBrokerageText}
+                  placeholder="6.71"
+                  placeholderTextColor="#666666"
+                />
+              </View>
+
+              {/* Live Financial Breakdown Box */}
+              {(() => {
+                const p = parseFloat(executedPriceText) || 0;
+                const q = parseInt(executedQtyText, 10) || 0;
+                const trade = Math.round(p * q * 100) / 100;
+                const itemized = calculateStockCharges(trade);
+                const b = brokerageText !== "" ? (parseFloat(brokerageText) || 0) : itemized.totalCharges;
+                const total = Math.round((trade + b) * 100) / 100;
+                return (
+                  <View style={styles.modalBreakdown}>
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 3 }}>
+                      <Text style={{ fontSize: 12, color: "#aaaaaa" }}>Trade Value ({q} × ₹{p.toFixed(2)}):</Text>
+                      <Text style={{ fontSize: 12, fontWeight: "700", color: "#ffffff" }}>₹{trade.toFixed(2)}</Text>
+                    </View>
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 4 }}>
+                      <Text style={{ fontSize: 12, color: "#aaaaaa" }}>Total Regulatory & Broker Charges:</Text>
+                      <Text style={{ fontSize: 12, fontWeight: "700", color: "#ffffff" }}>+ ₹{b.toFixed(2)}</Text>
+                    </View>
+                    {/* Itemized charges mini-list */}
+                    <View style={{ borderLeftWidth: 2, borderLeftColor: "rgba(255,255,255,0.15)", paddingLeft: 6, marginVertical: 3 }}>
+                      <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                        <Text style={{ fontSize: 10, color: "#888888" }}>• Brokerage (max(5, min(0.001×Trade, 20))):</Text>
+                        <Text style={{ fontSize: 10, color: "#bbbbbb" }}>₹{itemized.brokerage.toFixed(2)}</Text>
+                      </View>
+                      <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                        <Text style={{ fontSize: 10, color: "#888888" }}>• STT (0.001×Trade):</Text>
+                        <Text style={{ fontSize: 10, color: "#bbbbbb" }}>₹{itemized.stt.toFixed(2)}</Text>
+                      </View>
+                      <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                        <Text style={{ fontSize: 10, color: "#888888" }}>• Stamp Duty (0.00015×Trade):</Text>
+                        <Text style={{ fontSize: 10, color: "#bbbbbb" }}>₹{itemized.stampDuty.toFixed(2)}</Text>
+                      </View>
+                      <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                        <Text style={{ fontSize: 10, color: "#888888" }}>• Exchange & SEBI:</Text>
+                        <Text style={{ fontSize: 10, color: "#bbbbbb" }}>₹{(itemized.exchangeCharges + itemized.sebiCharges).toFixed(2)}</Text>
+                      </View>
+                      <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                        <Text style={{ fontSize: 10, color: "#888888" }}>• GST (18% on fees):</Text>
+                        <Text style={{ fontSize: 10, color: "#bbbbbb" }}>₹{itemized.gst.toFixed(2)}</Text>
+                      </View>
+                    </View>
+                    <View style={{ borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.1)", paddingTop: 5, flexDirection: "row", justifyContent: "space-between", marginTop: 2 }}>
+                      <Text style={{ fontSize: 13, fontWeight: "700", color: "#ffffff" }}>Cycle Stock Budget Used:</Text>
+                      <Text style={{ fontSize: 13, fontWeight: "800", color: "#34d399" }}>₹{total.toFixed(2)}</Text>
+                    </View>
+                    <Text style={{ fontSize: 10, color: "#777777", marginTop: 4, lineHeight: 14 }}>
+                      Deducted from cycle stock budget. Bank account balance is untouched.
+                    </Text>
+                  </View>
+                );
+              })()}
+            </View>
+
+            <View style={{ flexDirection: "row", gap: 10, marginTop: 16 }}>
+              <Pressable
+                style={[styles.modalCancelBtn, actionLoading ? { opacity: 0.5 } : null]}
+                disabled={actionLoading}
+                onPress={() => setInvestModalBuy(null)}
+              >
+                <Text style={styles.modalCancelBtnText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.modalConfirmBtn, actionLoading ? { opacity: 0.6 } : null]}
+                disabled={actionLoading}
+                onPress={handleConfirmInvest}
+              >
+                <Text style={styles.modalConfirmBtnText}>
+                  {actionLoading ? "Recording..." : "Confirm Investment"}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -1120,6 +1369,90 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.06)",
     gap: 2,
+  },
+  investedBox: {
+    backgroundColor: "rgba(16,185,129,0.08)",
+    borderColor: "rgba(16,185,129,0.25)",
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 10,
+    marginTop: 8,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.75)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: "#1c1c1f",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+    padding: 18,
+    width: "100%",
+    maxWidth: 420,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#ffffff",
+  },
+  modalSub: {
+    fontSize: 12,
+    color: "#888888",
+    marginTop: 2,
+    lineHeight: 16,
+  },
+  inputLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#aaaaaa",
+    marginBottom: 4,
+    textTransform: "uppercase",
+  },
+  textInput: {
+    backgroundColor: "#121214",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+    borderRadius: 8,
+    color: "#ffffff",
+    fontSize: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  modalBreakdown: {
+    backgroundColor: "#141416",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.06)",
+    padding: 10,
+    marginTop: 4,
+  },
+  modalCancelBtn: {
+    flex: 1,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  modalCancelBtnText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#cccccc",
+  },
+  modalConfirmBtn: {
+    flex: 1.5,
+    backgroundColor: "#059669",
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  modalConfirmBtnText: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#ffffff",
   },
 });
 
