@@ -223,56 +223,51 @@ export default function InvestmentsScreen() {
             <Text style={styles.backButtonText}>GOALS</Text>
           </Pressable>
 
-          {suggestion?.streak > 1 && (
-            <View style={styles.streakBadge}>
-              <Text style={styles.streakBadgeText}>🔥 {suggestion.streak}</Text>
-            </View>
-          )}
-        </View>
-
-        {/* Quick Navigation Ribbon */}
-        <View style={styles.navRibbon}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.navRibbonContent}
-          >
-            <Pressable
-              onPress={() => router.push("/ipo-intelligence")}
-              style={({ pressed }) => [
-                styles.navPill,
-                styles.ipoPill,
-                pressed ? styles.cardPressed : null,
-              ]}
-            >
-              <MaterialIcons name="layers" size={15} color="#34d399" />
-              <Text style={[styles.navPillText, { color: "#34d399" }]}>IPOs</Text>
-            </Pressable>
-
-            <Pressable
-              onPress={() => router.push("/stock-intelligence")}
-              style={({ pressed }) => [
-                styles.navPill,
-                styles.stockPill,
-                pressed ? styles.cardPressed : null,
-              ]}
-            >
-              <MaterialIcons name="trending-up" size={15} color="#22d3ee" />
-              <Text style={[styles.navPillText, { color: "#22d3ee" }]}>Stocks</Text>
-            </Pressable>
-
+          <View style={styles.topRightGroup}>
             <Pressable
               onPress={() => router.push("/investment-history")}
               style={({ pressed }) => [
-                styles.navPill,
-                styles.historyPill,
+                styles.topHistoryPill,
                 pressed ? styles.cardPressed : null,
               ]}
             >
-              <MaterialIcons name="history" size={15} color="#818cf8" />
-              <Text style={[styles.navPillText, { color: "#818cf8" }]}>History</Text>
+              <MaterialIcons name="history" size={14} color="#818cf8" />
+              <Text style={styles.topHistoryPillText}>History</Text>
             </Pressable>
-          </ScrollView>
+
+            {suggestion?.streak > 1 && (
+              <View style={styles.streakBadge}>
+                <Text style={styles.streakBadgeText}>🔥 {suggestion.streak}</Text>
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* Second Row: Full Width IPOs and Stocks */}
+        <View style={styles.secondRow}>
+          <Pressable
+            onPress={() => router.push("/ipo-intelligence")}
+            style={({ pressed }) => [
+              styles.fullWidthPill,
+              styles.ipoPill,
+              pressed ? styles.cardPressed : null,
+            ]}
+          >
+            <MaterialIcons name="layers" size={16} color="#34d399" />
+            <Text style={[styles.fullWidthPillText, { color: "#34d399" }]}>IPOs</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => router.push("/stock-intelligence")}
+            style={({ pressed }) => [
+              styles.fullWidthPill,
+              styles.stockPill,
+              pressed ? styles.cardPressed : null,
+            ]}
+          >
+            <MaterialIcons name="trending-up" size={16} color="#22d3ee" />
+            <Text style={[styles.fullWidthPillText, { color: "#22d3ee" }]}>Stocks</Text>
+          </Pressable>
         </View>
       </View>
 
@@ -679,23 +674,43 @@ const styles = StyleSheet.create({
     letterSpacing: 1.4,
     fontWeight: "700",
   },
-  navRibbon: {
-    paddingBottom: 12,
-    paddingTop: 2,
-  },
-  navRibbonContent: {
-    paddingHorizontal: 20,
+  topRightGroup: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
   },
-  navPill: {
+  topHistoryPill: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: 999,
+    backgroundColor: "rgba(129, 140, 248, 0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(129, 140, 248, 0.35)",
+  },
+  topHistoryPillText: {
+    color: "#818cf8",
+    fontFamily: "JetBrains Mono",
+    fontSize: fs(10),
+    fontWeight: "700",
+    letterSpacing: 0.5,
+  },
+  secondRow: {
+    flexDirection: "row",
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+    gap: 10,
+  },
+  fullWidthPill: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 8,
+    borderRadius: 10,
     borderWidth: 1,
   },
   ipoPill: {
@@ -706,13 +721,9 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(6,182,212,0.12)",
     borderColor: "rgba(6,182,212,0.3)",
   },
-  historyPill: {
-    backgroundColor: "rgba(129, 140, 248, 0.12)",
-    borderColor: "rgba(129, 140, 248, 0.3)",
-  },
-  navPillText: {
+  fullWidthPillText: {
     fontFamily: "JetBrains Mono",
-    fontSize: fs(10),
+    fontSize: fs(11),
     fontWeight: "700",
     letterSpacing: 0.5,
   },
