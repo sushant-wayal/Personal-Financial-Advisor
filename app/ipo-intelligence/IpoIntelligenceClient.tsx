@@ -127,7 +127,7 @@ export default function IpoIntelligenceClient() {
   const userApplications = appData?.applications ?? [];
 
   return (
-    <div className="flex-1 space-y-6 p-4 md:p-8 pt-6 max-w-7xl mx-auto">
+    <div className="flex-1 space-y-6 p-4 md:p-8 pt-6 pb-24 max-w-7xl mx-auto">
       {/* Top Header & Session Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border/40 pb-5">
         <div>

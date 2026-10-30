@@ -10,6 +10,9 @@
 
 import { prisma } from "../../lib/prisma";
 import type { IpoDetails, IpoStatus, GmpTrend, IpoIssueType } from "./types";
+import { syncLiveIpos } from "./liveSync";
+
+export { syncLiveIpos };
 
 /**
  * Format a Date to YYYY-MM-DD in Indian Standard Time (IST).
@@ -33,18 +36,8 @@ export function normalizeDate(input: string | Date): Date {
 }
 
 /**
- * Relative date helper in IST.
- */
-function getRelativeDate(daysOffset: number): Date {
-  const d = new Date();
-  d.setDate(d.getDate() + daysOffset);
-  const istStr = formatIstDateStr(d);
-  return normalizeDate(istStr);
-}
-
-/**
- * Initial curated catalog of Indian Mainboard & SME IPOs.
- * Seeded automatically if the IpoListing table is empty.
+ * Initial curated catalog of Indian Mainboard & SME historical benchmark IPOs.
+ * Used for historical performance and backtesting benchmarks.
  */
 export function getSeedIpoCatalog(): IpoDetails[] {
   return [
@@ -53,10 +46,10 @@ export function getSeedIpoCatalog(): IpoDetails[] {
       symbol: "WAAREE",
       exchange: "NSE",
       issueType: "MAINBOARD",
-      openDate: getRelativeDate(-1), // Open yesterday
-      closeDate: getRelativeDate(1), // Closes tomorrow
-      allotmentDate: getRelativeDate(3),
-      listingDate: getRelativeDate(6),
+      openDate: normalizeDate("2024-10-21"),
+      closeDate: normalizeDate("2024-10-23"),
+      allotmentDate: normalizeDate("2024-10-24"),
+      listingDate: normalizeDate("2024-10-28"),
       priceFloor: 1427,
       priceCap: 1503,
       lotSize: 9,
@@ -77,7 +70,9 @@ export function getSeedIpoCatalog(): IpoDetails[] {
       patMarginPct: 11.2,
       ronwPct: 22.8,
       debtToEquity: 0.18,
-      status: "OPEN",
+      status: "LISTED",
+      listingPrice: 2550,
+      listingGainPct: 69.66,
       rhpUrl: "https://www.sebi.gov.in",
       summaryThesis:
         "India's largest solar PV module manufacturer with 12 GW installed capacity. Exceptional demand driven by global decarbonization and substantial US export orders.",
@@ -91,10 +86,10 @@ export function getSeedIpoCatalog(): IpoDetails[] {
       symbol: "AFCONS",
       exchange: "NSE",
       issueType: "MAINBOARD",
-      openDate: getRelativeDate(0), // Opens today
-      closeDate: getRelativeDate(2), // Closes in 2 days
-      allotmentDate: getRelativeDate(4),
-      listingDate: getRelativeDate(7),
+      openDate: normalizeDate("2024-10-25"),
+      closeDate: normalizeDate("2024-10-29"),
+      allotmentDate: normalizeDate("2024-10-30"),
+      listingDate: normalizeDate("2024-11-04"),
       priceFloor: 440,
       priceCap: 463,
       lotSize: 32,
@@ -115,7 +110,9 @@ export function getSeedIpoCatalog(): IpoDetails[] {
       patMarginPct: 4.1,
       ronwPct: 13.5,
       debtToEquity: 0.88,
-      status: "OPEN",
+      status: "LISTED",
+      listingPrice: 426,
+      listingGainPct: -8.0,
       rhpUrl: "https://www.sebi.gov.in",
       summaryThesis:
         "Flagship infrastructure engineering arm of Shapoorji Pallonji Group. Strong execution track record in complex maritime, tunnel, and metro projects globally.",
@@ -129,10 +126,10 @@ export function getSeedIpoCatalog(): IpoDetails[] {
       symbol: "GODAVARI",
       exchange: "NSE",
       issueType: "MAINBOARD",
-      openDate: getRelativeDate(-2), // Open 2 days ago
-      closeDate: getRelativeDate(0), // Closes today
-      allotmentDate: getRelativeDate(2),
-      listingDate: getRelativeDate(5),
+      openDate: normalizeDate("2024-10-23"),
+      closeDate: normalizeDate("2024-10-25"),
+      allotmentDate: normalizeDate("2024-10-28"),
+      listingDate: normalizeDate("2024-10-30"),
       priceFloor: 334,
       priceCap: 352,
       lotSize: 42,
@@ -153,7 +150,7 @@ export function getSeedIpoCatalog(): IpoDetails[] {
       patMarginPct: 1.4,
       ronwPct: 4.2,
       debtToEquity: 1.42,
-      status: "OPEN",
+      status: "LISTED",
       rhpUrl: "https://www.sebi.gov.in",
       summaryThesis:
         "Manufacturer of ethanol-based chemicals and biofuels. Facing margin compression due to sugar cane price controls and fluctuating export realization.",
@@ -167,10 +164,10 @@ export function getSeedIpoCatalog(): IpoDetails[] {
       symbol: "DEEPAKENG",
       exchange: "BOTH",
       issueType: "MAINBOARD",
-      openDate: getRelativeDate(-1),
-      closeDate: getRelativeDate(1),
-      allotmentDate: getRelativeDate(3),
-      listingDate: getRelativeDate(6),
+      openDate: normalizeDate("2024-10-21"),
+      closeDate: normalizeDate("2024-10-23"),
+      allotmentDate: normalizeDate("2024-10-24"),
+      listingDate: normalizeDate("2024-10-28"),
       priceFloor: 192,
       priceCap: 203,
       lotSize: 73,
@@ -191,7 +188,7 @@ export function getSeedIpoCatalog(): IpoDetails[] {
       patMarginPct: 9.2,
       ronwPct: 28.4,
       debtToEquity: 0.42,
-      status: "OPEN",
+      status: "LISTED",
       rhpUrl: "https://www.sebi.gov.in",
       summaryThesis:
         "Engineering and construction firm executing turnkey hospital, stadium, and institutional infrastructure projects in northern India. Healthy return ratios and low leverage.",
@@ -205,10 +202,10 @@ export function getSeedIpoCatalog(): IpoDetails[] {
       symbol: "SWIGGY",
       exchange: "NSE",
       issueType: "MAINBOARD",
-      openDate: getRelativeDate(6), // Upcoming in 6 days
-      closeDate: getRelativeDate(8),
-      allotmentDate: getRelativeDate(10),
-      listingDate: getRelativeDate(13),
+      openDate: normalizeDate("2024-11-06"),
+      closeDate: normalizeDate("2024-11-08"),
+      allotmentDate: normalizeDate("2024-11-11"),
+      listingDate: normalizeDate("2024-11-13"),
       priceFloor: 371,
       priceCap: 390,
       lotSize: 38,
@@ -219,17 +216,19 @@ export function getSeedIpoCatalog(): IpoDetails[] {
       gmpAmount: 25,
       gmpPercent: 6.41,
       gmpTrend: "STABLE",
-      qibSub: 0,
-      niiSub: 0,
-      retailSub: 0,
-      totalSub: 0,
+      qibSub: 6.02,
+      niiSub: 1.24,
+      retailSub: 1.14,
+      totalSub: 3.59,
       peRatio: null, // Loss-making tech platform
       industryPe: 85.0,
       revenueGrowthPct: 36.1,
       patMarginPct: -18.2,
       ronwPct: -12.4,
       debtToEquity: 0.05,
-      status: "UPCOMING",
+      status: "LISTED",
+      listingPrice: 420,
+      listingGainPct: 7.69,
       rhpUrl: "https://www.sebi.gov.in",
       summaryThesis:
         "India's leading consumer tech ecosystem with Instamart quick commerce and food delivery. High user retention with rapid quick commerce dark-store expansion.",
@@ -243,10 +242,10 @@ export function getSeedIpoCatalog(): IpoDetails[] {
       symbol: "NTPCGREEN",
       exchange: "NSE",
       issueType: "MAINBOARD",
-      openDate: getRelativeDate(12), // Upcoming in 12 days
-      closeDate: getRelativeDate(14),
-      allotmentDate: getRelativeDate(16),
-      listingDate: getRelativeDate(19),
+      openDate: normalizeDate("2024-11-19"),
+      closeDate: normalizeDate("2024-11-22"),
+      allotmentDate: normalizeDate("2024-11-25"),
+      listingDate: normalizeDate("2024-11-27"),
       priceFloor: 102,
       priceCap: 108,
       lotSize: 138,
@@ -257,17 +256,19 @@ export function getSeedIpoCatalog(): IpoDetails[] {
       gmpAmount: 18,
       gmpPercent: 16.67,
       gmpTrend: "RISING",
-      qibSub: 0,
-      niiSub: 0,
-      retailSub: 0,
-      totalSub: 0,
+      qibSub: 3.32,
+      niiSub: 0.81,
+      retailSub: 1.33,
+      totalSub: 2.42,
       peRatio: 52.0,
       industryPe: 46.0,
       revenueGrowthPct: 82.0,
       patMarginPct: 18.5,
       ronwPct: 14.1,
       debtToEquity: 1.15,
-      status: "UPCOMING",
+      status: "LISTED",
+      listingPrice: 111.5,
+      listingGainPct: 3.24,
       rhpUrl: "https://www.sebi.gov.in",
       summaryThesis:
         "Maharatna PSU NTPC's dedicated renewable energy platform. 100% fresh issue earmarked for equity expansion and debt deleveraging across utility-scale solar and wind assets.",
@@ -281,10 +282,10 @@ export function getSeedIpoCatalog(): IpoDetails[] {
       symbol: "HYUNDAI",
       exchange: "NSE",
       issueType: "MAINBOARD",
-      openDate: getRelativeDate(-14),
-      closeDate: getRelativeDate(-12),
-      allotmentDate: getRelativeDate(-10),
-      listingDate: getRelativeDate(-7),
+      openDate: normalizeDate("2024-10-15"),
+      closeDate: normalizeDate("2024-10-17"),
+      allotmentDate: normalizeDate("2024-10-18"),
+      listingDate: normalizeDate("2024-10-22"),
       priceFloor: 1865,
       priceCap: 1960,
       lotSize: 7,
@@ -321,10 +322,10 @@ export function getSeedIpoCatalog(): IpoDetails[] {
       symbol: "BAJAJHFL",
       exchange: "NSE",
       issueType: "MAINBOARD",
-      openDate: getRelativeDate(-45),
-      closeDate: getRelativeDate(-43),
-      allotmentDate: getRelativeDate(-40),
-      listingDate: getRelativeDate(-37),
+      openDate: normalizeDate("2024-09-09"),
+      closeDate: normalizeDate("2024-09-11"),
+      allotmentDate: normalizeDate("2024-09-12"),
+      listingDate: normalizeDate("2024-09-16"),
       priceFloor: 66,
       priceCap: 70,
       lotSize: 214,
@@ -359,59 +360,73 @@ export function getSeedIpoCatalog(): IpoDetails[] {
 }
 
 /**
- * Ensures the database has seed IPO records.
+ * Ensures the database has seed historical IPO records and syncs real live IPOs from NSE.
  */
 export async function ensureSeedIpos(): Promise<void> {
   const count = await prisma.ipoListing.count();
-  if (count > 0) return;
-
-  const catalog = getSeedIpoCatalog();
-  for (const item of catalog) {
-    await prisma.ipoListing.create({
-      data: {
-        companyName: item.companyName,
-        symbol: item.symbol,
-        exchange: item.exchange,
-        issueType: item.issueType,
-        openDate: normalizeDate(item.openDate),
-        closeDate: normalizeDate(item.closeDate),
-        allotmentDate: item.allotmentDate ? normalizeDate(item.allotmentDate) : null,
-        refundsDate: item.refundsDate ? normalizeDate(item.refundsDate) : null,
-        dematCreditDate: item.dematCreditDate ? normalizeDate(item.dematCreditDate) : null,
-        listingDate: item.listingDate ? normalizeDate(item.listingDate) : null,
-        priceFloor: item.priceFloor,
-        priceCap: item.priceCap,
-        lotSize: item.lotSize,
-        minInvestment: item.minInvestment,
-        issueSizeCr: item.issueSizeCr,
-        freshIssueCr: item.freshIssueCr,
-        ofsCr: item.ofsCr,
-        gmpAmount: item.gmpAmount,
-        gmpPercent: item.gmpPercent,
-        gmpTrend: item.gmpTrend,
-        qibSub: item.qibSub,
-        niiSub: item.niiSub,
-        retailSub: item.retailSub,
-        totalSub: item.totalSub,
-        peRatio: item.peRatio,
-        industryPe: item.industryPe,
-        revenueGrowthPct: item.revenueGrowthPct,
-        patMarginPct: item.patMarginPct,
-        ronwPct: item.ronwPct,
-        debtToEquity: item.debtToEquity,
-        status: item.status,
-        listingPrice: item.listingPrice,
-        listingGainPct: item.listingGainPct,
-        rhpUrl: item.rhpUrl,
-        summaryThesis: item.summaryThesis,
-        keyRisks: JSON.stringify(item.keyRisks ?? []),
-      },
-    });
+  if (count === 0) {
+    const catalog = getSeedIpoCatalog();
+    for (const item of catalog) {
+      await prisma.ipoListing.create({
+        data: {
+          companyName: item.companyName,
+          symbol: item.symbol,
+          exchange: item.exchange,
+          issueType: item.issueType,
+          openDate: normalizeDate(item.openDate),
+          closeDate: normalizeDate(item.closeDate),
+          allotmentDate: item.allotmentDate ? normalizeDate(item.allotmentDate) : null,
+          refundsDate: item.refundsDate ? normalizeDate(item.refundsDate) : null,
+          dematCreditDate: item.dematCreditDate ? normalizeDate(item.dematCreditDate) : null,
+          listingDate: item.listingDate ? normalizeDate(item.listingDate) : null,
+          priceFloor: item.priceFloor,
+          priceCap: item.priceCap,
+          lotSize: item.lotSize,
+          minInvestment: item.minInvestment,
+          issueSizeCr: item.issueSizeCr,
+          freshIssueCr: item.freshIssueCr,
+          ofsCr: item.ofsCr,
+          gmpAmount: item.gmpAmount,
+          gmpPercent: item.gmpPercent,
+          gmpTrend: item.gmpTrend,
+          qibSub: item.qibSub,
+          niiSub: item.niiSub,
+          retailSub: item.retailSub,
+          totalSub: item.totalSub,
+          peRatio: item.peRatio,
+          industryPe: item.industryPe,
+          revenueGrowthPct: item.revenueGrowthPct,
+          patMarginPct: item.patMarginPct,
+          ronwPct: item.ronwPct,
+          debtToEquity: item.debtToEquity,
+          status: item.status,
+          listingPrice: item.listingPrice,
+          listingGainPct: item.listingGainPct,
+          rhpUrl: item.rhpUrl,
+          summaryThesis: item.summaryThesis,
+          keyRisks: JSON.stringify(item.keyRisks ?? []),
+        },
+      });
+    }
   }
+
+  // Ensure historical records are marked as LISTED
+  await prisma.ipoListing.updateMany({
+    where: {
+      symbol: { in: ["WAAREE", "AFCONS", "GODAVARI", "DEEPAKENG", "SWIGGY", "HYUNDAI", "BAJAJHFL", "NTPCGREEN"] },
+      status: { not: "LISTED" },
+    },
+    data: {
+      status: "LISTED",
+    },
+  });
+
+  // Fetch real, live current Indian IPOs from NSE India
+  await syncLiveIpos();
 }
 
 /**
- * Fetch all IPOs from Prisma database.
+ * Fetch all IPOs from Prisma database after verifying live data.
  */
 export async function getAllIpos(): Promise<IpoDetails[]> {
   await ensureSeedIpos();
@@ -435,6 +450,7 @@ export async function getOpenIpos(referenceDate: Date = new Date()): Promise<Ipo
 
   const records = await prisma.ipoListing.findMany({
     where: {
+      status: "OPEN",
       openDate: { lte: todayUtc },
       closeDate: { gte: todayUtc },
     },
@@ -455,6 +471,7 @@ export async function getUpcomingIpos(referenceDate: Date = new Date()): Promise
 
   const records = await prisma.ipoListing.findMany({
     where: {
+      status: "UPCOMING",
       openDate: { gt: todayUtc },
     },
     orderBy: { openDate: "asc" },
@@ -464,7 +481,7 @@ export async function getUpcomingIpos(referenceDate: Date = new Date()): Promise
 }
 
 /**
- * Filter CLOSED or LISTED IPOs (closeDate < today).
+ * Filter CLOSED or LISTED IPOs.
  */
 export async function getClosedAndListedIpos(referenceDate: Date = new Date()): Promise<IpoDetails[]> {
   await ensureSeedIpos();
@@ -474,9 +491,12 @@ export async function getClosedAndListedIpos(referenceDate: Date = new Date()): 
 
   const records = await prisma.ipoListing.findMany({
     where: {
-      closeDate: { lt: todayUtc },
+      OR: [
+        { status: { in: ["CLOSED", "LISTED", "ALLOTTED"] } },
+        { closeDate: { lt: todayUtc } },
+      ],
     },
-    orderBy: { listingDate: "desc" },
+    orderBy: { closeDate: "desc" },
   });
 
   return records.map(mapPrismaIpoToDetails);
