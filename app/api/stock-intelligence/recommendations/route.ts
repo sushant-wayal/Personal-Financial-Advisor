@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "../../../../src/lib/prisma";
-import { generateDailyRecommendations } from "../../../../src/services/stockRecommendations";
+import {
+  generateDailyRecommendations,
+  formatPersistedRun,
+} from "../../../../src/services/stockRecommendations";
 
 export async function GET(req: NextRequest) {
   try {
@@ -21,7 +24,7 @@ export async function GET(req: NextRequest) {
         );
       }
 
-      return NextResponse.json({ ok: true, run });
+      return NextResponse.json({ ok: true, run: formatPersistedRun(run) });
     }
 
     // Otherwise fetch the latest run
@@ -31,7 +34,7 @@ export async function GET(req: NextRequest) {
     });
 
     if (latestRun) {
-      return NextResponse.json({ ok: true, run: latestRun });
+      return NextResponse.json({ ok: true, run: formatPersistedRun(latestRun) });
     }
 
     // If no run exists at all, generate the initial daily run

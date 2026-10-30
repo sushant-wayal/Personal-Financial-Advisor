@@ -18,6 +18,7 @@ import {
   RISK_CONFIG,
   TRADING_COSTS,
   getSector,
+  StrategyName,
 } from "../../config/stockEngineDefaults";
 import type {
   RecommendationRun,
@@ -28,6 +29,7 @@ import type {
   MarketBar,
   StockIndicators,
   StockScore,
+  CapitalAllocation,
 } from "../../types/stockIntelligence";
 import { getDataProviderStatus, fetchUniverseData } from "../marketData";
 import { detectMarketRegime } from "../stockAnalysis/regime";
@@ -588,7 +590,7 @@ export async function generateDailyRecommendations(options?: {
 /**
  * Format a persisted database run record to a domain RecommendationRun.
  */
-function formatPersistedRun(record: {
+export function formatPersistedRun(record: {
   id: string;
   marketSessionDate: Date;
   marketRegime: string;
@@ -610,9 +612,12 @@ function formatPersistedRun(record: {
     exchange: string;
     type: string;
     detail: string;
+    status?: string;
+    investedAt?: Date | null;
+    investedAmount?: number | null;
   }>;
 }): RecommendationRun {
-  const recommendations: Recommendation[] = record.items.map((item) => {
+  const recommendations: Recommendation[] = (record.items || []).map((item) => {
     try {
       return JSON.parse(item.detail) as Recommendation;
     } catch {
@@ -625,20 +630,56 @@ function formatPersistedRun(record: {
     }
   });
 
+  let capitalAllocation: CapitalAllocation;
+  try {
+    capitalAllocation = typeof record.capitalAllocation === "string"
+      ? JSON.parse(record.capitalAllocation)
+      : record.capitalAllocation;
+  } catch {
+    capitalAllocation = {} as CapitalAllocation;
+  }
+
+  let strategyVersions: Record<StrategyName, string>;
+  try {
+    strategyVersions = typeof record.strategyVersions === "string"
+      ? JSON.parse(record.strategyVersions)
+      : record.strategyVersions;
+  } catch {
+    strategyVersions = {} as Record<StrategyName, string>;
+  }
+
+  let rejections: Array<{ symbol: string; reason: string }>;
+  try {
+    rejections = typeof record.rejections === "string"
+      ? JSON.parse(record.rejections)
+      : record.rejections;
+  } catch {
+    rejections = [];
+  }
+
+  let warnings: string[];
+  try {
+    warnings = typeof record.warnings === "string"
+      ? JSON.parse(record.warnings)
+      : record.warnings;
+  } catch {
+    warnings = [];
+  }
+
   return {
     id: record.id,
     timestamp: record.createdAt,
     marketSessionDate: record.marketSessionDate.toISOString().slice(0, 10),
     marketRegime: record.marketRegime as RecommendationRun["marketRegime"],
     financialPhase: record.financialPhase as RecommendationRun["financialPhase"],
-    capitalAllocation: JSON.parse(record.capitalAllocation),
+    capitalAllocation,
     dataQuality: record.dataQuality as RecommendationRun["dataQuality"],
-    strategyVersions: JSON.parse(record.strategyVersions),
+    strategyVersions,
     recommendations,
     candidateCount: record.candidateCount,
     eligibleCount: record.eligibleCount,
-    rejections: JSON.parse(record.rejections),
-    warnings: JSON.parse(record.warnings),
+    rejections,
+    warnings,
     aiExplanation: record.aiExplanation,
     status: record.status as RecommendationRun["status"],
     pipelineDurationMs: record.pipelineDurationMs,
