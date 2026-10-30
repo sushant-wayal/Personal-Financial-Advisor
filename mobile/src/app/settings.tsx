@@ -404,20 +404,6 @@ export default function ProfileScreen() {
             </Pressable>
 
             <Pressable
-              onPress={() => router.push("/settings-notifications" as any)}
-              style={({ pressed }) => [styles.menuRow, pressed && styles.cardPressed]}
-            >
-              <View style={[styles.menuIconAvatar, { backgroundColor: "rgba(34, 211, 238, 0.15)" }]}>
-                <MaterialIcons name="notifications-active" size={22} color="#22d3ee" />
-              </View>
-              <View style={styles.menuCopy}>
-                <Text style={styles.menuRowTitle}>Proactive Notifications & Alerts</Text>
-                <Text style={styles.menuRowSub}>Morning financial intel, push tokens & webhooks</Text>
-              </View>
-              <MaterialIcons name="chevron-right" size={20} color="#8e9192" />
-            </Pressable>
-
-            <Pressable
               onPress={() => router.push("/settings-export")}
               style={({ pressed }) => [styles.menuRow, pressed && styles.cardPressed, { borderBottomWidth: 0 }]}
             >

@@ -2,12 +2,10 @@ import Link from "next/link";
 import DashboardOverview from "./components/DashboardOverview";
 import AffordabilityWidget from "./components/AffordabilityWidget";
 import GoalsWidget from "./components/GoalsWidget";
-import ProactiveIntelBanner from "./components/ProactiveIntelBanner";
 
 export default async function DashboardPage() {
     return (
         <div className="mx-auto max-w-7xl space-y-6">
-            <ProactiveIntelBanner />
             <DashboardOverview />
             <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
                 <div>
