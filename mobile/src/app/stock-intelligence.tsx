@@ -772,34 +772,6 @@ export default function StockIntelligenceScreen() {
                   </Text>
                 </View>
               </View>
-
-              {/* Dedicated Reset Virtual Equity Button inside Card */}
-              <View style={{ marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: "rgba(255,255,255,0.06)", flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-                <Text style={{ fontSize: 11, color: "#888888" }}>
-                  Default virtual capital: ₹1,00,000
-                </Text>
-                <Pressable
-                  onPress={handleResetPaper}
-                  disabled={actionLoading}
-                  style={({ pressed }) => [
-                    {
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: 4,
-                      backgroundColor: "rgba(244,63,94,0.12)",
-                      paddingHorizontal: 10,
-                      paddingVertical: 5,
-                      borderRadius: 6,
-                      borderWidth: 1,
-                      borderColor: "rgba(244,63,94,0.3)",
-                    },
-                    pressed ? { opacity: 0.7 } : null,
-                  ]}
-                >
-                  <MaterialIcons name="restart-alt" size={13} color="#f43f5e" />
-                  <Text style={{ fontSize: 11, fontWeight: "700", color: "#f43f5e" }}>Reset Virtual Equity</Text>
-                </Pressable>
-              </View>
             </View>
 
             <Text style={styles.sectionTitle}>Open Positions ({paperData?.positions?.length ?? 0})</Text>

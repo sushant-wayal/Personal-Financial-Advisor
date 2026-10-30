@@ -1165,21 +1165,9 @@ export default function StockIntelligenceClient() {
                 <div className="text-2xl font-bold text-foreground">
                   {formatInr(paper?.totalEquity ?? 100000)}
                 </div>
-                <div className="mt-2 flex items-center justify-between">
-                  <span className="text-[11px] text-muted-foreground">
-                    Peak: {formatInr(paper?.equityPeak ?? 100000)}
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 px-2 text-[11px] text-rose-400 hover:bg-rose-500/10 hover:text-rose-300"
-                    onClick={() => setIsResetConfirmOpen(true)}
-                    disabled={paperOrderMutation.isPending}
-                  >
-                    <RotateCcw className="mr-1 h-3 w-3" />
-                    Reset
-                  </Button>
-                </div>
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  Peak: {formatInr(paper?.equityPeak ?? 100000)}
+                </p>
               </CardContent>
             </Card>
 
