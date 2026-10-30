@@ -699,3 +699,95 @@ export function InvestmentHistoryCardSkeleton() {
         </View>
     );
 }
+
+
+export function IpoIntelligenceSkeleton() {
+    return (
+        <View style={styles.screen}>
+            {/* Top Bar Skeleton */}
+            <View style={styles.topRow}>
+                <Skeleton width={130} height={20} radius={6} />
+                <Skeleton width={70} height={34} radius={17} />
+            </View>
+
+            {/* Title Block Skeleton */}
+            <View style={{ gap: 8, marginTop: 4, marginBottom: 6 }}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                    <Skeleton width={26} height={26} radius={6} />
+                    <Skeleton width={170} height={24} radius={6} />
+                    <Skeleton width={96} height={20} radius={10} />
+                </View>
+                <Skeleton width="92%" height={14} radius={6} />
+            </View>
+
+            {/* Quick Stats Chips Skeleton */}
+            <View style={{ flexDirection: "row", gap: 10 }}>
+                <View style={[styles.sectionCard, { flex: 1, padding: 12, borderRadius: 12, gap: 6 }]}>
+                    <Skeleton width="60%" height={10} radius={4} />
+                    <Skeleton width="85%" height={18} radius={4} />
+                </View>
+                <View style={[styles.sectionCard, { flex: 1, padding: 12, borderRadius: 12, gap: 6 }]}>
+                    <Skeleton width="50%" height={10} radius={4} />
+                    <Skeleton width="75%" height={18} radius={4} />
+                </View>
+                <View style={[styles.sectionCard, { flex: 1, padding: 12, borderRadius: 12, gap: 6 }]}>
+                    <Skeleton width="65%" height={10} radius={4} />
+                    <Skeleton width="70%" height={18} radius={4} />
+                </View>
+            </View>
+
+            {/* Hero Card Skeleton */}
+            <View style={[styles.heroCard, { borderRadius: 20, padding: 16, gap: 14 }]}>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                    <Skeleton width={160} height={22} radius={11} />
+                    <Skeleton width={75} height={22} radius={11} />
+                </View>
+                <View style={{ gap: 6 }}>
+                    <Skeleton width="70%" height={22} radius={6} />
+                    <Skeleton width="45%" height={12} radius={4} />
+                </View>
+                {/* Expected Gain / GMP box */}
+                <View style={{ backgroundColor: "#1e1e1e", borderRadius: 12, padding: 12, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                    <View style={{ gap: 4 }}>
+                        <Skeleton width={90} height={10} radius={4} />
+                        <Skeleton width={70} height={22} radius={6} />
+                    </View>
+                    <Skeleton width={100} height={28} radius={8} />
+                </View>
+                {/* Metrics 4 tiles */}
+                <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 8 }}>
+                    <Skeleton width="22%" height={40} radius={8} />
+                    <Skeleton width="22%" height={40} radius={8} />
+                    <Skeleton width="22%" height={40} radius={8} />
+                    <Skeleton width="22%" height={40} radius={8} />
+                </View>
+                <Skeleton width="100%" height={44} radius={12} />
+            </View>
+
+            {/* Tabs Row Skeleton */}
+            <View style={{ flexDirection: "row", gap: 8, marginTop: 4 }}>
+                <Skeleton width={90} height={36} radius={10} />
+                <Skeleton width={100} height={36} radius={10} />
+                <Skeleton width={90} height={36} radius={10} />
+            </View>
+
+            {/* Card Items Skeleton */}
+            <View style={{ gap: 12 }}>
+                {[1, 2].map((i) => (
+                    <View key={`ipo-skel-${i}`} style={[styles.sectionCard, { borderRadius: 16, padding: 16, gap: 12 }]}>
+                        <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                            <Skeleton width="55%" height={18} radius={6} />
+                            <Skeleton width={70} height={20} radius={10} />
+                        </View>
+                        <Skeleton width="40%" height={12} radius={4} />
+                        <View style={{ flexDirection: "row", gap: 8 }}>
+                            <Skeleton width="30%" height={24} radius={6} />
+                            <Skeleton width="30%" height={24} radius={6} />
+                            <Skeleton width="30%" height={24} radius={6} />
+                        </View>
+                    </View>
+                ))}
+            </View>
+        </View>
+    );
+}

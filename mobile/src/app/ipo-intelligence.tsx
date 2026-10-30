@@ -19,6 +19,7 @@ import { API_BASE_URL } from "../lib/apiBaseUrl";
 import { formatCurrencyAmount, useCurrency } from "../providers/CurrencyProvider";
 import { useAlert } from "../providers/AlertProvider";
 import Markdown from "react-native-markdown-display";
+import { IpoIntelligenceSkeleton } from "../components/LoadingSkeleton";
 
 function apiUrl(path: string) {
   return `${API_BASE_URL}${path}`;
@@ -43,6 +44,7 @@ export default function IpoIntelligenceScreen() {
   const insets = useSafeAreaInsets();
   const { showSuccess, showError } = useAlert();
 
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -68,6 +70,7 @@ export default function IpoIntelligenceScreen() {
       console.warn("IPO intelligence fetch notice:", e.message || String(e));
     } finally {
       setRefreshing(false);
+      setLoading(false);
     }
   }, []);
 
@@ -122,6 +125,15 @@ export default function IpoIntelligenceScreen() {
       setActionLoading(false);
     }
   };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+        <StatusBar barStyle="light-content" backgroundColor="#131313" />
+        <IpoIntelligenceSkeleton />
+      </SafeAreaView>
+    );
+  }
 
   const bestPick = recData?.bestPick;
   const openIpos = recData?.openIpos || [];
@@ -298,13 +310,23 @@ export default function IpoIntelligenceScreen() {
               <Text style={styles.applyBtnText}>Log Application in Tracker</Text>
             </Pressable>
           </View>
-        ) : (
+        ) : openIpos.length > 0 ? (
           <View style={styles.avoidBox}>
             <MaterialIcons name="warning" size={24} color="#f59e0b" />
             <View style={{ flex: 1 }}>
               <Text style={styles.avoidTitle}>AVOID ALL OPEN IPOS TODAY</Text>
               <Text style={styles.avoidText}>
                 None of the open issues satisfy North&apos;s 60-point quality and risk hurdle.
+              </Text>
+            </View>
+          </View>
+        ) : (
+          <View style={[styles.avoidBox, { borderColor: "rgba(255,255,255,0.1)", backgroundColor: "#1e1e1e" }]}>
+            <MaterialIcons name="info-outline" size={24} color="#9ca3af" />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.avoidTitle, { color: "#e5e7eb" }]}>NO OPEN IPOS TODAY</Text>
+              <Text style={styles.avoidText}>
+                There are currently no active public issues accepting bids in the primary market. Check upcoming issues below.
               </Text>
             </View>
           </View>
@@ -363,93 +385,113 @@ export default function IpoIntelligenceScreen() {
         {/* TAB 1: OPEN IPOS */}
         {activeTab === "open" && (
           <View style={styles.cardsList}>
-            {openIpos.map((ipo: any) => (
-              <View key={ipo.symbol} style={styles.listItemCard}>
-                <View style={styles.listItemTop}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.listItemName}>{ipo.companyName}</Text>
-                    <Text style={styles.listItemSymbol}>
-                      {ipo.symbol} • {ipo.issueType}
-                    </Text>
-                  </View>
-                  <View style={styles.listScoreBadge}>
-                    <Text style={styles.listScoreText}>{ipo.score.totalScore} pts</Text>
-                  </View>
-                </View>
-
-                <View style={styles.listMetricsRow}>
-                  <View>
-                    <Text style={styles.listMetricLabel}>Est. GMP Gain</Text>
-                    <Text style={[styles.listMetricValue, { color: "#34d399" }]}>
-                      {ipo.gmpAmount > 0 ? `+${ipo.expectedListingGain.toFixed(1)}%` : "0% (Par)"}
-                    </Text>
-                  </View>
-                  <View>
-                    <Text style={styles.listMetricLabel}>Demand</Text>
-                    <Text style={[styles.listMetricValue, { color: "#38bdf8" }]}>
-                      {ipo.totalSub > 0 ? `${ipo.totalSub}x Sub` : "0x"}
-                    </Text>
-                  </View>
-                  <View>
-                    <Text style={styles.listMetricLabel}>Cut-Off Price</Text>
-                    <Text style={styles.listMetricValue}>₹{ipo.priceCap}</Text>
-                  </View>
-                  <View>
-                    <Text style={styles.listMetricLabel}>1 Lot Capital</Text>
-                    <Text style={styles.listMetricValue}>{formatCurrencyAmount(ipo.minInvestment, "INR")}</Text>
-                  </View>
-                </View>
-
-                <View style={styles.listActionRow}>
-                  <Text style={styles.listDatesText}>Closes: {ipo.closeDate}</Text>
-                  <Pressable
-                    onPress={() => setSelectedIpoForApp(ipo)}
-                    style={styles.listApplyBtn}
-                  >
-                    <Text style={styles.listApplyBtnText}>Track Bid</Text>
-                  </Pressable>
-                </View>
+            {openIpos.length === 0 ? (
+              <View style={styles.emptyAppsBox}>
+                <MaterialIcons name="event-busy" size={36} color="#6b7280" />
+                <Text style={styles.emptyAppsTitle}>No Open Issues Active</Text>
+                <Text style={styles.emptyAppsText}>
+                  There are no public issues currently open for bidding. Check the Upcoming tab for scheduled listings.
+                </Text>
               </View>
-            ))}
+            ) : (
+              openIpos.map((ipo: any) => (
+                <View key={ipo.symbol} style={styles.listItemCard}>
+                  <View style={styles.listItemTop}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.listItemName}>{ipo.companyName}</Text>
+                      <Text style={styles.listItemSymbol}>
+                        {ipo.symbol} • {ipo.issueType}
+                      </Text>
+                    </View>
+                    <View style={styles.listScoreBadge}>
+                      <Text style={styles.listScoreText}>{ipo.score.totalScore} pts</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.listMetricsRow}>
+                    <View>
+                      <Text style={styles.listMetricLabel}>Est. GMP Gain</Text>
+                      <Text style={[styles.listMetricValue, { color: "#34d399" }]}>
+                        {ipo.gmpAmount > 0 ? `+${ipo.expectedListingGain.toFixed(1)}%` : "0% (Par)"}
+                      </Text>
+                    </View>
+                    <View>
+                      <Text style={styles.listMetricLabel}>Demand</Text>
+                      <Text style={[styles.listMetricValue, { color: "#38bdf8" }]}>
+                        {ipo.totalSub > 0 ? `${ipo.totalSub}x Sub` : "0x"}
+                      </Text>
+                    </View>
+                    <View>
+                      <Text style={styles.listMetricLabel}>Cut-Off Price</Text>
+                      <Text style={styles.listMetricValue}>₹{ipo.priceCap}</Text>
+                    </View>
+                    <View>
+                      <Text style={styles.listMetricLabel}>1 Lot Capital</Text>
+                      <Text style={styles.listMetricValue}>{formatCurrencyAmount(ipo.minInvestment, "INR")}</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.listActionRow}>
+                    <Text style={styles.listDatesText}>Closes: {ipo.closeDate}</Text>
+                    <Pressable
+                      onPress={() => setSelectedIpoForApp(ipo)}
+                      style={styles.listApplyBtn}
+                    >
+                      <Text style={styles.listApplyBtnText}>Track Bid</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              ))
+            )}
           </View>
         )}
 
         {/* TAB 2: UPCOMING IPOS */}
         {activeTab === "upcoming" && (
           <View style={styles.cardsList}>
-            {upcomingIpos.map((ipo: any) => (
-              <View key={ipo.symbol} style={styles.listItemCard}>
-                <Text style={styles.listItemName}>{ipo.companyName}</Text>
-                <Text style={styles.listItemSymbol}>
-                  {ipo.symbol} • {ipo.issueType}
+            {upcomingIpos.length === 0 ? (
+              <View style={styles.emptyAppsBox}>
+                <MaterialIcons name="event-busy" size={36} color="#6b7280" />
+                <Text style={styles.emptyAppsTitle}>No Upcoming Issues</Text>
+                <Text style={styles.emptyAppsText}>
+                  No future IPO issues are currently registered in the pipeline.
                 </Text>
-
-                <View style={[styles.listMetricsRow, { marginTop: 8 }]}>
-                  <View>
-                    <Text style={styles.listMetricLabel}>Opening Date</Text>
-                    <Text style={styles.listMetricValue}>
-                      {typeof ipo.openDate === "string" ? ipo.openDate : ipo.openDate.slice(0, 10)}
-                    </Text>
-                  </View>
-                  <View>
-                    <Text style={styles.listMetricLabel}>Price Band</Text>
-                    <Text style={styles.listMetricValue}>
-                      ₹{ipo.priceFloor} - ₹{ipo.priceCap}
-                    </Text>
-                  </View>
-                  <View>
-                    <Text style={styles.listMetricLabel}>Issue Size</Text>
-                    <Text style={styles.listMetricValue}>₹{ipo.issueSizeCr} Cr</Text>
-                  </View>
-                </View>
-
-                {ipo.summaryThesis && (
-                  <Text style={styles.upcomingThesisText} numberOfLines={2}>
-                    {ipo.summaryThesis}
-                  </Text>
-                )}
               </View>
-            ))}
+            ) : (
+              upcomingIpos.map((ipo: any) => (
+                <View key={ipo.symbol} style={styles.listItemCard}>
+                  <Text style={styles.listItemName}>{ipo.companyName}</Text>
+                  <Text style={styles.listItemSymbol}>
+                    {ipo.symbol} • {ipo.issueType}
+                  </Text>
+
+                  <View style={[styles.listMetricsRow, { marginTop: 8 }]}>
+                    <View>
+                      <Text style={styles.listMetricLabel}>Opening Date</Text>
+                      <Text style={styles.listMetricValue}>
+                        {typeof ipo.openDate === "string" ? ipo.openDate : ipo.openDate.slice(0, 10)}
+                      </Text>
+                    </View>
+                    <View>
+                      <Text style={styles.listMetricLabel}>Price Band</Text>
+                      <Text style={styles.listMetricValue}>
+                        ₹{ipo.priceFloor} - ₹{ipo.priceCap}
+                      </Text>
+                    </View>
+                    <View>
+                      <Text style={styles.listMetricLabel}>Issue Size</Text>
+                      <Text style={styles.listMetricValue}>₹{ipo.issueSizeCr} Cr</Text>
+                    </View>
+                  </View>
+
+                  {ipo.summaryThesis && (
+                    <Text style={styles.upcomingThesisText} numberOfLines={2}>
+                      {ipo.summaryThesis}
+                    </Text>
+                  )}
+                </View>
+              ))
+            )}
           </View>
         )}
 

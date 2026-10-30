@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import type { IpoRunResult, IpoRecommendationItemData, IpoDetails } from "@/src/services/ipoData/types";
 import ReactMarkdown from "react-markdown";
+import { Skeleton } from "@/components/ui/skeleton";
 
 function formatInr(val: number | null | undefined): string {
   if (val == null) return "₹0";
@@ -47,6 +48,91 @@ function getVerdictBadge(verdict: string) {
   }
 }
 
+function IpoIntelligenceWebSkeleton() {
+  return (
+    <div className="flex-1 space-y-6 p-4 md:p-8 pt-6 pb-24 max-w-7xl mx-auto">
+      {/* Top Header & Session Bar */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border/40 pb-5">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2.5">
+            <Skeleton className="h-8 w-8 rounded-lg" />
+            <Skeleton className="h-8 w-56 rounded-md" />
+            <Skeleton className="h-6 w-28 rounded-full" />
+          </div>
+          <Skeleton className="h-4 w-80 max-w-full rounded-md" />
+        </div>
+        <Skeleton className="h-9 w-36 rounded-md" />
+      </div>
+
+      {/* 4 Overview Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="p-4 rounded-xl border border-border/40 bg-card/40 flex items-center justify-between">
+            <div className="space-y-2 w-2/3">
+              <Skeleton className="h-3 w-20 rounded" />
+              <Skeleton className="h-6 w-28 rounded" />
+            </div>
+            <Skeleton className="h-7 w-7 rounded-full" />
+          </div>
+        ))}
+      </div>
+
+      {/* Featured Hero Card Skeleton */}
+      <div className="border border-emerald-500/30 bg-card/40 rounded-2xl p-6 space-y-5">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/30 pb-4">
+          <div className="flex items-center gap-2.5">
+            <Skeleton className="h-6 w-44 rounded-full" />
+            <Skeleton className="h-6 w-24 rounded-full" />
+          </div>
+          <Skeleton className="h-5 w-32 rounded" />
+        </div>
+        <div className="space-y-2">
+          <Skeleton className="h-7 w-64 rounded-md" />
+          <Skeleton className="h-4 w-40 rounded" />
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="p-3 bg-muted/20 border border-border/30 rounded-xl space-y-2">
+              <Skeleton className="h-3 w-16 rounded" />
+              <Skeleton className="h-5 w-24 rounded" />
+            </div>
+          ))}
+        </div>
+        <div className="h-20 bg-muted/20 border border-border/30 rounded-xl p-4">
+          <Skeleton className="h-3.5 w-full mb-2 rounded" />
+          <Skeleton className="h-3.5 w-3/4 rounded" />
+        </div>
+      </div>
+
+      {/* Tabs Row Skeleton */}
+      <div className="flex items-center gap-2 border-b border-border/40 pb-2">
+        <Skeleton className="h-8 w-36 rounded-lg" />
+        <Skeleton className="h-8 w-36 rounded-lg" />
+        <Skeleton className="h-8 w-36 rounded-lg" />
+      </div>
+
+      {/* Grid of Issue Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="p-5 rounded-xl border border-border/40 bg-card/40 space-y-4">
+            <div className="flex justify-between items-start">
+              <div className="space-y-1.5 w-3/4">
+                <Skeleton className="h-5 w-40 rounded" />
+                <Skeleton className="h-3 w-24 rounded" />
+              </div>
+              <Skeleton className="h-5 w-16 rounded-full" />
+            </div>
+            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border/30">
+              <Skeleton className="h-8 rounded-lg" />
+              <Skeleton className="h-8 rounded-lg" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function IpoIntelligenceClient() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<"open" | "upcoming" | "applications">("open");
@@ -56,7 +142,7 @@ export default function IpoIntelligenceClient() {
   const [applySuccessMsg, setApplySuccessMsg] = useState<string | null>(null);
 
   // 1. Fetch Today's Recommendation Run
-  const { data: recData, isFetching: recFetching } = useQuery<{
+  const { data: recData, isFetching: recFetching, isLoading: recLoading } = useQuery<{
     ok: boolean;
     run: IpoRunResult;
   }>({
@@ -124,6 +210,10 @@ export default function IpoIntelligenceClient() {
   const openIpos = run?.openIpos ?? [];
   const upcomingIpos = run?.upcomingIpos ?? [];
   const userApplications = appData?.applications ?? [];
+
+  if (recLoading || !run) {
+    return <IpoIntelligenceWebSkeleton />;
+  }
 
   return (
     <div className="flex-1 space-y-6 p-4 md:p-8 pt-6 pb-24 max-w-7xl mx-auto">
@@ -421,19 +511,35 @@ export default function IpoIntelligenceClient() {
         </Card>
       ) : (
         /* AVOID ALL HERO STATE */
-        <Card className="border border-amber-500/30 bg-amber-950/10 p-6 rounded-2xl">
-          <div className="flex items-start gap-4">
-            <div className="p-3 bg-amber-500/15 rounded-xl border border-amber-500/30">
-              <AlertTriangle className="h-6 w-6 text-amber-400" />
+        openIpos.length > 0 ? (
+          <Card className="border border-amber-500/30 bg-amber-950/10 p-6 rounded-2xl">
+            <div className="flex items-start gap-4">
+              <div className="p-3 bg-amber-500/15 rounded-xl border border-amber-500/30">
+                <AlertTriangle className="h-6 w-6 text-amber-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-amber-300">AVOID ALL OPEN IPOS TODAY</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Zero open IPOs satisfy North&apos;s conservative risk-reward threshold (minimum 60/100 score). Capital preservation is prioritized over speculative bidding.
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-lg font-bold text-amber-300">AVOID ALL OPEN IPOS TODAY</h3>
-              <p className="text-sm text-muted-foreground mt-1">
-                Zero open IPOs satisfy North&apos;s conservative risk-reward threshold (minimum 60/100 score). Capital preservation is prioritized over speculative bidding.
-              </p>
+          </Card>
+        ) : (
+          <Card className="border border-border/40 bg-card/40 p-6 rounded-2xl">
+            <div className="flex items-start gap-4">
+              <div className="p-3 bg-muted/40 rounded-xl border border-border/30">
+                <Info className="h-6 w-6 text-muted-foreground" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-foreground">No Open IPOs Today</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  There are currently no active public issues accepting bids in the primary market. Check upcoming issues below.
+                </p>
+              </div>
             </div>
-          </div>
-        </Card>
+          </Card>
+        )
       )}
 
       {/* Daily AI Briefing Markdown Card */}
@@ -490,85 +596,104 @@ export default function IpoIntelligenceClient() {
 
       {/* TAB CONTENT 1: OPEN IPOS */}
       {activeTab === "open" && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {openIpos.map((ipo) => (
-            <Card
-              key={ipo.symbol}
-              className={`bg-card/40 border transition-all hover:border-border/80 ${
-                ipo.isBestPick ? "border-emerald-500/40 shadow-emerald-950/20 shadow-md" : "border-border/40"
-              }`}
-            >
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <CardTitle className="text-base font-bold text-foreground">
-                      {ipo.companyName}
-                    </CardTitle>
-                    <p className="text-xs text-muted-foreground font-mono mt-0.5">
-                      {ipo.symbol} • {ipo.issueType}
-                    </p>
+        openIpos.length === 0 ? (
+          <Card className="bg-card/30 border-border/40 p-8 text-center">
+            <Layers className="h-8 w-8 text-muted-foreground mx-auto mb-2 opacity-50" />
+            <p className="text-sm text-foreground font-semibold">No Open Issues Active</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              There are currently no active public issues accepting bids in the primary market. Check the Upcoming Pipeline tab.
+            </p>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {openIpos.map((ipo) => (
+              <Card
+                key={ipo.symbol}
+                className={`bg-card/40 border transition-all hover:border-border/80 ${
+                  ipo.isBestPick ? "border-emerald-500/40 shadow-emerald-950/20 shadow-md" : "border-border/40"
+                }`}
+              >
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <CardTitle className="text-base font-bold text-foreground">
+                        {ipo.companyName}
+                      </CardTitle>
+                      <p className="text-xs text-muted-foreground font-mono mt-0.5">
+                        {ipo.symbol} • {ipo.issueType}
+                      </p>
+                    </div>
+
+                    <span
+                      className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${getVerdictBadge(
+                        ipo.verdict,
+                      )}`}
+                    >
+                      {ipo.verdict.replace(/_/g, " ")}
+                    </span>
+                  </div>
+                </CardHeader>
+
+                <CardContent className="space-y-3 text-xs">
+                  <div className="flex items-center justify-between bg-muted/30 p-2.5 rounded-lg">
+                    <div>
+                      <span className="text-muted-foreground">Estimated GMP</span>
+                      <p className="text-sm font-bold text-emerald-400 mt-0.5">
+                        +{ipo.expectedListingGain.toFixed(1)}% (₹{ipo.gmpAmount})
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-muted-foreground">Total Demand</span>
+                      <p className="text-sm font-bold text-foreground mt-0.5">{ipo.totalSub}x</p>
+                    </div>
                   </div>
 
-                  <span
-                    className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${getVerdictBadge(
-                      ipo.verdict,
-                    )}`}
-                  >
-                    {ipo.verdict.replace(/_/g, " ")}
-                  </span>
-                </div>
-              </CardHeader>
+                  <div className="grid grid-cols-2 gap-2 text-muted-foreground">
+                    <div>
+                      Price Cap: <span className="font-semibold text-foreground">₹{ipo.priceCap}</span>
+                    </div>
+                    <div>
+                      Min Lot: <span className="font-semibold text-foreground">{ipo.lotSize} Shares</span>
+                    </div>
+                    <div>
+                      1 Lot Capital:{" "}
+                      <span className="font-semibold text-foreground">{formatInr(ipo.minInvestment)}</span>
+                    </div>
+                    <div>
+                      Closes: <span className="font-semibold text-foreground">{ipo.closeDate}</span>
+                    </div>
+                  </div>
 
-              <CardContent className="space-y-3 text-xs">
-                <div className="flex items-center justify-between bg-muted/30 p-2.5 rounded-lg">
-                  <div>
-                    <span className="text-muted-foreground">Estimated GMP</span>
-                    <p className="text-sm font-bold text-emerald-400 mt-0.5">
-                      +{ipo.expectedListingGain.toFixed(1)}% (₹{ipo.gmpAmount})
-                    </p>
+                  <div className="pt-2 flex items-center justify-between border-t border-border/30">
+                    <span className="text-[11px] text-muted-foreground">Score: {ipo.score.totalScore}/100</span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setAppliedModalIpo(ipo)}
+                      className="text-xs h-7 border-emerald-500/30 hover:bg-emerald-500/10 text-emerald-400"
+                    >
+                      Log Application
+                    </Button>
                   </div>
-                  <div className="text-right">
-                    <span className="text-muted-foreground">Total Demand</span>
-                    <p className="text-sm font-bold text-foreground mt-0.5">{ipo.totalSub}x</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 text-muted-foreground">
-                  <div>
-                    Price Cap: <span className="font-semibold text-foreground">₹{ipo.priceCap}</span>
-                  </div>
-                  <div>
-                    Min Lot: <span className="font-semibold text-foreground">{ipo.lotSize} Shares</span>
-                  </div>
-                  <div>
-                    1 Lot Capital:{" "}
-                    <span className="font-semibold text-foreground">{formatInr(ipo.minInvestment)}</span>
-                  </div>
-                  <div>
-                    Closes: <span className="font-semibold text-foreground">{ipo.closeDate}</span>
-                  </div>
-                </div>
-
-                <div className="pt-2 flex items-center justify-between border-t border-border/30">
-                  <span className="text-[11px] text-muted-foreground">Score: {ipo.score.totalScore}/100</span>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setAppliedModalIpo(ipo)}
-                    className="text-xs h-7 border-emerald-500/30 hover:bg-emerald-500/10 text-emerald-400"
-                  >
-                    Log Application
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )
       )}
 
       {/* TAB CONTENT 2: UPCOMING PIPELINE */}
       {activeTab === "upcoming" && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        upcomingIpos.length === 0 ? (
+          <Card className="bg-card/30 border-border/40 p-8 text-center">
+            <Calendar className="h-8 w-8 text-muted-foreground mx-auto mb-2 opacity-50" />
+            <p className="text-sm text-foreground font-semibold">No Upcoming Issues</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              No upcoming public issues are currently registered in the pipeline.
+            </p>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {upcomingIpos.map((ipo: IpoDetails) => (
             <Card key={ipo.symbol} className="bg-card/40 border-border/40">
               <CardHeader className="pb-3">
@@ -629,6 +754,7 @@ export default function IpoIntelligenceClient() {
             </Card>
           ))}
         </div>
+        )
       )}
 
 
