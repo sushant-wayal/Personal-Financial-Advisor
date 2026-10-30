@@ -66,21 +66,21 @@ export async function POST(req: NextRequest) {
       totalDeduction = Number((tradeValue + brokerage).toFixed(2));
     }
 
-    // 1. Fetch active cycle investment suggestion and deduct totalDeduction
-    const activeSuggestion = await prisma.investmentSuggestion.findFirst({
-      where: { status: "ACTIVE" },
+    // 1. Fetch current cycle investment suggestion and deduct totalDeduction
+    const currentSuggestion = await prisma.investmentSuggestion.findFirst({
+      where: { status: { in: ["ACTIVE", "INVESTED"] } },
       orderBy: { createdAt: "desc" },
     });
 
     let newRemainingStockBalance = 0;
-    if (activeSuggestion) {
-      const currentRemaining = activeSuggestion.remainingStockBalance != null
-        ? activeSuggestion.remainingStockBalance
-        : (activeSuggestion.totalStockInvestable || 0);
+    if (currentSuggestion) {
+      const currentRemaining = currentSuggestion.remainingStockBalance != null
+        ? currentSuggestion.remainingStockBalance
+        : (currentSuggestion.totalStockInvestable || 0);
       newRemainingStockBalance = Math.max(0, currentRemaining - totalDeduction);
 
       await prisma.investmentSuggestion.update({
-        where: { id: activeSuggestion.id },
+        where: { id: currentSuggestion.id },
         data: { remainingStockBalance: newRemainingStockBalance },
       });
     }

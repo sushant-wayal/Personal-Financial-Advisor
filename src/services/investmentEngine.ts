@@ -505,7 +505,7 @@ export async function getOrGenerateInvestmentSuggestion(options?: { burnData?: A
     const suggestedGold = distributedBuckets.gold;
 
     if (active) {
-        const activeRemainingStock = active.remainingStockBalance != null && active.remainingStockBalance > 0
+        const activeRemainingStock = active.remainingStockBalance != null
             ? active.remainingStockBalance
             : (active.totalStockInvestable || baseStockInvestable);
 

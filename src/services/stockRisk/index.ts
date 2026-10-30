@@ -34,6 +34,7 @@ import type {
 import { calculateBurnRate, calculateRunway } from "../analytics";
 import { getEmergencyFundStatus } from "../emergencyFund";
 import { determinePhase, computeSurplus, detectSalaryCycle, getOrGenerateInvestmentSuggestion } from "../investmentEngine";
+import { calculateStockBrokerage } from "../shared";
 
 // ─── Capital Allocation ──────────────────────────────────────────────────────
 
@@ -130,13 +131,60 @@ export async function calculateCapitalAllocation(
     });
   }
 
+  // 2b. Existing direct-equity holdings & open position slots
+  const stocks = prisma.stock
+    ? await prisma.stock.findMany({
+        where: { currentQuantity: { gt: 0 } },
+      })
+    : [];
+  const deployedCapital = stocks.reduce((sum, s) => sum + (s.currentWorth ?? 0), 0);
+  const currentOpenPositions = stocks.length;
+  const maxOpenPositions = RISK_CONFIG.maxOpenPositions; // 5
+  const availableSlots = Math.max(0, maxOpenPositions - currentOpenPositions);
+
   // Cycle Stock Trading Balance from current cycle suggestion
   const cycleStockTradingPool = currentCycleSuggestion?.stockCycle?.totalInvestable
     ?? currentCycleSuggestion?.totalStockInvestable
     ?? 0;
-  const remainingCycleStockBalance = currentCycleSuggestion?.stockCycle?.remainingStockBalance
+  const rawRemainingCycleStockBalance = currentCycleSuggestion?.stockCycle?.remainingStockBalance
     ?? currentCycleSuggestion?.remainingStockBalance
     ?? cycleStockTradingPool;
+
+  // Active stock investments in the current cycle reduce available cycle credit
+  let remainingCycleStockBalance = rawRemainingCycleStockBalance;
+
+  // If the suggestion still shows the full pool, check if stocks were added/invested during this cycle
+  if (
+    currentCycleSuggestion?.createdAt &&
+    remainingCycleStockBalance === cycleStockTradingPool &&
+    cycleStockTradingPool > 0
+  ) {
+    const cycleStartDate = new Date(currentCycleSuggestion.createdAt);
+    const cycleStocks = stocks.filter(
+      (s: any) => s.createdAt && new Date(s.createdAt) >= cycleStartDate,
+    );
+    const cycleStockOutflow = cycleStocks.reduce(
+      (sum: number, s: any) => {
+        const tradeVal = s.currentWorth ?? 0;
+        return sum + tradeVal + calculateStockBrokerage(tradeVal);
+      },
+      0,
+    );
+    if (cycleStockOutflow > 0) {
+      remainingCycleStockBalance = Math.max(0, Math.round(cycleStockTradingPool - cycleStockOutflow));
+      if (
+        currentCycleSuggestion?.id &&
+        typeof prisma.investmentSuggestion?.update === "function"
+      ) {
+        prisma.investmentSuggestion
+          .update({
+            where: { id: currentCycleSuggestion.id },
+            data: { remainingStockBalance: remainingCycleStockBalance },
+          })
+          .catch(() => null);
+      }
+    }
+  }
 
   const cycleMfInvestable = currentCycleSuggestion?.totalInvestable ?? 0;
 
@@ -176,17 +224,6 @@ export async function calculateCapitalAllocation(
   if (!phasePolicy.newPurchasesAllowed) {
     warnings.push(`New purchases blocked: ${phasePolicy.description}`);
   }
-
-  // 8. Existing direct-equity holdings & open position slots
-  const stocks = prisma.stock
-    ? await prisma.stock.findMany({
-        where: { currentQuantity: { gt: 0 } },
-      })
-    : [];
-  const deployedCapital = stocks.reduce((sum, s) => sum + (s.currentWorth ?? 0), 0);
-  const currentOpenPositions = stocks.length;
-  const maxOpenPositions = RISK_CONFIG.maxOpenPositions; // 5
-  const availableSlots = Math.max(0, maxOpenPositions - currentOpenPositions);
 
   // 9. Portfolio Risk & Drawdown Throttle Factor (D_f)
   let riskSnapshot: PortfolioRiskSnapshot | null = null;

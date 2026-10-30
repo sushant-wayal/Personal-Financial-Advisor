@@ -441,4 +441,56 @@ describe("capitalAllocation — Cycle-Based Stock Trading Safeguards", () => {
     expect(result.eligibleNewPurchaseBudget).toBe(0);
     expect(result.bindingConstraint).toBe("regime_blocked_bearish");
   });
+
+  // 10. Deducts active stock holdings from remaining cycle credit
+  it("Requirement 10: deducts deployed stock holdings from remaining cycle credit", async () => {
+    vi.mocked(prisma.financialProfile.findFirst).mockResolvedValue({
+      balance: 100000,
+      monthlyIncome: 50000,
+      monthlyExpenses: 25000,
+      emergencyFundMonths: 6,
+    } as any);
+
+    vi.mocked(emergencyFundService.getEmergencyFundStatus).mockResolvedValue(mockEf({
+      targetMonths: 6,
+      avgMonthlyExpenses: 25000,
+      targetAmount: 150000,
+      savedAmount: 150000,
+      availableBalance: 100000,
+      isComplete: true,
+    }));
+
+    vi.mocked(investmentEngineService.getOrGenerateInvestmentSuggestion).mockResolvedValue({
+      suggestion: {
+        id: "test-sug-1",
+        status: "INVESTED",
+        totalStockInvestable: 1147,
+        remainingStockBalance: 1147,
+        createdAt: new Date("2026-10-29T10:00:00Z"),
+        stockCycle: {
+          totalInvestable: 1147,
+          remainingStockBalance: 1147,
+        },
+      },
+    } as any);
+
+    // Mock an active stock holding purchased during this cycle (e.g. ETERNAL worth 686)
+    vi.mocked(prisma.stock.findMany).mockResolvedValue([
+      {
+        id: "stock-1",
+        symbol: "ETERNAL",
+        currentQuantity: 2,
+        currentPrice: 343,
+        currentWorth: 686,
+        createdAt: new Date("2026-10-30T10:00:00Z"),
+      } as any,
+    ]);
+
+    const result = await calculateCapitalAllocation("BULLISH");
+
+    expect(result.cycleStockTradingPool).toBe(1147);
+    expect(result.deployedCapital).toBe(686);
+    expect(result.remainingCycleStockBalance).toBe(454); // 1147 - (686 + 6.71 charges)
+    expect(result.potentiallyDeployableCash).toBe(454);
+  });
 });
