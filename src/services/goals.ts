@@ -29,6 +29,7 @@ type GoalRecord = {
     status?: string | null;
     targetAmount: number;
     currentAmount: number;
+    spentAmount?: number;
     monthlyTarget?: number | null;
     priority: number;
     currency?: string | null;
@@ -84,11 +85,14 @@ export function analyzeGoalConflicts(goals: GoalRecord[], monthlyCapacity: numbe
     const goalSummaries = goals.map((goal) => {
         const currency = resolvedCurrency(goal, fallbackCurrency);
         const monthsLeft = monthsUntil(goal.targetDate) ?? null;
+        const spent = Math.max(0, Number(goal.spentAmount || 0));
+        const effTarget = Math.max(0, goal.targetAmount - spent);
+        const effCurrent = Math.max(0, goal.currentAmount - spent);
 
         // estimate forecast using observed monthly capacity as a proxy for savings velocity
         const forecast = estimateForecast({
-            currentAmount: goal.currentAmount,
-            targetAmount: goal.targetAmount,
+            currentAmount: effCurrent,
+            targetAmount: effTarget,
             monthsLeft,
             currentSavingsVelocity: monthlyCapacity,
         });
@@ -114,6 +118,8 @@ export function analyzeGoalConflicts(goals: GoalRecord[], monthlyCapacity: numbe
         return {
             ...goal,
             currency,
+            spentAmount: spent,
+            spentAmountLabel: formatCurrency(spent, currency),
             targetAmountLabel: formatCurrency(goal.targetAmount, currency),
             currentAmountLabel: formatCurrency(goal.currentAmount, currency),
             progressPct,
@@ -132,16 +138,25 @@ export function analyzeGoalConflicts(goals: GoalRecord[], monthlyCapacity: numbe
         };
     });
 
+    const allocationSummaries = goalSummaries.map((g) => {
+        const spent = Math.max(0, Number(g.spentAmount || 0));
+        return {
+            ...g,
+            targetAmount: Math.max(0, g.targetAmount - spent),
+            currentAmount: Math.max(0, g.currentAmount - spent),
+        };
+    });
+
     const allocationStrategies = {
-        priorityFirst: allocateMonthlyCapacity(goalSummaries, monthlyCapacity, { strategy: "priority-first" }),
-        proportional: allocateMonthlyCapacity(goalSummaries, monthlyCapacity, { strategy: "proportional" }),
-        utility: allocateMonthlyCapacity(goalSummaries, monthlyCapacity, { strategy: "utility" }),
+        priorityFirst: allocateMonthlyCapacity(allocationSummaries, monthlyCapacity, { strategy: "priority-first" }),
+        proportional: allocateMonthlyCapacity(allocationSummaries, monthlyCapacity, { strategy: "proportional" }),
+        utility: allocateMonthlyCapacity(allocationSummaries, monthlyCapacity, { strategy: "utility" }),
     };
     const allocation = allocationStrategies.utility;
     const allocationScenarios = [
-        simulateCapacityShift(goalSummaries, monthlyCapacity, -Math.round(monthlyCapacity * 0.25), "utility"),
-        simulateCapacityShift(goalSummaries, monthlyCapacity, 0, "utility"),
-        simulateCapacityShift(goalSummaries, monthlyCapacity, Math.round(monthlyCapacity * 0.25), "utility"),
+        simulateCapacityShift(allocationSummaries, monthlyCapacity, -Math.round(monthlyCapacity * 0.25), "utility"),
+        simulateCapacityShift(allocationSummaries, monthlyCapacity, 0, "utility"),
+        simulateCapacityShift(allocationSummaries, monthlyCapacity, Math.round(monthlyCapacity * 0.25), "utility"),
     ];
 
     const totalRecommended = goalSummaries.reduce((sum, goal) => sum + (goal.recommendedMonthlyContribution || 0), 0);
@@ -204,6 +219,7 @@ async function loadDerivedGoals(providedEfStatus?: Awaited<ReturnType<typeof get
                 status: true,
                 targetAmount: true,
                 currentAmount: true,
+                spentAmount: true,
                 monthlyTarget: true,
                 priority: true,
                 currency: true,
@@ -236,6 +252,7 @@ export async function getGoalOverview() {
                 status: true,
                 targetAmount: true,
                 currentAmount: true,
+                spentAmount: true,
                 monthlyTarget: true,
                 priority: true,
                 currency: true,
@@ -315,6 +332,7 @@ export async function createGoal(data: { title: string; targetAmount: number; ta
         priority: data.priority ?? 3,
         notes: data.notes,
         currentAmount: Math.max(0, Number(data.initialAllocation ?? data.currentAmount ?? 0)),
+        spentAmount: 0,
     };
     return prisma.goal.create({ data: createData });
 }
@@ -329,4 +347,23 @@ export async function updateGoal(id: string, patch: Partial<{ title: string; tar
 
 export async function deleteGoal(id: string) {
     return prisma.goal.delete({ where: { id } });
+}
+
+export async function recalibrateGoalSpent(goalId: string | null | undefined): Promise<number> {
+    if (!goalId) return 0;
+    const agg = await prisma.transaction.aggregate({
+        where: { goalId },
+        _sum: { amount: true },
+    });
+    const spentAmount = Math.max(0, Number(agg._sum.amount || 0));
+    await prisma.goal.update({
+        where: { id: goalId },
+        data: { spentAmount },
+    }).catch(() => null);
+    return spentAmount;
+}
+
+export async function recalibrateGoalsSpent(goalIds: (string | null | undefined)[]): Promise<void> {
+    const uniqueIds = Array.from(new Set(goalIds.filter((id): id is string => Boolean(id))));
+    await Promise.all(uniqueIds.map((id) => recalibrateGoalSpent(id)));
 }

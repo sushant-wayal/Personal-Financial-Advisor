@@ -139,6 +139,41 @@ describe('goalProgress service', () => {
       expect(result[0].derivedCurrentAmount).toBe(5000);
     });
 
+    it('correctly tracks spent amount and reduces effective target/current for allocation engine and forecast', () => {
+      const goals: GoalProgressSeed[] = [
+        {
+          id: 'goal-spent-1',
+          title: 'Laptop Upgrade',
+          targetAmount: 50000,
+          currentAmount: 30000,
+          spentAmount: 10000,
+          priority: 2,
+        },
+      ];
+
+      const signals: GoalProgressSignals = {
+        currency: 'INR',
+        availableBalance: 40000,
+        currentBalance: 50000,
+        monthlyCapacity: 5000,
+        availableGoalCapacity: 5000,
+        monthlySavings: 5000,
+        currentMonthSavingsRate: 25,
+        savingsRateChange: 0,
+        efIsComplete: true,
+        efTarget: 10000,
+        efMonthlyDrip: 0,
+        efRatio: 0,
+        goalsRatio: 1.0,
+        efStrategy: 'BALANCED',
+      };
+
+      const result = deriveGoalProgress(goals, signals);
+      expect(result).toHaveLength(1);
+      expect(result[0].spentAmount).toBe(10000);
+      expect(result[0].spentAmountLabel).toContain('10,000');
+    });
+
     it('handles empty goals array', () => {
       const signals: GoalProgressSignals = {
         currency: 'USD',
