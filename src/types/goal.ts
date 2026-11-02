@@ -28,6 +28,7 @@ export type Goal = {
     title: string;
     targetAmount: number;
     currentAmount: number;
+    spentAmount?: number;
     monthlyTarget?: number | null;
     priority: number;
     currency?: string | null;

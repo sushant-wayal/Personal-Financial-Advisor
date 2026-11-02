@@ -10,6 +10,8 @@ export type TransactionListItem = {
     notes: string | null;
     confidence: number | null;
     category: { id: string; name: string } | null;
+    goalId?: string | null;
+    goal?: { id: string; title: string } | null;
 };
 
 export type TransactionListResponse = {
