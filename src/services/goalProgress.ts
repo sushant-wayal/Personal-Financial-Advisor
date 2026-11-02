@@ -14,6 +14,7 @@ export type GoalProgressSeed = {
     status?: string | null;
     targetAmount: number;
     currentAmount: number;
+    spentAmount?: number;
     monthlyTarget?: number | null;
     priority: number;
     currency?: string | null;
@@ -50,6 +51,8 @@ export type DerivedGoalProgress = GoalProgressSeed & {
     derivedCurrentAmount: number;
     currentAmount: number;
     currentAmountLabel: string;
+    spentAmount: number;
+    spentAmountLabel: string;
     progressPct: number;
     monthsLeft: number | null;
     requiredMonthly: number;
@@ -70,7 +73,10 @@ function estimateGoalMonthlyNeed(goal: GoalProgressSeed, monthsLeft: number | nu
     }
 
     const effectiveMonths = Math.max(1, monthsLeft ?? 12);
-    return Math.max(0, (goal.targetAmount - Math.max(0, goal.currentAmount || 0)) / effectiveMonths);
+    const spent = Math.max(0, Number(goal.spentAmount || 0));
+    const effectiveTarget = Math.max(0, goal.targetAmount - spent);
+    const effectiveCurrent = Math.max(0, (goal.currentAmount || 0) - spent);
+    return Math.max(0, (effectiveTarget - effectiveCurrent) / effectiveMonths);
 }
 
 export async function buildGoalProgressSignals(providedEfStatus?: Awaited<ReturnType<typeof getEmergencyFundStatus>>): Promise<GoalProgressSignals> {
@@ -144,17 +150,23 @@ export function deriveGoalProgress(goals: GoalProgressSeed[], signals: GoalProgr
     });
 
     const _allocationPlan = allocateMonthlyCapacity(
-        normalizedGoals.map((goal) => ({
-            id: goal.id,
-            title: goal.title,
-            priority: goal.priority,
-            recommendedMonthlyContribution: goal.requiredMonthly,
-            requiredMonthly: goal.requiredMonthly,
-            monthsLeft: goal.monthsLeft,
-            targetAmount: goal.targetAmount,
-            currentAmount: goal.seedAmount,
-            progressPct: goal.targetAmount > 0 ? (goal.seedAmount / goal.targetAmount) * 100 : 0,
-        })),
+        normalizedGoals.map((goal) => {
+            const spent = Math.max(0, Number(goal.spentAmount || 0));
+            const effTarget = Math.max(0, goal.targetAmount - spent);
+            const effCurrent = Math.max(0, goal.seedAmount - spent);
+            return {
+                id: goal.id,
+                title: goal.title,
+                priority: goal.priority,
+                recommendedMonthlyContribution: goal.requiredMonthly,
+                requiredMonthly: goal.requiredMonthly,
+                monthsLeft: goal.monthsLeft,
+                targetAmount: effTarget,
+                currentAmount: effCurrent,
+                spentAmount: spent,
+                progressPct: effTarget > 0 ? (effCurrent / effTarget) * 100 : 0,
+            };
+        }),
         signals.availableGoalCapacity,
         { strategy: "utility" },
     );
@@ -163,10 +175,13 @@ export function deriveGoalProgress(goals: GoalProgressSeed[], signals: GoalProgr
 
     return normalizedGoals.map((goal) => {
         const derivedCurrentAmount = Math.min(goal.targetAmount, goal.seedAmount);
+        const spent = Math.max(0, Number(goal.spentAmount || 0));
+        const effTarget = Math.max(0, goal.targetAmount - spent);
+        const effCurrent = Math.max(0, derivedCurrentAmount - spent);
 
         const forecast = estimateForecast({
-            currentAmount: derivedCurrentAmount,
-            targetAmount: goal.targetAmount,
+            currentAmount: effCurrent,
+            targetAmount: effTarget,
             monthsLeft: goal.monthsLeft,
             currentSavingsVelocity: signals.availableGoalCapacity,
         });
@@ -174,7 +189,7 @@ export function deriveGoalProgress(goals: GoalProgressSeed[], signals: GoalProgr
         const confidence = computeConfidenceScore(forecast.requiredMonthly, signals.availableGoalCapacity, Math.abs(1 - behaviorMultiplier));
         const currency = goal.currency || signals.currency || "INR";
 
-        const remaining = Math.max(0, goal.targetAmount - derivedCurrentAmount);
+        const remaining = Math.max(0, effTarget - effCurrent);
         const recommendations: string[] = [];
         if (forecast.requiredMonthly > signals.availableGoalCapacity) {
             const deficit = Math.round(forecast.requiredMonthly - signals.availableGoalCapacity);
@@ -189,6 +204,8 @@ export function deriveGoalProgress(goals: GoalProgressSeed[], signals: GoalProgr
             derivedCurrentAmount,
             currentAmount: derivedCurrentAmount,
             currentAmountLabel: formatCurrency(derivedCurrentAmount, currency),
+            spentAmount: spent,
+            spentAmountLabel: formatCurrency(spent, currency),
             progressPct: goal.targetAmount > 0 ? Math.min(100, (derivedCurrentAmount / goal.targetAmount) * 100) : 0,
             requiredMonthly: Math.round(forecast.requiredMonthly),
             requiredMonthlyLabel: formatCurrency(forecast.requiredMonthly, currency),
