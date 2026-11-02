@@ -31,6 +31,8 @@ model Transaction {
   isClubbed        Boolean   @default(false)
   clubbedSourceIds String    @default("[]")
   clubbedSources   String    @default("[]")
+  goalId           String?
+  goal             Goal?     @relation(fields: [goalId], references: [id], onDelete: SetNull)
 }
 
 model TransactionIngestionKey {
@@ -73,6 +75,7 @@ model Goal {
   title         String
   targetAmount  Float
   currentAmount Float     @default(0)
+  spentAmount   Float     @default(0)
   monthlyTarget Float?
   goalType      String    @default("PURCHASE")
   status        String    @default("ACTIVE")
@@ -84,6 +87,7 @@ model Goal {
   notes         String?
   icon          String?
   color         String?
+  transactions  Transaction[]
 }
 
 model FinancialProfile {

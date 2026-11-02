@@ -12,6 +12,7 @@ export type TransactionRecord = {
     type?: "DEBIT" | "CREDIT" | "TRANSFER" | "SALARY" | "REFUND" | "SUBSCRIPTION" | "OTHER";
     notes?: string;
     confidence?: number;
+    goalId?: string | null;
     rawText?: string;
     raw?: string;
 };
