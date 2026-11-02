@@ -5,7 +5,8 @@ import { deterministicParse } from "./transactionParser";
 import { autoCategorize, findOrCreateCategory } from "./categorizer";
 import { getTransactionImpact, updateProfileBalanceBy } from "./balance";
 import { adviseGoals } from "./GoalAdvisorService";
-import { getGoalOverview } from "./goals";
+import { getGoalOverview, recalibrateGoalSpent } from "./goals";
+import { isGoalEligibleTransaction } from "./transactions";
 
 type TransactionIngestionInput = {
     raw?: string;
@@ -14,6 +15,7 @@ type TransactionIngestionInput = {
     merchant?: string;
     category?: string;
     categoryId?: string;
+    goalId?: string | null;
     transactionType?: string;
     type?: string;
     paymentMethod?: string;
@@ -406,11 +408,16 @@ export async function ingestTransaction(input: TransactionIngestionInput) {
             sourceMessageId,
         });
 
+        const goalId = input.goalId && isGoalEligibleTransaction(transactionType, transactionType)
+            ? (input.goalId.trim() || null)
+            : null;
+
         const tx = await prisma.transaction.create({
             data: {
                 amount: Number.isFinite(amount) ? amount : 0,
                 merchant,
                 categoryId,
+                goalId,
                 timestamp,
                 source,
                 sourceMessageId: sourceMessageId || undefined,
@@ -419,8 +426,12 @@ export async function ingestTransaction(input: TransactionIngestionInput) {
                 confidence: typeof input.confidence === "number" ? Math.min(input.confidence, 1) : 1,
                 raw,
             } as any,
-            include: { category: true },
+            include: { category: true, goal: true },
         });
+
+        if (goalId) {
+            await recalibrateGoalSpent(goalId);
+        }
 
         await prisma.$executeRaw`
             UPDATE "Transaction"
@@ -516,11 +527,16 @@ export async function ingestTransaction(input: TransactionIngestionInput) {
     });
     const category = await findOrCreateCategory(catInfo.category);
 
+    const goalId = input.goalId && isGoalEligibleTransaction(parsed.type, parsed.transactionType)
+        ? (input.goalId.trim() || null)
+        : null;
+
     const tx = await prisma.transaction.create({
         data: {
             amount: normalizedAmount,
             merchant: parsed.merchant,
             categoryId: category.id,
+            goalId,
             timestamp: parsedTimestamp,
             source,
             sourceMessageId: sourceMessageId || undefined,
@@ -530,8 +546,12 @@ export async function ingestTransaction(input: TransactionIngestionInput) {
             confidence: Math.min(parsed.confidence ?? 0.6, catInfo.confidence),
             raw: parsed.raw || raw,
         } as any,
-        include: { category: true },
+        include: { category: true, goal: true },
     });
+
+    if (goalId) {
+        await recalibrateGoalSpent(goalId);
+    }
 
     console.info("[transaction-ingestion] created parsed transaction", {
         transactionId: tx.id,
