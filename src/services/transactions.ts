@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 
 import { prisma } from "../lib/prisma";
 import { TransactionListResponse } from "../types/transactions";
+export { recalibrateGoalSpent, recalibrateGoalsSpent } from "./goals";
 
 export type TransactionSortField = "date" | "amount" | "merchant" | "category" | "type";
 export type TransactionSort = { id: TransactionSortField; desc: boolean };
@@ -25,6 +26,15 @@ const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 100;
 const INCOME_TYPES = ["CREDIT", "SALARY", "REFUND", "INCOME", "BONUS"];
 const EXPENSE_TYPES = ["DEBIT", "SUBSCRIPTION", "TRANSFER", "PAYMENT", "BILL", "CHARGE", "EXPENSE", "PURCHASE", "WITHDRAWAL"];
+
+export function isGoalEligibleTransaction(type?: string | null, transactionType?: string | null): boolean {
+    const t = (type || "").toUpperCase().trim();
+    const tt = (transactionType || "").toUpperCase().trim();
+    if (INCOME_TYPES.includes(t) || INCOME_TYPES.includes(tt)) {
+        return false;
+    }
+    return true;
+}
 
 function normalizePage(value?: number) {
     const parsed = Number(value ?? 1);
