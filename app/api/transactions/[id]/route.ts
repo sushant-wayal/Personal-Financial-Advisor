@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "../../../../src/lib/prisma";
 import { findOrCreateCategory, teachMerchantCategory } from "../../../../src/services/categorizer";
 import { getTransactionImpact, updateProfileBalanceBy } from "../../../../src/services/balance";
+import { recalibrateGoalSpent, recalibrateGoalsSpent } from "../../../../src/services/goals";
+import { isGoalEligibleTransaction } from "../../../../src/services/transactions";
 
 type UpdateBody = {
     merchant?: string;
@@ -12,6 +14,7 @@ type UpdateBody = {
     bankName?: string | null;
     transactionType?: string;
     notes?: string | null;
+    goalId?: string | null;
 };
 
 function cleanOptional(value: unknown) {
@@ -43,6 +46,16 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         const category = body.category ? await findOrCreateCategory(body.category) : undefined;
         const transactionType = body.transactionType?.trim().toUpperCase() || undefined;
 
+        const effectiveType = transactionType || existing.transactionType || existing.type;
+        const isEligible = isGoalEligibleTransaction(effectiveType, effectiveType);
+        let nextGoalId: string | null | undefined = undefined;
+
+        if (body.goalId !== undefined) {
+            nextGoalId = isEligible ? cleanOptional(body.goalId) : null;
+        } else if (!isEligible && existing.goalId) {
+            nextGoalId = null;
+        }
+
         const tx = await prisma.transaction.update({
             where: { id },
             data: {
@@ -51,10 +64,11 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
                 ...(timestamp ? { timestamp } : {}),
                 ...(category ? { categoryId: category.id } : {}),
                 ...(transactionType ? { type: transactionType } : {}),
+                ...(nextGoalId !== undefined ? { goalId: nextGoalId } : {}),
                 ...(body.notes !== undefined ? { notes: cleanOptional(body.notes) } : {}),
                 confidence: category ? 0.98 : undefined,
             },
-            include: { category: true },
+            include: { category: true, goal: true },
         });
 
         await prisma.$executeRaw`
@@ -75,6 +89,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         const newImpact = getTransactionImpact(newAmount, newType, newType);
         await updateProfileBalanceBy(newImpact - oldImpact);
 
+        const goalChanged = nextGoalId !== undefined && nextGoalId !== existing.goalId;
+        const amountChanged = amount !== undefined && amount !== existing.amount;
+        if (goalChanged || amountChanged || nextGoalId || existing.goalId) {
+            await recalibrateGoalsSpent([existing.goalId, nextGoalId]);
+        }
+
         return NextResponse.json({ ok: true, transaction: tx });
     } catch (e: unknown) {
         const message = e instanceof Error ? e.message : String(e);
@@ -93,6 +113,11 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
         await prisma.transaction.delete({ where: { id } });
         const impact = getTransactionImpact(existing.amount, existing.type, existing.transactionType);
         await updateProfileBalanceBy(-impact);
+
+        if (existing.goalId) {
+            await recalibrateGoalSpent(existing.goalId);
+        }
+
         return NextResponse.json({ ok: true });
     } catch (e: unknown) {
         const message = e instanceof Error ? e.message : String(e);
