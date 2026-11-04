@@ -167,6 +167,7 @@ export default function TransactionsClient() {
                     setAmountMax={filters.setAmountMax}
                     goalId={filters.goalId}
                     setGoalId={filters.setGoalId}
+                    goalTitle={meta.data.find((tx) => tx.goalId === filters.goalId)?.goal?.title}
                     onQueryUpdate={updateQuery}
                 />
 

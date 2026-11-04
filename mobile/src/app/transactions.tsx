@@ -168,6 +168,8 @@ async function fetchCategories(force = false) {
   );
 }
 
+const OPTIONS_TTL_MS = 60 * 1000;
+
 async function fetchOptions(force = false) {
   return fetchCachedValue(
     "transactions:options",
@@ -180,7 +182,7 @@ async function fetchOptions(force = false) {
         return { transactionTypes: [], paymentMethods: [], goals: [] };
       }
     },
-    { force },
+    { force, ttlMs: OPTIONS_TTL_MS },
   );
 }
 
@@ -672,6 +674,7 @@ export default function TransactionsScreen() {
           dateFrom: initialTimeRange === "custom" ? (initialDateFrom || customFrom) : undefined,
           dateTo: initialTimeRange === "custom" ? (initialDateTo || customTo) : undefined,
           category: initialCategory || undefined,
+          goalId: initialGoalId || undefined,
         };
         const data = await fetchTransactions(1, pageSize, initialFilters);
         if (!mounted) return;
@@ -691,27 +694,37 @@ export default function TransactionsScreen() {
     };
   }, []);
 
+  const lastHandledParamsRef = useRef<string>("");
+
   useEffect(() => {
     const paramCat = params.category || params.categoryId || null;
+    const paramGoal = params.goalId || null;
     const paramFrom = params.dateFrom || null;
     const paramTo = params.dateTo || null;
     const paramTime = params.dateRange || params.timeRange || (paramFrom || paramTo ? "custom" : null);
-    if (!paramCat && !paramTime && !paramFrom && !paramTo) return;
+
+    const paramSignature = `${paramCat || ""}|${paramGoal || ""}|${paramTime || ""}|${paramFrom || ""}|${paramTo || ""}`;
+    if (!paramCat && !paramGoal && !paramTime && !paramFrom && !paramTo) return;
+    if (lastHandledParamsRef.current === paramSignature) return;
+    lastHandledParamsRef.current = paramSignature;
 
     let active = true;
     const timer = setTimeout(() => {
       if (!active) return;
       if (paramCat) setSelectedCategory(paramCat);
+      if (paramGoal) setSelectedGoalId(paramGoal);
       if (paramFrom) setCustomFrom(paramFrom);
       if (paramTo) setCustomTo(paramTo);
       if (paramTime) setTimeRange(paramTime);
       void reload(
         buildFilters({
           category: paramCat ?? undefined,
+          goalId: paramGoal ?? undefined,
           dateRange: paramTime ?? undefined,
           dateFrom: paramFrom ?? (paramTime === "custom" ? customFrom : undefined),
           dateTo: paramTo ?? (paramTime === "custom" ? customTo : undefined),
         }),
+        true,
       );
     }, 0);
 
@@ -719,7 +732,7 @@ export default function TransactionsScreen() {
       active = false;
       clearTimeout(timer);
     };
-  }, [buildFilters, customFrom, customTo, params.category, params.categoryId, params.dateFrom, params.dateRange, params.dateTo, params.timeRange, reload]);
+  }, [buildFilters, customFrom, customTo, params.category, params.categoryId, params.dateFrom, params.dateRange, params.dateTo, params.goalId, params.timeRange, reload]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -1007,6 +1020,7 @@ export default function TransactionsScreen() {
   }
 
   async function clearAllFilters() {
+    lastHandledParamsRef.current = "";
     setTimeRange("all");
     setSelectedCategory(null);
     setSelectedType(null);
@@ -1017,6 +1031,7 @@ export default function TransactionsScreen() {
     setFilterMax("");
     setCategoryQuery("");
     setCustomModalVisible(false);
+    router.setParams({ goalId: "" });
     await reload({
       dateRange: "all",
       dateFrom: null,
@@ -1172,8 +1187,10 @@ export default function TransactionsScreen() {
           {selectedGoalId ? (
             <Pressable
               onPress={() => {
+                lastHandledParamsRef.current = "";
                 setSelectedGoalId(null);
-                void reload(buildFilters({ goalId: null }));
+                router.setParams({ goalId: "" });
+                void reload(buildFilters({ goalId: null }), true);
               }}
               style={[styles.chip, styles.chipActive]}
             >

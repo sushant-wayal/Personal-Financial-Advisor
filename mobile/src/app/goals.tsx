@@ -567,7 +567,7 @@ export default function GoalsScreen() {
       return <AllGoalsView goals={goals} onBack={() => setView("dashboard")} onAdd={openCreateSheet} onSelect={(goal) => { setSelectedGoalId(goal.id); setView("detail"); }} />;
     }
     if (view === "detail" && selectedGoal) {
-      return <GoalDetailView goal={selectedGoal} onBack={() => setView("all")} onEdit={() => openEditSheet(selectedGoal)} onViewTransactions={() => router.push({ pathname: "/transactions", params: { goalId: selectedGoal.id } })} />;
+      return <GoalDetailView goal={selectedGoal} onBack={() => setView("all")} onEdit={() => openEditSheet(selectedGoal)} onViewTransactions={() => router.push({ pathname: "/transactions", params: { goalId: selectedGoal.id, dateRange: "all" } })} />;
     }
     return (
       <DashboardView
@@ -1071,7 +1071,7 @@ function AllGoalsView({ goals, onBack, onAdd, onSelect }: { goals: Goal[]; onBac
         </Pressable>
       </View>
       <ScrollView style={styles.goalListScroll} contentContainerStyle={styles.goalList} showsVerticalScrollIndicator={false}>
-        {goals.map((goal) => <GoalCard key={goal.id} goal={goal} onPress={() => onSelect(goal)} onViewTransactions={() => router.push({ pathname: "/transactions", params: { goalId: goal.id } })} />)}
+        {goals.map((goal) => <GoalCard key={goal.id} goal={goal} onPress={() => onSelect(goal)} onViewTransactions={() => router.push({ pathname: "/transactions", params: { goalId: goal.id, dateRange: "all" } })} />)}
         {!goals.length ? (
           <View style={styles.emptyGoals}>
             <Text style={styles.emptyTitle}>No goals yet</Text>

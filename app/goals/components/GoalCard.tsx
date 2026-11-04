@@ -100,7 +100,7 @@ export function GoalCard({ goal, onUpdate, onDelete, isUpdating, isDeleting }: G
                                 onClick={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
-                                    router.push(`/transactions?goalId=${goal.id}`);
+                                    router.push(`/transactions?goalId=${goal.id}&dateRange=all`);
                                 }}
                                 className="rounded-lg text-xs gap-1 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300"
                             >

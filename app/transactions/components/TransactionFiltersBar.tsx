@@ -28,6 +28,7 @@ type TransactionFiltersBarProps = {
     setAmountMax: (v: string) => void;
     goalId?: string;
     setGoalId?: (v: string) => void;
+    goalTitle?: string;
     onQueryUpdate: (updates: Record<string, unknown>) => void;
     onReset?: () => void;
 };
@@ -53,13 +54,16 @@ export function TransactionFiltersBar({
     setAmountMax,
     goalId,
     setGoalId,
+    goalTitle,
     onQueryUpdate,
 }: TransactionFiltersBarProps) {
     return (
         <div className="space-y-4">
             {goalId && (
                 <div className="flex items-center justify-between rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-400">
-                    <span className="font-medium">Filtering transactions spent on this goal</span>
+                    <span className="font-medium">
+                        🎯 Filtering transactions spent on goal {goalTitle ? `"${goalTitle}"` : ""}
+                    </span>
                     {setGoalId && (
                         <button
                             type="button"
