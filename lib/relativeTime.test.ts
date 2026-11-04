@@ -61,3 +61,4 @@ describe("formatRelativeTime", () => {
     expect(formatRelativeTime(twoYearsAgo, baseDate)).toBe("2 years before");
   });
 });
+
