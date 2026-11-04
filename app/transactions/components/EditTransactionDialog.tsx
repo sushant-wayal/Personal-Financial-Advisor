@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { FALLBACK_CATEGORIES } from "@/src/data/transactionOptions";
+import { isEligibleGoalTransaction } from "@/src/services/goalSpending";
 import type { TransactionListItem } from "@/src/types/transactions";
 
 export type EditFormData = {
@@ -25,7 +26,13 @@ export type EditFormData = {
     paymentMethod: string;
     bankName: string;
     transactionType: string;
+    goalId?: string;
     notes: string;
+};
+
+type GoalOption = {
+    id: string;
+    title: string;
 };
 
 type EditTransactionDialogProps = {
@@ -49,6 +56,38 @@ export function EditTransactionDialog({
     isLoading,
     error,
 }: EditTransactionDialogProps) {
+    const [goalOptions, setGoalOptions] = useState<GoalOption[]>([]);
+
+    useEffect(() => {
+        if (!isOpen) return;
+        const fetchOptions = async () => {
+            try {
+                const res = await fetch("/api/transactions/options");
+                if (res.ok) {
+                    const data = await res.json() as { goals?: GoalOption[] };
+                    if (Array.isArray(data.goals)) {
+                        setGoalOptions(data.goals);
+                    }
+                }
+            } catch {
+                // Ignore fallback to empty goals
+            }
+        };
+        fetchOptions();
+    }, [isOpen]);
+
+    const isEligible = isEligibleGoalTransaction(editFormData.transactionType);
+
+    const handleTypeChange = (value: string | null) => {
+        const val = value || "DEBIT";
+        const eligible = isEligibleGoalTransaction(val);
+        setEditFormData((prev) => ({
+            ...prev,
+            transactionType: val,
+            goalId: eligible ? prev.goalId : "",
+        }));
+    };
+
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
             <DialogContent className="rounded-2xl p-4 sm:max-w-2xl sm:p-8">
@@ -144,7 +183,7 @@ export function EditTransactionDialog({
                             <Label>Transaction Type</Label>
                             <Select
                                 value={editFormData.transactionType}
-                                onValueChange={(value) => setEditFormData({ ...editFormData, transactionType: value as string })}
+                                onValueChange={handleTypeChange}
                             >
                                 <SelectTrigger className="rounded-lg border border-border bg-background px-3 py-2">
                                     <SelectValue placeholder="Select type" />
@@ -156,6 +195,33 @@ export function EditTransactionDialog({
                                     <SelectItem value="INCOME">Income</SelectItem>
                                     <SelectItem value="SALARY">Salary</SelectItem>
                                     <SelectItem value="REFUND">Refund</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </label>
+
+                        <label className="space-y-2">
+                            <div className="flex items-center justify-between">
+                                <Label>Tag to Goal</Label>
+                                {!isEligible && (
+                                    <span className="text-[10px] text-amber-500 font-medium">Expenses only</span>
+                                )}
+                            </div>
+                            <Select
+                                value={editFormData.goalId || "none"}
+                                disabled={!isEligible}
+                                onValueChange={(value: string | null) => {
+                                    const nextGoal = value === "none" || !value ? "" : value;
+                                    setEditFormData({ ...editFormData, goalId: nextGoal });
+                                }}
+                            >
+                                <SelectTrigger className="rounded-lg border border-border bg-background px-3 py-2">
+                                    <SelectValue placeholder={isEligible ? "Select active goal" : "Disabled for income"} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="none">None (No goal tagged)</SelectItem>
+                                    {goalOptions.map((g) => (
+                                        <SelectItem key={g.id} value={g.id}>{g.title}</SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
                         </label>

@@ -29,6 +29,7 @@ type GoalRecord = {
     status?: string | null;
     targetAmount: number;
     currentAmount: number;
+    spentAmount?: number;
     monthlyTarget?: number | null;
     priority: number;
     currency?: string | null;
@@ -114,6 +115,8 @@ export function analyzeGoalConflicts(goals: GoalRecord[], monthlyCapacity: numbe
         return {
             ...goal,
             currency,
+            spentAmount: goal.spentAmount || 0,
+            spentAmountLabel: formatCurrency(goal.spentAmount || 0, currency),
             targetAmountLabel: formatCurrency(goal.targetAmount, currency),
             currentAmountLabel: formatCurrency(goal.currentAmount, currency),
             progressPct,
@@ -204,6 +207,7 @@ async function loadDerivedGoals(providedEfStatus?: Awaited<ReturnType<typeof get
                 status: true,
                 targetAmount: true,
                 currentAmount: true,
+                spentAmount: true,
                 monthlyTarget: true,
                 priority: true,
                 currency: true,
@@ -236,6 +240,7 @@ export async function getGoalOverview() {
                 status: true,
                 targetAmount: true,
                 currentAmount: true,
+                spentAmount: true,
                 monthlyTarget: true,
                 priority: true,
                 currency: true,

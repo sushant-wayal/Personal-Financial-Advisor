@@ -46,6 +46,8 @@ type Goal = {
   status?: string | null;
   targetAmount: number;
   currentAmount: number;
+  spentAmount?: number;
+  spentAmountLabel?: string;
   monthlyTarget?: number | null;
   priority: number;
   currency?: string | null;
@@ -565,7 +567,7 @@ export default function GoalsScreen() {
       return <AllGoalsView goals={goals} onBack={() => setView("dashboard")} onAdd={openCreateSheet} onSelect={(goal) => { setSelectedGoalId(goal.id); setView("detail"); }} />;
     }
     if (view === "detail" && selectedGoal) {
-      return <GoalDetailView goal={selectedGoal} onBack={() => setView("all")} onEdit={() => openEditSheet(selectedGoal)} />;
+      return <GoalDetailView goal={selectedGoal} onBack={() => setView("all")} onEdit={() => openEditSheet(selectedGoal)} onViewTransactions={() => router.push({ pathname: "/transactions", params: { goalId: selectedGoal.id } })} />;
     }
     return (
       <DashboardView
@@ -1052,6 +1054,7 @@ function CarouselDots({ scrollX, count, itemWidth }: { scrollX: Animated.Value; 
 }
 
 function AllGoalsView({ goals, onBack, onAdd, onSelect }: { goals: Goal[]; onBack: () => void; onAdd: () => void; onSelect: (goal: Goal) => void }) {
+  const router = useRouter();
   return (
     <View style={styles.allCanvas}>
       <Pressable style={styles.backLink} onPress={onBack}>
@@ -1068,7 +1071,7 @@ function AllGoalsView({ goals, onBack, onAdd, onSelect }: { goals: Goal[]; onBac
         </Pressable>
       </View>
       <ScrollView style={styles.goalListScroll} contentContainerStyle={styles.goalList} showsVerticalScrollIndicator={false}>
-        {goals.map((goal) => <GoalCard key={goal.id} goal={goal} onPress={() => onSelect(goal)} />)}
+        {goals.map((goal) => <GoalCard key={goal.id} goal={goal} onPress={() => onSelect(goal)} onViewTransactions={() => router.push({ pathname: "/transactions", params: { goalId: goal.id } })} />)}
         {!goals.length ? (
           <View style={styles.emptyGoals}>
             <Text style={styles.emptyTitle}>No goals yet</Text>
@@ -1083,7 +1086,7 @@ function AllGoalsView({ goals, onBack, onAdd, onSelect }: { goals: Goal[]; onBac
   );
 }
 
-function GoalDetailView({ goal, onBack, onEdit }: { goal: Goal; onBack: () => void; onEdit: () => void }) {
+function GoalDetailView({ goal, onBack, onEdit, onViewTransactions }: { goal: Goal; onBack: () => void; onEdit: () => void; onViewTransactions: () => void }) {
   const milestones = goal.milestones?.length ? goal.milestones : [25, 50, 75, 100].map((pct) => ({
     label: `${pct}% milestone`,
     thresholdPct: pct,
@@ -1107,6 +1110,7 @@ function GoalDetailView({ goal, onBack, onEdit }: { goal: Goal; onBack: () => vo
               <Text style={styles.detailGoalTitle}>{goal.title}</Text>
               <Text style={styles.detailMetaLine}>Target: <Text style={styles.detailMetaStrong}>{goal.targetAmountLabel ?? formatCurrency(goal.targetAmount)}</Text></Text>
               <Text style={styles.detailMetaLine}>Current: <Text style={styles.detailMetaStrong}>{goal.currentAmountLabel ?? formatCurrency(goal.currentAmount)}</Text></Text>
+              <Text style={styles.detailMetaLine}>Spent: <Text style={styles.detailMetaSpent}>{goal.spentAmountLabel ?? formatCurrency(goal.spentAmount || 0)}</Text></Text>
             </View>
             <View style={styles.detailHealthBlock}>
               <Text style={styles.healthLabel}>Health</Text>
@@ -1123,10 +1127,16 @@ function GoalDetailView({ goal, onBack, onEdit }: { goal: Goal; onBack: () => vo
           <View style={styles.detailProgressTrack}>
             <View style={[styles.detailProgressFill, toneStyle(goal).fill, { width: `${progressOf(goal)}%` }]} />
           </View>
-          <Pressable style={styles.editGoalButton} onPress={onEdit}>
-            <MaterialIcons name="edit" size={18} color="#ffffff" />
-            <Text style={styles.editGoalButtonText}>EDIT GOAL</Text>
-          </Pressable>
+          <View style={styles.detailActionRow}>
+            <Pressable style={styles.editGoalButton} onPress={onEdit}>
+              <MaterialIcons name="edit" size={18} color="#ffffff" />
+              <Text style={styles.editGoalButtonText}>EDIT GOAL</Text>
+            </Pressable>
+            <Pressable style={styles.viewTransactionsButton} onPress={onViewTransactions}>
+              <MaterialIcons name="receipt-long" size={18} color="#7dffa2" />
+              <Text style={styles.viewTransactionsButtonText}>TRANSACTIONS</Text>
+            </Pressable>
+          </View>
         </View>
 
         <View style={styles.detailSection}>
@@ -1171,7 +1181,7 @@ function GoalDetailView({ goal, onBack, onEdit }: { goal: Goal; onBack: () => vo
   );
 }
 
-function GoalCard({ goal, onPress }: { goal: Goal; onPress: () => void }) {
+function GoalCard({ goal, onPress, onViewTransactions }: { goal: Goal; onPress: () => void; onViewTransactions?: () => void }) {
   const tone = toneStyle(goal);
   return (
     <Pressable style={({ pressed }) => [styles.goalCard, pressed ? styles.cardPressed : null]} onPress={onPress}>
@@ -1187,6 +1197,7 @@ function GoalCard({ goal, onPress }: { goal: Goal; onPress: () => void }) {
       <View style={styles.goalFactsGrid}>
         <GoalFact label="Target:" value={goal.targetAmountLabel ?? formatCurrency(goal.targetAmount)} />
         <GoalFact label="Current:" value={goal.currentAmountLabel ?? formatCurrency(goal.currentAmount)} />
+        <GoalFact label="Spent:" value={goal.spentAmountLabel ?? formatCurrency(goal.spentAmount || 0)} />
         <GoalFact label="Required / month:" value={goal.requiredMonthlyLabel ?? formatCurrency(goal.requiredMonthly)} />
         <GoalFact label="ETA:" value={etaLabel(goal)} />
       </View>
@@ -1194,8 +1205,22 @@ function GoalCard({ goal, onPress }: { goal: Goal; onPress: () => void }) {
         <View style={[styles.goalProgressFill, tone.fill, { width: `${progressOf(goal)}%` }]} />
       </View>
       <View style={styles.goalCardFooter}>
-        <Text style={styles.goalFooterText}>Click to view details</Text>
-        <MaterialIcons name="arrow-forward" size={16} color="#c4c7c8" />
+        {onViewTransactions ? (
+          <Pressable
+            style={styles.cardTxButton}
+            onPress={(e) => {
+              e.stopPropagation?.();
+              onViewTransactions();
+            }}
+          >
+            <MaterialIcons name="receipt-long" size={14} color="#7dffa2" />
+            <Text style={styles.cardTxButtonText}>Transactions</Text>
+          </Pressable>
+        ) : <View />}
+        <View style={styles.goalCardFooterRight}>
+          <Text style={styles.goalFooterText}>Details</Text>
+          <MaterialIcons name="arrow-forward" size={16} color="#c4c7c8" />
+        </View>
       </View>
     </Pressable>
   );
@@ -1587,7 +1612,14 @@ const styles = StyleSheet.create({
   detailMetaStrong: { color: "#ffffff", fontWeight: "700" },
   detailProgressTrack: { height: 8, borderRadius: 999, backgroundColor: "#0A0A0A", overflow: "hidden" },
   detailProgressFill: { height: "100%", borderRadius: 999 },
-  editGoalButton: { height: 48, borderRadius: 8, backgroundColor: "#262626", flexDirection: "row", gap: 8, alignItems: "center", justifyContent: "center" },
+  detailMetaSpent: { color: "#ffb4ab", fontWeight: "700" },
+  detailActionRow: { flexDirection: "row", gap: 10, marginTop: 4 },
+  viewTransactionsButton: { flex: 1, height: 48, borderRadius: 8, backgroundColor: "#1e2e24", borderWidth: 1, borderColor: "rgba(125,255,162,0.3)", flexDirection: "row", gap: 6, alignItems: "center", justifyContent: "center" },
+  viewTransactionsButtonText: { color: "#7dffa2", fontFamily: "JetBrains Mono", fontSize: fs(12), letterSpacing: 0.8, fontWeight: "700" },
+  cardTxButton: { flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 4, paddingHorizontal: 8, borderRadius: 6, backgroundColor: "rgba(125,255,162,0.12)", borderWidth: 1, borderColor: "rgba(125,255,162,0.25)" },
+  cardTxButtonText: { color: "#7dffa2", fontSize: fs(11), fontWeight: "600", fontFamily: "JetBrains Mono" },
+  goalCardFooterRight: { flexDirection: "row", alignItems: "center", gap: 4 },
+  editGoalButton: { flex: 1, height: 48, borderRadius: 8, backgroundColor: "#262626", flexDirection: "row", gap: 8, alignItems: "center", justifyContent: "center" },
   editGoalButtonText: { color: "#ffffff", fontFamily: "JetBrains Mono", fontSize: fs(13), letterSpacing: 1.2, fontWeight: "700" },
   detailSection: { borderRadius: 12, borderWidth: 1, borderColor: "#333333", backgroundColor: "#1A1A1A", padding: 22, gap: 14 },
   recommendedLine: { color: "#00E676", fontFamily: "JetBrains Mono", fontSize: fs(12) },

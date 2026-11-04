@@ -42,6 +42,8 @@ type Transaction = {
   clubbedSourceIds?: string;
   clubbedSources?: string;
   category?: { id?: string; name?: string } | null;
+  goalId?: string | null;
+  goal?: { id?: string; title?: string } | null;
 };
 
 type TransactionFilters = {
@@ -53,6 +55,7 @@ type TransactionFilters = {
   amountMin?: number | null;
   amountMax?: number | null;
   merchant?: string | null;
+  goalId?: string | null;
 };
 type ClubSource = {
   id: string;
@@ -65,7 +68,7 @@ type ClubSource = {
 };
 
 type SheetName = "advanced" | "time" | "category" | "type" | null;
-type AddPickerName = "merchant" | "category" | "method" | "type" | "date" | null;
+type AddPickerName = "merchant" | "category" | "method" | "type" | "date" | "goal" | null;
 
 const TIME_OPTIONS = [
   { id: "all", label: "All Time" },
@@ -130,6 +133,7 @@ async function fetchTransactions(page = 1, pageSize = 50, filters?: TransactionF
     if (filters.amountMin !== undefined && filters.amountMin !== null) url.searchParams.set("amountMin", String(filters.amountMin));
     if (filters.amountMax !== undefined && filters.amountMax !== null) url.searchParams.set("amountMax", String(filters.amountMax));
     if (filters.merchant) url.searchParams.set("merchant", filters.merchant);
+    if (filters.goalId) url.searchParams.set("goalId", filters.goalId);
   }
 
   return fetchCachedValue(
@@ -170,10 +174,10 @@ async function fetchOptions(force = false) {
     async () => {
       try {
         const res = await fetch(apiUrl("/api/transactions/options"));
-        if (!res.ok) return { transactionTypes: [], paymentMethods: [] };
-        return (await res.json()) as { transactionTypes: string[]; paymentMethods: string[] };
+        if (!res.ok) return { transactionTypes: [], paymentMethods: [], goals: [] };
+        return (await res.json()) as { transactionTypes: string[]; paymentMethods: string[]; goals?: { id: string; title: string }[] };
       } catch {
-        return { transactionTypes: [], paymentMethods: [] };
+        return { transactionTypes: [], paymentMethods: [], goals: [] };
       }
     },
     { force },
@@ -187,6 +191,7 @@ async function createTransaction(input: {
   paymentMethod: string;
   bankName: string;
   transactionType: string;
+  goalId?: string | null;
   timestamp: string;
   notes: string;
 }) {
@@ -200,6 +205,7 @@ async function createTransaction(input: {
       paymentMethod: input.paymentMethod,
       bankName: input.bankName || undefined,
       transactionType: input.transactionType,
+      goalId: input.goalId || undefined,
       timestamp: input.timestamp,
       notes: input.notes || undefined,
       source: "manual",
@@ -221,6 +227,7 @@ async function updateTransaction(id: string, input: {
   paymentMethod: string;
   bankName: string;
   transactionType: string;
+  goalId?: string | null;
   timestamp: string;
   notes: string;
 }) {
@@ -234,6 +241,7 @@ async function updateTransaction(id: string, input: {
       paymentMethod: input.paymentMethod,
       bankName: input.bankName || null,
       transactionType: input.transactionType,
+      goalId: input.goalId !== undefined ? input.goalId : undefined,
       timestamp: input.timestamp,
       notes: input.notes || null,
     }),
@@ -451,8 +459,10 @@ export default function TransactionsScreen() {
     timeRange?: string;
     dateFrom?: string;
     dateTo?: string;
+    goalId?: string;
   }>();
   const initialCategory = params.category || params.categoryId || null;
+  const initialGoalId = params.goalId || null;
   const initialDateFrom = params.dateFrom || null;
   const initialDateTo = params.dateTo || null;
   const initialTimeRange = params.dateRange || params.timeRange || (initialDateFrom || initialDateTo ? "custom" : "all");
@@ -470,8 +480,10 @@ export default function TransactionsScreen() {
   const [timeRange, setTimeRange] = useState(initialTimeRange);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(initialCategory);
   const [selectedType, setSelectedType] = useState<string | null>(null);
+  const [selectedGoalId, setSelectedGoalId] = useState<string | null>(initialGoalId);
+  const [addGoalId, setAddGoalId] = useState<string>("");
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
-  const [options, setOptions] = useState<{ transactionTypes: string[]; paymentMethods: string[] }>({ transactionTypes: [], paymentMethods: [] });
+  const [options, setOptions] = useState<{ transactionTypes: string[]; paymentMethods: string[]; goals?: { id: string; title: string }[] }>({ transactionTypes: [], paymentMethods: [], goals: [] });
   const [categoryQuery, setCategoryQuery] = useState("");
 
   const [filterSearch, setFilterSearch] = useState("");
@@ -522,7 +534,10 @@ export default function TransactionsScreen() {
     timeRange !== "all" ||
     selectedCategory !== null ||
     selectedType !== null ||
+    selectedGoalId !== null ||
     Boolean(filterSearch || filterMerchant || filterMin || filterMax);
+
+  const isEligibleGoalType = (type: string) => !CREDIT_TRANSACTION_TYPES.has(type) && !["CREDIT", "SALARY", "REFUND", "INCOME"].includes(type.toUpperCase());
   const timeLabel = TIME_OPTIONS.find((option) => option.id === timeRange)?.label ?? "All Time";
   const customRangeLabel = timeRange === "custom" ? `${compactDateLabel(customFrom)} - ${compactDateLabel(customTo)}` : timeLabel;
   const calendarDays = useMemo(() => buildCalendarDays(visibleMonth), [visibleMonth]);
@@ -611,10 +626,11 @@ export default function TransactionsScreen() {
       category: overrides.category === undefined ? selectedCategory : overrides.category,
       type: overrides.type === undefined ? selectedType : overrides.type,
       merchant: overrides.merchant === undefined ? filterMerchant || filterSearch || undefined : overrides.merchant,
+      goalId: overrides.goalId === undefined ? (selectedGoalId || undefined) : overrides.goalId,
       amountMin: overrides.amountMin === undefined ? (filterMin ? Number(filterMin) : undefined) : overrides.amountMin,
       amountMax: overrides.amountMax === undefined ? (filterMax ? Number(filterMax) : undefined) : overrides.amountMax,
     }),
-    [customFrom, customTo, filterMax, filterMerchant, filterMin, filterSearch, selectedCategory, selectedType, timeRange],
+    [customFrom, customTo, filterMax, filterMerchant, filterMin, filterSearch, selectedCategory, selectedGoalId, selectedType, timeRange],
   );
 
   const loadPage = useCallback(
@@ -741,6 +757,7 @@ export default function TransactionsScreen() {
     setAddNotes("");
     setAddCategoryQuery("");
     setAddError(null);
+    setAddGoalId("");
     setAddPicker(null);
     setEditingTransaction(null);
   }
@@ -808,6 +825,7 @@ export default function TransactionsScreen() {
     setAddCategory(tx.category?.name ?? "");
     setAddMethod(tx.paymentMethod ?? "");
     setAddBank(tx.bankName ?? "");
+    setAddGoalId(tx.goalId ?? "");
     setAddType(String(tx.transactionType ?? tx.type ?? "DEBIT").toUpperCase());
     setAddDateKey(clamped.dateKey);
     setAddDateMonth(new Date(clampedDate.getFullYear(), clampedDate.getMonth(), 1));
@@ -854,6 +872,7 @@ export default function TransactionsScreen() {
         paymentMethod: addMethod,
         bankName: addBank.trim(),
         transactionType: addType,
+        goalId: isEligibleGoalType(addType) && addGoalId ? addGoalId : null,
         timestamp: dateTimeToIso(addDateKey, addHour, addMinute),
         notes: addNotes.trim(),
       };
@@ -991,6 +1010,7 @@ export default function TransactionsScreen() {
     setTimeRange("all");
     setSelectedCategory(null);
     setSelectedType(null);
+    setSelectedGoalId(null);
     setFilterSearch("");
     setFilterMerchant("");
     setFilterMin("");
@@ -1003,6 +1023,7 @@ export default function TransactionsScreen() {
       dateTo: null,
       category: null,
       type: null,
+      goalId: null,
       merchant: null,
       amountMin: null,
       amountMax: null,
@@ -1148,6 +1169,20 @@ export default function TransactionsScreen() {
           <Pressable onPress={() => openSheet("type")} style={({ pressed }) => [styles.chip, selectedType ? styles.chipActive : null, pressed ? styles.chipPressed : null]}>
             <Text style={[styles.chipText, selectedType ? styles.chipTextActive : null]}>{selectedType ?? "All Types"}</Text>
           </Pressable>
+          {selectedGoalId ? (
+            <Pressable
+              onPress={() => {
+                setSelectedGoalId(null);
+                void reload(buildFilters({ goalId: null }));
+              }}
+              style={[styles.chip, styles.chipActive]}
+            >
+              <MaterialIcons name="track-changes" size={14} color="#7dffa2" />
+              <Text style={[styles.chipText, styles.chipTextActive]}>
+                Goal: {options.goals?.find((g) => g.id === selectedGoalId)?.title ?? "Filtered"} ✕
+              </Text>
+            </Pressable>
+          ) : null}
         </ScrollView>
       </View>
 
@@ -1571,6 +1606,21 @@ export default function TransactionsScreen() {
               </View>
 
               <AddSelectRow label="Type" value={addType} onPress={() => setAddPicker("type")} compact />
+              <AddSelectRow
+                label="Goal"
+                value={
+                  !isEligibleGoalType(addType)
+                    ? "Disabled (expenses only)"
+                    : (options.goals?.find((g) => g.id === addGoalId)?.title || "None (No goal tagged)")
+                }
+                muted={!isEligibleGoalType(addType) || !addGoalId}
+                onPress={() => {
+                  if (isEligibleGoalType(addType)) {
+                    setAddPicker("goal");
+                  }
+                }}
+                compact
+              />
               <AddSelectRow label="Date" value={formatDateTimeLabel(addDateKey, addHour, addMinute)} onPress={() => { if (!clubSourceIds.length) setAddPicker("date"); }} />
 
               <View style={styles.addField}>
@@ -1707,7 +1757,44 @@ export default function TransactionsScreen() {
                   label={type}
                   selected={addType === type.toUpperCase()}
                   onPress={() => {
-                    setAddType(type.toUpperCase());
+                    const nextType = type.toUpperCase();
+                    setAddType(nextType);
+                    if (!isEligibleGoalType(nextType)) {
+                      setAddGoalId("");
+                    }
+                    setAddPicker(null);
+                  }}
+                />
+              ))}
+            </ScrollView>
+          </SafeAreaView>
+        ) : null}
+
+        {addPicker === "goal" ? (
+          <SafeAreaView style={styles.addPickerScreen} edges={["top", "bottom"]}>
+            <View style={styles.addPickerHeader}>
+              <Pressable onPress={() => setAddPicker(null)} style={styles.addBackButton}>
+                <MaterialIcons name="arrow-back" size={24} color="#ffffff" />
+              </Pressable>
+              <Text pointerEvents="none" style={styles.addPickerTitle}>TAG TO ACTIVE GOAL</Text>
+              <View style={styles.headerSpacer} />
+            </View>
+            <ScrollView contentContainerStyle={styles.addTypeContent} showsVerticalScrollIndicator={false}>
+              <AddGoalOption
+                label="None (No goal tagged)"
+                selected={!addGoalId}
+                onPress={() => {
+                  setAddGoalId("");
+                  setAddPicker(null);
+                }}
+              />
+              {(options.goals ?? []).map((goal) => (
+                <AddGoalOption
+                  key={goal.id}
+                  label={goal.title}
+                  selected={addGoalId === goal.id}
+                  onPress={() => {
+                    setAddGoalId(goal.id);
                     setAddPicker(null);
                   }}
                 />
@@ -1935,6 +2022,20 @@ function PaymentMethodOption({
         <Text style={[styles.methodDescription, selected ? styles.methodDescriptionSelected : null]}>{description}</Text>
       </View>
       {selected ? <MaterialIcons name="check-circle" size={28} color="#7dffa2" /> : null}
+    </Pressable>
+  );
+}
+
+function AddGoalOption({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} style={({ pressed }) => [styles.addTypeOption, selected ? styles.addTypeOptionSelected : null, pressed ? styles.optionPressed : null]}>
+      <View style={styles.addListOptionLeft}>
+        <View style={[styles.addTypeIcon, selected ? styles.addTypeIconSelected : null]}>
+          <MaterialIcons name="track-changes" size={24} color="#ffffff" />
+        </View>
+        <Text style={[styles.addTypeLabel, selected ? styles.addTypeLabelSelected : null]}>{label}</Text>
+      </View>
+      {selected ? <MaterialIcons name="check" size={24} color="#ffffff" /> : null}
     </Pressable>
   );
 }

@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { SortingState } from "@tanstack/react-table";
 import { DEFAULT_SORT, encodeSort, parseQueryState, QueryState, SEARCH_DEBOUNCE_MS } from "../utils/transactionUtils";
 
 function useDebouncedValue<T>(value: T, delay = SEARCH_DEBOUNCE_MS) {
@@ -45,6 +44,7 @@ export function useTransactionFilters() {
             ["amountMin", nextState.amountMin || undefined],
             ["amountMax", nextState.amountMax || undefined],
             ["merchant", nextState.merchant || undefined],
+            ["goalId", nextState.goalId || undefined],
             ["sort", sortParam || undefined],
         ];
 
@@ -81,6 +81,7 @@ export function useTransactionFilters() {
             dateTo: "",
             amountMin: "",
             amountMax: "",
+            goalId: "",
             sorting: DEFAULT_SORT,
         });
     }, [queryState.pageSize, updateQuery]);
@@ -101,15 +102,17 @@ export function useTransactionFilters() {
         dateRange: queryState.dateRange,
         setDateRange: (range: string) => updateQuery({ dateRange: range, page: 1 }),
         dateFrom: queryState.dateFrom,
-        setDateFrom: (from: string) => updateQuery({ dateFrom: from, page: 1 }),
+        setDateFrom: (date: string) => updateQuery({ dateFrom: date, page: 1 }),
         dateTo: queryState.dateTo,
-        setDateTo: (to: string) => updateQuery({ dateTo: to, page: 1 }),
+        setDateTo: (date: string) => updateQuery({ dateTo: date, page: 1 }),
         amountMin: queryState.amountMin,
         setAmountMin: (min: string) => updateQuery({ amountMin: min, page: 1 }),
         amountMax: queryState.amountMax,
         setAmountMax: (max: string) => updateQuery({ amountMax: max, page: 1 }),
+        goalId: queryState.goalId,
+        setGoalId: (id: string) => updateQuery({ goalId: id, page: 1 }),
         sorting: queryState.sorting,
-        setSorting: (sorting: SortingState) => updateQuery({ sorting, page: 1 }),
+        setSorting: (sorting: QueryState["sorting"]) => updateQuery({ sorting, page: 1 }),
         updateQuery,
         resetFilters,
     };

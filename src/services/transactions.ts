@@ -19,6 +19,7 @@ export type TransactionQueryInput = {
     amountMax?: number;
     merchant?: string;
     sort?: TransactionSort[];
+    goalId?: string;
 };
 
 const DEFAULT_PAGE_SIZE = 20;
@@ -157,6 +158,10 @@ export async function getTransactions(input: TransactionQueryInput): Promise<Tra
         andConditions.push({ merchant: { contains: merchant } });
     }
 
+    if (input.goalId) {
+        andConditions.push({ goalId: input.goalId });
+    }
+
     if (category) {
         andConditions.push({
             OR: [
@@ -226,6 +231,13 @@ export async function getTransactions(input: TransactionQueryInput): Promise<Tra
                     isClubbed: true,
                     clubbedSourceIds: true,
                     clubbedSources: true,
+                    goalId: true,
+                    goal: {
+                        select: {
+                            id: true,
+                            title: true,
+                        },
+                    },
                     category: {
                         select: {
                             id: true,

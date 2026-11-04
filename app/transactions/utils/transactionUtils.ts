@@ -28,6 +28,7 @@ export const COLUMN_LABELS: Record<string, string> = {
     merchant: "Merchant",
     amount: "Amount",
     category: "Category",
+    goal: "Goal",
     paymentMethod: "Method",
     bankName: "Bank",
     type: "Type",
@@ -47,6 +48,7 @@ export type QueryState = {
     amountMin: string;
     amountMax: string;
     merchant: string;
+    goalId: string;
     sorting: SortingState;
 };
 
@@ -96,6 +98,7 @@ export function parseQueryState(params: URLSearchParams): QueryState {
         amountMin: params.get("amountMin") ?? "",
         amountMax: params.get("amountMax") ?? "",
         merchant: params.get("merchant") ?? "",
+        goalId: params.get("goalId") ?? "",
         sorting: parseSort(params.get("sort")),
     };
 }
@@ -114,6 +117,7 @@ export function buildQueryString(state: QueryState) {
     if (state.amountMin) params.set("amountMin", state.amountMin);
     if (state.amountMax) params.set("amountMax", state.amountMax);
     if (state.merchant) params.set("merchant", state.merchant);
+    if (state.goalId) params.set("goalId", state.goalId);
 
     const sort = encodeSort(state.sorting);
     if (sort) params.set("sort", sort);
@@ -123,5 +127,5 @@ export function buildQueryString(state: QueryState) {
 
 export function isCreditType(value?: string | null) {
     const norm = (value || "").toUpperCase();
-    return ["CREDIT", "SALARY", "REFUND"].includes(norm);
+    return ["CREDIT", "SALARY", "REFUND", "INCOME"].includes(norm);
 }

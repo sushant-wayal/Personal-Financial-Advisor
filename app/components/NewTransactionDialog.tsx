@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { FALLBACK_CATEGORIES, PAYMENT_METHODS, TRANSACTION_TYPES } from "@/src/data/transactionOptions";
+import { isEligibleGoalTransaction } from "@/src/services/goalSpending";
 
 async function getCategories() {
     const res = await fetch("/api/categories");
@@ -17,10 +18,16 @@ async function getCategories() {
     return res.json();
 }
 
+type TransactionOptionsResponse = {
+    transactionTypes: string[];
+    paymentMethods: string[];
+    goals?: { id: string; title: string }[];
+};
+
 async function getTransactionOptions() {
     const res = await fetch("/api/transactions/options");
     if (!res.ok) throw new Error("Failed to fetch transaction options");
-    return res.json() as Promise<{ transactionTypes: string[]; paymentMethods: string[] }>;
+    return res.json() as Promise<TransactionOptionsResponse>;
 }
 
 async function createTransaction(newTransaction: unknown) {
@@ -51,6 +58,7 @@ export default function NewTransactionDialog({
     const [paymentMethod, setPaymentMethod] = useState("");
     const [bankName, setBankName] = useState("");
     const [transactionType, setTransactionType] = useState("DEBIT");
+    const [goalId, setGoalId] = useState("");
     const [timestamp, setTimestamp] = useState(new Date().toISOString().slice(0, 16));
     const [notes, setNotes] = useState("");
 
@@ -84,11 +92,22 @@ export default function NewTransactionDialog({
         ...(transactionOptions?.paymentMethods ?? []),
     ].filter((value) => value !== null && value !== undefined)));
 
+    const isEligible = isEligibleGoalTransaction(transactionType);
+
+    const handleTypeChange = (nextType: string | null) => {
+        const val = nextType || "DEBIT";
+        setTransactionType(val);
+        if (!isEligibleGoalTransaction(val)) {
+            setGoalId("");
+        }
+    };
+
     const mutation = useMutation({
         mutationFn: createTransaction,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["transactions"] });
             queryClient.invalidateQueries({ queryKey: ["dashboardData"] });
+            queryClient.invalidateQueries({ queryKey: ["goals"] });
             onOpenChange(false);
             setAmount("");
             setMerchant("");
@@ -96,6 +115,7 @@ export default function NewTransactionDialog({
             setPaymentMethod("");
             setBankName("");
             setTransactionType("DEBIT");
+            setGoalId("");
             setTimestamp(new Date().toISOString().slice(0, 16));
             setNotes("");
         },
@@ -111,6 +131,7 @@ export default function NewTransactionDialog({
             paymentMethod,
             bankName,
             transactionType,
+            goalId: isEligible && goalId ? goalId : undefined,
             timestamp: new Date(timestamp).toISOString(),
             notes,
             source: "manual",
@@ -202,7 +223,7 @@ export default function NewTransactionDialog({
 
                         <label className="space-y-2 md:col-span-1">
                             <Label htmlFor="transactionType">Type</Label>
-                            <Select value={transactionType} onValueChange={(value) => setTransactionType(value || "DEBIT")}>
+                            <Select value={transactionType} onValueChange={handleTypeChange}>
                                 <SelectTrigger className="rounded-lg border border-border bg-background px-3 py-2">
                                     <SelectValue placeholder="Select a type" />
                                 </SelectTrigger>
@@ -210,6 +231,32 @@ export default function NewTransactionDialog({
                                     {transactionTypeOptions.map((value) => (
                                         <SelectItem key={value} value={value}>
                                             {value}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </label>
+
+                        <label className="space-y-2 md:col-span-1">
+                            <div className="flex items-center justify-between">
+                                <Label htmlFor="goalId">Tag to Goal</Label>
+                                {!isEligible && (
+                                    <span className="text-[10px] text-amber-500 font-medium">Expenses only</span>
+                                )}
+                            </div>
+                            <Select
+                                value={goalId || "none"}
+                                onValueChange={(value: string | null) => setGoalId(value === "none" || !value ? "" : value)}
+                                disabled={!isEligible}
+                            >
+                                <SelectTrigger className="rounded-lg border border-border bg-background px-3 py-2">
+                                    <SelectValue placeholder={isEligible ? "Select a goal" : "Disabled for income"} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="none">None (No goal tagged)</SelectItem>
+                                    {(transactionOptions?.goals ?? []).map((g) => (
+                                        <SelectItem key={g.id} value={g.id}>
+                                            {g.title}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
@@ -239,17 +286,21 @@ export default function NewTransactionDialog({
                         </label>
                     </div>
 
-                    <DialogFooter className="pt-2">
+                    <DialogFooter className="gap-2 sm:gap-0">
                         <Button
                             type="button"
-                            variant="secondary"
+                            variant="outline"
                             onClick={() => onOpenChange(false)}
                             className="rounded-lg"
                         >
                             Cancel
                         </Button>
-                        <Button type="submit" disabled={mutation.isPending} className="rounded-lg">
-                            {mutation.isPending ? "Saving..." : "Save Transaction"}
+                        <Button
+                            type="submit"
+                            disabled={mutation.isPending}
+                            className="rounded-lg"
+                        >
+                            {mutation.isPending ? "Adding..." : "Add Transaction"}
                         </Button>
                     </DialogFooter>
                 </form>

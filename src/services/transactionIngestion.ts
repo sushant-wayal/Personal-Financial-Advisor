@@ -6,6 +6,7 @@ import { autoCategorize, findOrCreateCategory } from "./categorizer";
 import { getTransactionImpact, updateProfileBalanceBy } from "./balance";
 import { adviseGoals } from "./GoalAdvisorService";
 import { getGoalOverview } from "./goals";
+import { isEligibleGoalTransaction, applyGoalSpending } from "./goalSpending";
 
 type TransactionIngestionInput = {
     raw?: string;
@@ -23,6 +24,7 @@ type TransactionIngestionInput = {
     confidence?: number;
     source?: string;
     sourceMessageId?: string | null;
+    goalId?: string | null;
 };
 
 type IngestionKeyInput = {
@@ -417,6 +419,7 @@ export async function ingestTransaction(input: TransactionIngestionInput) {
                 type: transactionType,
                 notes: input.notes || null,
                 confidence: typeof input.confidence === "number" ? Math.min(input.confidence, 1) : 1,
+                goalId: isEligibleGoalTransaction(input.type, transactionType) && input.goalId ? input.goalId.trim() : null,
                 raw,
             } as any,
             include: { category: true },
@@ -439,6 +442,10 @@ export async function ingestTransaction(input: TransactionIngestionInput) {
             sourceMessageId,
             transactionId: tx.id,
         });
+
+        if (tx.goalId && isEligibleGoalTransaction(input.type, transactionType)) {
+            await applyGoalSpending(tx.goalId, tx.amount);
+        }
 
         await applyTransactionSideEffects(tx.amount, transactionType, timestamp);
 

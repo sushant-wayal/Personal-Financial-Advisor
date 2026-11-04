@@ -3,6 +3,7 @@ export type TransactionRecord = {
     amount: number;
     merchant: string;
     category?: string;
+    goalId?: string | null;
     timestamp?: string | Date;
     source?: string;
     account?: string;

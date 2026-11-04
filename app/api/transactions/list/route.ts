@@ -49,6 +49,7 @@ export async function GET(req: Request) {
         const amountMin = parseNumber(searchParams.get("amountMin"));
         const amountMax = parseNumber(searchParams.get("amountMax"));
         const merchant = searchParams.get("merchant") || undefined;
+        const goalId = searchParams.get("goalId") || undefined;
         const sort = parseSortParam(searchParams.get("sort"));
 
         const queryInput = {
@@ -63,6 +64,7 @@ export async function GET(req: Request) {
             amountMin,
             amountMax,
             merchant,
+            goalId,
             sort,
         };
 

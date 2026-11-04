@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Receipt } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input as BaseInput } from "@/components/ui/input";
@@ -53,6 +55,7 @@ type GoalCardProps = {
 };
 
 export function GoalCard({ goal, onUpdate, onDelete, isUpdating, isDeleting }: GoalCardProps) {
+    const router = useRouter();
     const [edit, setEdit] = useState<Partial<Goal>>({});
 
     const progress = getDisplayProgress(goal.currentAmount || 0, goal.targetAmount || 0);
@@ -66,18 +69,44 @@ export function GoalCard({ goal, onUpdate, onDelete, isUpdating, isDeleting }: G
                 <summary className="flex cursor-pointer list-none flex-col gap-4">
                     <div className="flex items-start justify-between gap-4">
                         <div className="flex-1 min-w-0">
-                            <div className="font-semibold text-slate-100 truncate">{goal.title}</div>
-                            <div className="text-xs text-slate-500 mt-1">Target: {formatCurrency(goal.targetAmount, goal.currency || "INR")}</div>
-                            <div className="text-xs text-slate-500">Current: {formatCurrency(goal.currentAmount, goal.currency || "INR")}</div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-semibold text-slate-100 text-base">{goal.title}</span>
+                                {(goal.spentAmount ?? 0) > 0 && (
+                                    <span className="inline-flex items-center rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-400 border border-amber-500/20">
+                                        Spent: {formatCurrency(goal.spentAmount || 0, goal.currency || "INR")}
+                                    </span>
+                                )}
+                            </div>
+                            <div className="text-xs text-slate-400 mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+                                <span>Target: <strong className="text-slate-200">{formatCurrency(goal.targetAmount, goal.currency || "INR")}</strong></span>
+                                <span>Current: <strong className="text-slate-200">{formatCurrency(goal.currentAmount, goal.currency || "INR")}</strong></span>
+                                <span>Spent: <strong className="text-amber-300">{formatCurrency(goal.spentAmount || 0, goal.currency || "INR")}</strong></span>
+                            </div>
                             <div className="mt-2 text-xs space-y-1">
                                 <div><span className="text-slate-400">Required / month: </span><span className="font-semibold">{goal.requiredMonthlyLabel ?? formatCurrency(goal.recommendedMonthly || 0, goal.currency || "INR")}</span></div>
                                 <div><span className="text-slate-400">ETA: </span><span className="font-semibold">{goal.eta?.eta ? new Date(goal.eta.eta).toLocaleDateString() : "—"}</span></div>
                             </div>
                         </div>
-                        <div className="text-right flex-shrink-0">
-                            <div className="text-xs text-slate-400">Health</div>
-                            <div className="text-lg font-semibold text-white">{goal.health ?? "—"}</div>
-                            <div className="text-xs text-slate-400">Confidence: {goal.confidenceScore ?? 0}%</div>
+                        <div className="text-right flex-shrink-0 flex flex-col items-end gap-2">
+                            <div>
+                                <div className="text-xs text-slate-400">Health</div>
+                                <div className="text-lg font-semibold text-white">{goal.health ?? "—"}</div>
+                                <div className="text-xs text-slate-400">Confidence: {goal.confidenceScore ?? 0}%</div>
+                            </div>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="xs"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    router.push(`/transactions?goalId=${goal.id}`);
+                                }}
+                                className="rounded-lg text-xs gap-1 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300"
+                            >
+                                <Receipt className="h-3 w-3" />
+                                View Spent Transactions
+                            </Button>
                         </div>
                     </div>
                     <div>
@@ -85,7 +114,7 @@ export function GoalCard({ goal, onUpdate, onDelete, isUpdating, isDeleting }: G
                             <div className="h-2 rounded-full bg-emerald-400" style={{ width: `${clamped}%` }} />
                         </div>
                         <div className="mt-2 text-xs text-slate-500 transition group-open:text-slate-300">
-                            Click to view details
+                            Click to view details & milestones
                         </div>
                     </div>
                 </summary>
@@ -122,7 +151,7 @@ export function GoalCard({ goal, onUpdate, onDelete, isUpdating, isDeleting }: G
                         onChange={(e) => setEdit((prev) => ({ ...prev, notes: e.target.value }))}
                     />
                     <div className="rounded-lg border border-dashed border-white/10 bg-black/20 px-3 py-2 text-xs text-slate-400 md:col-span-2 lg:col-span-3">
-                        Current amount is derived automatically from balance, savings capacity, allocation, and savings behavior.
+                        Current amount is derived automatically from balance, savings capacity, allocation, and savings behavior. Spent amount tracks expense transactions tagged to this goal.
                     </div>
                 </div>
                 <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -151,6 +180,16 @@ export function GoalCard({ goal, onUpdate, onDelete, isUpdating, isDeleting }: G
                         className="rounded-lg"
                     >
                         Delete
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => router.push(`/transactions?goalId=${goal.id}`)}
+                        className="rounded-lg border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
+                    >
+                        <Receipt className="h-3.5 w-3.5 mr-1.5" />
+                        Filtered Transactions ({goal.spentAmount ? formatCurrency(goal.spentAmount, goal.currency || "INR") : "₹0"} spent)
                     </Button>
                 </div>
 

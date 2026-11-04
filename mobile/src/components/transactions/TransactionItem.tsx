@@ -61,6 +61,12 @@ export function TransactionItem({
               <Text style={styles.clubbedBadgeText}>CLUBBED</Text>
             </View>
           ) : null}
+          {item.goal?.title ? (
+            <View style={styles.goalBadge}>
+              <MaterialIcons name="track-changes" size={12} color="#7dffa2" />
+              <Text style={styles.goalBadgeText}>{item.goal.title}</Text>
+            </View>
+          ) : null}
           {category ? <Text style={styles.metaText}>{category}</Text> : null}
           {method ? (
             <View style={styles.metaItem}>
@@ -103,17 +109,16 @@ const styles = StyleSheet.create({
   rowTop: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-start",
+    alignItems: "center",
     gap: 12,
   },
   rowTitleGroup: {
     flex: 1,
   },
   merchant: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#ffffff",
-    letterSpacing: -0.2,
+    color: "#e3e3e3",
+    fontSize: 16,
+    fontWeight: "700",
   },
   date: {
     fontSize: 12,
@@ -165,6 +170,23 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#d0bcff",
     letterSpacing: 0.5,
+  },
+  goalBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "rgba(125, 255, 162, 0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(125, 255, 162, 0.25)",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  goalBadgeText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#7dffa2",
+    letterSpacing: 0.3,
   },
   clubCheckbox: {
     width: 22,

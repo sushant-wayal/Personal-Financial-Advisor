@@ -13,6 +13,8 @@ export type Transaction = {
   clubbedSourceIds?: string;
   clubbedSources?: string;
   category?: { id?: string; name?: string } | null;
+  goalId?: string | null;
+  goal?: { id?: string; title?: string } | null;
 };
 
 export type TransactionFilters = {
@@ -24,6 +26,7 @@ export type TransactionFilters = {
   amountMin?: number | null;
   amountMax?: number | null;
   merchant?: string | null;
+  goalId?: string | null;
 };
 
 export type ClubSource = {

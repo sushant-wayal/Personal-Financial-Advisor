@@ -14,6 +14,7 @@ export type GoalProgressSeed = {
     status?: string | null;
     targetAmount: number;
     currentAmount: number;
+    spentAmount?: number;
     monthlyTarget?: number | null;
     priority: number;
     currency?: string | null;

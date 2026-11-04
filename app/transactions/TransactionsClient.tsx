@@ -6,7 +6,7 @@ import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/componen
 import { Button } from "@/components/ui/button";
 import type { TransactionListItem, TransactionListResponse } from "@/src/types/transactions";
 import { useTransactionFilters } from "./hooks/useTransactionFilters";
-import { buildQueryString } from "./utils/transactionUtils";
+import { buildQueryString, isCreditType } from "./utils/transactionUtils";
 import { TransactionFiltersBar } from "./components/TransactionFiltersBar";
 import { EditFormData, EditTransactionDialog } from "./components/EditTransactionDialog";
 import { DeleteTransactionDialogs } from "./components/DeleteTransactionDialogs";
@@ -28,7 +28,15 @@ export default function TransactionsClient() {
     // Edit/Delete modal states
     const [editingTransaction, setEditingTransaction] = useState<TransactionListItem | null>(null);
     const [editFormData, setEditFormData] = useState<EditFormData>({
-        merchant: "", amount: "", timestamp: "", categoryName: "", paymentMethod: "", bankName: "", transactionType: "", notes: ""
+        merchant: "",
+        amount: "",
+        timestamp: "",
+        categoryName: "",
+        paymentMethod: "",
+        bankName: "",
+        transactionType: "",
+        goalId: "",
+        notes: "",
     });
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [isEditLoading, setIsEditLoading] = useState(false);
@@ -85,6 +93,7 @@ export default function TransactionsClient() {
                 paymentMethod: editFormData.paymentMethod || null,
                 bankName: editFormData.bankName || null,
                 transactionType: editFormData.transactionType || undefined,
+                goalId: editFormData.goalId || null,
                 notes: editFormData.notes || null,
             };
             const res = await fetch(`/api/transactions/${editingTransaction.id}`, {
@@ -156,6 +165,8 @@ export default function TransactionsClient() {
                     setAmountMin={filters.setAmountMin}
                     amountMax={filters.amountMax}
                     setAmountMax={filters.setAmountMax}
+                    goalId={filters.goalId}
+                    setGoalId={filters.setGoalId}
                     onQueryUpdate={updateQuery}
                 />
 
@@ -164,6 +175,89 @@ export default function TransactionsClient() {
                         {error}
                     </div>
                 )}
+
+                <div className="divide-y divide-border/40 rounded-xl border border-border/50 bg-background/50 overflow-hidden">
+                    {meta.data.length === 0 ? (
+                        <div className="p-8 text-center text-sm text-muted-foreground">
+                            No transactions found for the selected filters.
+                        </div>
+                    ) : (
+                        meta.data.map((tx) => (
+                            <div
+                                key={tx.id}
+                                className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between hover:bg-muted/30 transition-colors"
+                            >
+                                <div className="flex items-start gap-3">
+                                    <div className="space-y-0.5">
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-semibold text-sm">{tx.merchant}</span>
+                                            {tx.goal && (
+                                                <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-400 border border-emerald-500/20">
+                                                    🎯 {tx.goal.title}
+                                                </span>
+                                            )}
+                                            {tx.category && (
+                                                <span className="inline-flex items-center rounded-md bg-secondary px-2 py-0.5 text-xs text-muted-foreground">
+                                                    {tx.category.name}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="text-xs text-muted-foreground flex items-center gap-2">
+                                            <span>{new Date(tx.timestamp).toLocaleDateString()}</span>
+                                            <span>•</span>
+                                            <span>{tx.transactionType || tx.type}</span>
+                                            {tx.paymentMethod && <span>• {tx.paymentMethod}</span>}
+                                            {tx.notes && <span>• {tx.notes}</span>}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0">
+                                    <span
+                                        className={`font-semibold text-sm ${
+                                            isCreditType(tx.transactionType || tx.type)
+                                                ? "text-emerald-400"
+                                                : "text-foreground"
+                                        }`}
+                                    >
+                                        {isCreditType(tx.transactionType || tx.type) ? "+" : "-"}₹
+                                        {tx.amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                                    </span>
+                                    <div className="flex items-center gap-1">
+                                        <Button
+                                            variant="ghost"
+                                            size="xs"
+                                            onClick={() => {
+                                                setEditingTransaction(tx);
+                                                setEditFormData({
+                                                    merchant: tx.merchant,
+                                                    amount: String(tx.amount),
+                                                    timestamp: new Date(tx.timestamp).toISOString().slice(0, 16),
+                                                    categoryName: tx.category?.name || "",
+                                                    paymentMethod: tx.paymentMethod || "",
+                                                    bankName: tx.bankName || "",
+                                                    transactionType: tx.transactionType || tx.type,
+                                                    goalId: tx.goalId || "",
+                                                    notes: tx.notes || "",
+                                                });
+                                                setIsEditDialogOpen(true);
+                                            }}
+                                        >
+                                            Edit
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="xs"
+                                            className="text-destructive hover:text-destructive"
+                                            onClick={() => setDeletingTransactionId(tx.id)}
+                                        >
+                                            Delete
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
+                        ))
+                    )}
+                </div>
 
                 <TransactionsPagination
                     page={filters.page}

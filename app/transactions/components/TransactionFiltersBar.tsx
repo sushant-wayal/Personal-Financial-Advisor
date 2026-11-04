@@ -26,6 +26,8 @@ type TransactionFiltersBarProps = {
     setAmountMin: (v: string) => void;
     amountMax: string;
     setAmountMax: (v: string) => void;
+    goalId?: string;
+    setGoalId?: (v: string) => void;
     onQueryUpdate: (updates: Record<string, unknown>) => void;
     onReset?: () => void;
 };
@@ -49,10 +51,30 @@ export function TransactionFiltersBar({
     setAmountMin,
     amountMax,
     setAmountMax,
+    goalId,
+    setGoalId,
     onQueryUpdate,
 }: TransactionFiltersBarProps) {
     return (
         <div className="space-y-4">
+            {goalId && (
+                <div className="flex items-center justify-between rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-400">
+                    <span className="font-medium">Filtering transactions spent on this goal</span>
+                    {setGoalId && (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setGoalId("");
+                                onQueryUpdate({ goalId: "", page: 1 });
+                            }}
+                            className="rounded px-2 py-0.5 text-xs font-semibold hover:bg-emerald-500/20"
+                            aria-label="Clear goal filter"
+                        >
+                            Clear goal filter ✕
+                        </button>
+                    )}
+                </div>
+            )}
             <div className="grid gap-3 lg:grid-cols-4">
                 <label className="space-y-1">
                     <Label>Global search</Label>
