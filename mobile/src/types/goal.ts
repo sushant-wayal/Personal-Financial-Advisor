@@ -9,6 +9,7 @@ export type GoalMilestone = {
 export type Goal = {
   id: string;
   title: string;
+  status?: string | null;
   targetAmount: number;
   currentAmount: number;
   spentAmount?: number;
@@ -21,11 +22,13 @@ export type Goal = {
   currency?: string | null;
   targetDate?: string | null;
   notes?: string | null;
+  targetAmountLabel?: string | null;
+  currentAmountLabel?: string | null;
   monthsLeft?: number | null;
   recommendedMonthly?: number | null;
   recommendedMonthlyContribution?: number | null;
   recommendedMonthlyContributionLabel?: string | null;
-  eta?: { months: number; eta: string } | null;
+  eta?: { months?: number | null; eta?: string | null } | string | null;
   milestones?: GoalMilestone[];
   nextMilestone?: GoalMilestone | null;
   requiredMonthly?: number | null;
@@ -46,4 +49,10 @@ export type EmergencyFundData = {
   estimatedCompletionDate: string | null;
   isComplete: boolean;
   monthlyCapacity: number;
+  efStrategy?: string;
+  efRatio?: number;
+  goalsRatio?: number;
+  tier?: number;
+  efMonthlyDrip?: number;
+  availableGoalCapacity?: number;
 };

@@ -1,23 +1,30 @@
 import 'server-only';
-import { SignJWT, jwtVerify } from 'jose';
+import { SignJWT, jwtVerify, type JWTPayload } from 'jose';
 import { cookies } from 'next/headers';
-
-const secretKey = process.env.AUTH_SECRET;
-const key = new TextEncoder().encode(secretKey);
 
 const SESSION_DURATION_MS = 10 * 365 * 24 * 60 * 60 * 1000; // 10 years
 
-export async function encrypt(payload: any) {
+function getSigningKey(): Uint8Array {
+  const secretKey = process.env.AUTH_SECRET || 'dev-fallback-secret-key-change-in-production';
+  return new TextEncoder().encode(secretKey);
+}
+
+export interface SessionPayload extends JWTPayload {
+  role: string;
+  expires: Date | string;
+}
+
+export async function encrypt(payload: Record<string, unknown>) {
   return await new SignJWT(payload)
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime('10y')
-    .sign(key);
+    .sign(getSigningKey());
 }
 
-export async function decrypt(input: string): Promise<any> {
+export async function decrypt(input: string): Promise<JWTPayload | null> {
   try {
-    const { payload } = await jwtVerify(input, key, {
+    const { payload } = await jwtVerify(input, getSigningKey(), {
       algorithms: ['HS256'],
     });
     return payload;

@@ -34,7 +34,7 @@ A robust, local-first, single-user financial workspace built with Next.js, Prism
 
 - **Framework**: [Next.js 16](https://nextjs.org/) (App Router)
 - **Language**: TypeScript
-- **Database**: SQLite (default) / PostgreSQL via [Prisma ORM](https://www.prisma.io/)
+- **Database**: PostgreSQL via [Prisma ORM](https://www.prisma.io/) (migrated from SQLite)
 - **AI Integration**: Google Gemini API (`gemini-3.5-flash`)
 - **Styling**: Tailwind CSS v4, [shadcn/ui](https://ui.shadcn.com/), Framer Motion
 - **State Management**: Zustand (Global state), TanStack React Query (Server state)
