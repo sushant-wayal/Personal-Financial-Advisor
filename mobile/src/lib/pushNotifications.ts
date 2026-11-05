@@ -2,7 +2,7 @@ import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
 import Constants from "expo-constants";
 import { Platform } from "react-native";
-import { API_BASE_URL } from "./apiBaseUrl";
+import { apiPost } from "./apiClient";
 
 // Configure how notifications should be handled when app is open in foreground
 Notifications.setNotificationHandler({
@@ -70,11 +70,7 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
 
     // 6. Register token with backend so morning crons can push directly to this device
     if (token) {
-      await fetch(`${API_BASE_URL}/api/notifications/register-token`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ expoPushToken: token }),
-      });
+      await apiPost("/api/notifications/register-token", { expoPushToken: token });
       console.info(`[pushNotifications] Registered device push token with backend: ${token.slice(0, 15)}...`);
     }
 

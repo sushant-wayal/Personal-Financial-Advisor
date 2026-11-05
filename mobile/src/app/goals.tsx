@@ -23,10 +23,12 @@ import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { GoalsSkeleton, Skeleton } from "../components/LoadingSkeleton";
 import { formatCurrencyAmount, getCurrencySymbol, useCurrency, formatIndianAmountInput, parseIndianAmountInput } from "../providers/CurrencyProvider";
-import { API_BASE_URL } from "../lib/apiBaseUrl";
+import { apiUrl } from "../lib/apiBaseUrl";
 import { beginHorizontalScroll, endHorizontalScroll, updateHorizontalScroll } from "../lib/horizontalScrollPriority";
 import { clearClientCache, fetchCachedValue } from "../lib/clientCache";
 import type { Goal, EmergencyFundData } from "../types/goal";
+import { EmergencyFundWidget } from "../components/goals/EmergencyFundWidget";
+import { InvestmentWidget } from "../components/goals/InvestmentWidget";
 
 function syncHorizontalScrollPriority(event: NativeSyntheticEvent<NativeScrollEvent>) {
   const { contentOffset, layoutMeasurement, contentSize } = event.nativeEvent;
@@ -67,10 +69,6 @@ type ViewMode = "dashboard" | "all" | "detail";
 
 const GOALS_OVERVIEW_TTL_MS = 30 * 1000;
 const GOALS_AI_TTL_MS = 5 * 60 * 1000;
-
-function apiUrl(path: string) {
-  return `${API_BASE_URL}${path}`;
-}
 
 async function fetchGoalsOverview(force = false): Promise<Overview> {
   return fetchCachedValue(
@@ -576,218 +574,6 @@ function DashboardHeader({ onSimulate }: { onSimulate: () => void }) {
         <Text style={styles.simulateText}>SIMULATE</Text>
       </Pressable>
     </View>
-  );
-}
-
-function EmergencyFundWidget({ ef }: { ef?: EmergencyFundData }) {
-  if (!ef) {
-    return (
-      <View style={[styles.goalCard, { borderColor: "rgba(68,71,72,0.35)", backgroundColor: "#0e0e0e" }]}>
-        <View style={styles.goalCardHeader}>
-          <Text style={styles.efCleanTitle}>🛡️  Emergency Fund</Text>
-          <Text style={styles.efCleanSubtitle}>Priority</Text>
-        </View>
-        <View style={styles.efAmountBlock}>
-          <Skeleton width="60%" height={28} radius={6} />
-          <Skeleton width="15%" height={16} radius={4} />
-        </View>
-        <Skeleton width="100%" height={6} radius={3} style={{ marginTop: 12, marginBottom: 12 }} />
-        <View style={styles.efFooterRow}>
-          <Text style={styles.efFooterText}>Loading details...</Text>
-        </View>
-      </View>
-    );
-  }
-
-  const progressClamped = Math.min(100, Math.max(0, ef.progressPct));
-  const isComplete = ef.isComplete;
-  const etaStr = ef.estimatedCompletionDate
-    ? new Date(ef.estimatedCompletionDate).toLocaleDateString("en-US", { month: "short", year: "numeric" })
-    : "N/A";
-
-  return (
-    <View style={[styles.goalCard, isComplete ? { borderColor: "rgba(16, 185, 129, 0.4)", backgroundColor: "rgba(6, 78, 59, 0.2)" } : { borderColor: "rgba(249, 115, 22, 0.4)", backgroundColor: "rgba(67, 20, 7, 0.2)" }]}>
-      <View style={styles.goalCardHeader}>
-        <View>
-          <Text style={styles.efCleanTitle}>{isComplete ? "✅" : "🛡️"}  Emergency Fund</Text>
-          {!isComplete && (
-            <View style={[styles.efWarningBadge, ef.goalsRatio && ef.goalsRatio > 0 ? { backgroundColor: "rgba(16, 185, 129, 0.15)", borderColor: "rgba(16, 185, 129, 0.4)" } : null]}>
-              <Text style={[styles.efWarningBadgeText, ef.goalsRatio && ef.goalsRatio > 0 ? { color: "#6ee7b7" } : null]}>
-                {ef.goalsRatio && ef.goalsRatio > 0
-                  ? `⚡ DUAL-TRACK (${Math.round((ef.efRatio ?? 0.7) * 100)}% EF / ${Math.round((ef.goalsRatio ?? 0.3) * 100)}% GOALS)`
-                  : "🔒 STRICT MODE: 100% EF DRIP"}
-              </Text>
-            </View>
-          )}
-        </View>
-        <Text style={[styles.efCleanSubtitle, isComplete ? { color: "#6ee7b7" } : { color: "#fdba74" }]}>
-          {isComplete ? "Fully Funded" : `Tier ${ef.tier ?? 2}`}
-        </Text>
-      </View>
-
-      <View style={styles.efAmountBlock}>
-        <Text>
-          <Text style={[styles.efAmountText, isComplete ? { color: "#6ee7b7" } : { color: "#ffffff" }]}>{formatCurrency(ef.savedAmount)}</Text>
-          <Text style={styles.efAmountTextSub}> / {formatCurrency(ef.targetAmount)}</Text>
-        </Text>
-        <Text style={[styles.efAmountTextSub, isComplete ? { color: "#6ee7b7" } : { color: "#fdba74" }]}>
-          {progressClamped.toFixed(0)}%
-        </Text>
-      </View>
-
-      <View style={styles.efProgressBg}>
-        <View style={[styles.efProgressFill, isComplete ? { backgroundColor: "#34d399" } : { backgroundColor: "#f97316" }, { width: `${progressClamped}%` }]} />
-      </View>
-
-      <View style={styles.efFooterRow}>
-        <View style={styles.efFooterLeft}>
-          {isComplete ? (
-            <Text style={styles.efFooterText}>
-              Target of {ef.targetMonths} mo expenses achieved
-            </Text>
-          ) : (
-            <>
-              <Text style={styles.efFooterText}>
-                EF Drip: {formatCurrency(ef.efMonthlyDrip ?? ef.monthlyCapacity)}/mo
-              </Text>
-              <Text style={[styles.efFooterText, { marginTop: 2 }]}>
-                Goals Pool: {formatCurrency(ef.availableGoalCapacity ?? 0)}/mo
-              </Text>
-            </>
-          )}
-        </View>
-        <View style={styles.efFooterRight}>
-          <Text style={[styles.efFooterEtaText, isComplete && { color: "#34d399" }]}>
-            ETA: {isComplete ? "Achieved 🎉" : etaStr}
-          </Text>
-        </View>
-      </View>
-
-    </View>
-  );
-}
-
-function InvestmentWidget({ suggestion: initialSuggestion }: { suggestion?: any }) {
-  const router = useRouter();
-  const [fetchedData, setFetchedData] = useState<any>(null);
-  const [loading, setLoading] = useState(!initialSuggestion);
-
-  useEffect(() => {
-    if (initialSuggestion) {
-      return;
-    }
-    let active = true;
-    fetch(apiUrl("/api/investments"))
-      .then((r) => r.json())
-      .then((d) => { if (active && d.ok) setFetchedData(d); })
-      .catch(() => { })
-      .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
-  }, [initialSuggestion]);
-
-  const suggestion = initialSuggestion || fetchedData?.suggestion;
-  if (loading || !suggestion) return null;
-  const isInvested = suggestion.status === "INVESTED";
-  const isCrisis = suggestion.phase === "CRISIS";
-  const total = suggestion.totalInvestable;
-  const buckets = suggestion.buckets;
-
-  const phaseColor = isCrisis ? "#ffb4ab" : isInvested ? "#6ee7b7" : suggestion.phase === "WEALTH_BUILDING" ? "#05e777" : suggestion.phase === "EF_BUILDING" ? "#ffd54f" : "#b0c6ff";
-  const cardBorder = isInvested
-    ? "rgba(16, 185, 129, 0.35)"
-    : isCrisis
-      ? "rgba(255, 180, 171, 0.35)"
-      : "rgba(129, 140, 248, 0.35)";
-
-  return (
-    <Pressable
-      onPress={() => router.push("/investments")}
-      style={({ pressed }) => [
-        styles.goalCard,
-        { borderColor: cardBorder, backgroundColor: "#0e0e0e" },
-        pressed ? styles.cardPressed : null,
-      ]}
-    >
-      <View style={[styles.goalCardHeader, { alignItems: "center" }]}>
-        <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 10, minWidth: 0, paddingRight: 6 }}>
-          <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: isInvested ? "rgba(16,185,129,0.15)" : "rgba(129,140,248,0.15)", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <MaterialIcons name={isInvested ? "check-circle" : "trending-up"} size={20} color={isInvested ? "#34d399" : "#818cf8"} />
-          </View>
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={styles.efCleanTitle} numberOfLines={1}>{isInvested ? "Invested" : "Monthly Investment"}</Text>
-            <Text style={[styles.efCleanSubtitle, { color: phaseColor }]} numberOfLines={1}>{suggestion.phaseLabel}</Text>
-          </View>
-        </View>
-        {suggestion.streak > 1 && (
-          <View style={[styles.efWarningBadge, { backgroundColor: "rgba(245, 158, 11, 0.15)", borderColor: "rgba(245, 158, 11, 0.4)", borderWidth: 1, marginTop: 0, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, flexShrink: 0, alignSelf: "center" }]}>
-            <Text style={[styles.efWarningBadgeText, { color: "#fbbf24", fontSize: fs(10), fontWeight: "700" }]}>🔥 {suggestion.streak}</Text>
-          </View>
-        )}
-      </View>
-
-      {!isCrisis && (
-        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", marginVertical: 4 }}>
-          <View>
-            <Text style={styles.eyebrow}>
-              {isInvested ? "Total Invested" : "Recommended Allocation"}
-            </Text>
-            <Text style={[styles.efAmountText, isInvested ? { color: "#6ee7b7" } : { color: "#ffffff" }]}>
-              {formatCurrency(total)}
-            </Text>
-          </View>
-          <View style={styles.viewAllButton}>
-            <Text style={styles.viewAllText}>{isInvested ? "VIEW HISTORY" : "CONFIGURE"}</Text>
-            <MaterialIcons name="chevron-right" size={16} color="#ffffff" />
-          </View>
-        </View>
-      )}
-
-      {total > 0 && buckets && (
-        <View style={{ gap: 8, marginTop: 4 }}>
-          <View style={styles.efProgressBg}>
-            <View style={{ flexDirection: "row", height: "100%", width: "100%", overflow: "hidden", borderRadius: 999 }}>
-              {(buckets.equity?.final ?? 0) > 0 && <View style={{ flex: buckets.equity.final, backgroundColor: "#818cf8" }} />}
-              {(buckets.debt?.final ?? 0) > 0 && <View style={{ flex: buckets.debt.final, backgroundColor: "#34d399" }} />}
-              {(buckets.gold?.final ?? 0) > 0 && <View style={{ flex: buckets.gold.final, backgroundColor: "#fbbf24" }} />}
-            </View>
-          </View>
-          <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-            <LegendDot color="#818cf8" label={`Eq ${buckets.equity?.pct}%`} />
-            <LegendDot color="#34d399" label={`Debt ${buckets.debt?.pct}%`} />
-            <LegendDot color="#fbbf24" label={`Gold ${buckets.gold?.pct}%`} />
-          </View>
-        </View>
-      )}
-
-      <View style={styles.efFooterRow}>
-        <View style={styles.efFooterLeft}>
-          {isInvested ? (
-            <>
-              <Text style={styles.efFooterText}>
-                Status: Completed & Recorded
-              </Text>
-              <Text style={[styles.efFooterText, { marginTop: 2 }]}>
-                Surplus: {formatCurrency(suggestion.smoothedSurplus ?? 0)}
-              </Text>
-            </>
-          ) : (
-            <>
-              <Text style={styles.efFooterText}>
-                Surplus: {formatCurrency(suggestion.smoothedSurplus ?? 0)}
-              </Text>
-              <Text style={[styles.efFooterText, { marginTop: 2 }]}>
-                Investable Rate: {suggestion.investableRate ?? 0}% of surplus
-              </Text>
-            </>
-          )}
-        </View>
-        <View style={styles.efFooterRight}>
-          <Text style={[styles.efFooterEtaText, { color: isInvested ? "#34d399" : "#818cf8" }]}>
-            {suggestion.cycleDays ?? 33}-Day Cycle
-          </Text>
-        </View>
-      </View>
-    </Pressable>
   );
 }
 

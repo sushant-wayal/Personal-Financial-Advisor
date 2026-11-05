@@ -16,7 +16,7 @@ import { AlertProvider } from "../providers/AlertProvider";
 import { AppBootstrapSkeleton } from "../components/LoadingSkeleton";
 import { CurrencyProvider, DEFAULT_CURRENCY_CODE, normalizeCurrencyCode } from "../providers/CurrencyProvider";
 import { UserProfileProvider } from "../providers/UserProfileProvider";
-import { API_BASE_URL } from "../lib/apiBaseUrl";
+import { apiGet } from "../lib/apiClient";
 import { shouldStartAppSwipe } from "../lib/horizontalScrollPriority";
 import { fetchCachedValue } from "../lib/clientCache";
 import { registerForPushNotificationsAsync } from "../lib/pushNotifications";
@@ -85,9 +85,8 @@ async function fetchProfile(force = false) {
     "app:profile-summary",
     async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/api/profile`);
-        const payload = (await response.json()) as ProfilePayload;
-        if (!response.ok || payload.ok === false) {
+        const payload = await apiGet<ProfilePayload>("/api/profile");
+        if (payload.ok === false) {
           return { currencyCode: DEFAULT_CURRENCY_CODE, ownerName: "" };
         }
         return {
