@@ -89,7 +89,8 @@ function getUrgencyScore(goal: GoalAllocationInput) {
 }
 
 function getNeedScore(goal: GoalAllocationInput) {
-    if (!goal.targetAmount || goal.targetAmount <= 0) return 0.5;
+    if (goal.targetAmount != null && goal.targetAmount <= 0) return 0;
+    if (!goal.targetAmount) return 0.5;
     const progress = clamp((goal.currentAmount ?? 0) / goal.targetAmount, 0, 1);
     return clamp(1 - progress, 0, 1);
 }

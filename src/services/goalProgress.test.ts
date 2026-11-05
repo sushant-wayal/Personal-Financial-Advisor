@@ -139,6 +139,133 @@ describe('goalProgress service', () => {
       expect(result[0].derivedCurrentAmount).toBe(5000);
     });
 
+    it('distributes remaining available balance to unseeded goals when some goals are seeded', () => {
+      const goals: GoalProgressSeed[] = [
+        {
+          id: 'seeded-1',
+          title: 'Seeded Goal',
+          targetAmount: 50000,
+          currentAmount: 10000, // Explicitly seeded 10k
+          priority: 2,
+        },
+        {
+          id: 'unseeded-2',
+          title: 'Unseeded House Down Payment',
+          targetAmount: 200000,
+          currentAmount: 0, // Unseeded
+          priority: 3,
+        },
+      ];
+
+      const signals: GoalProgressSignals = {
+        currency: 'INR',
+        availableBalance: 60000, // 60k available
+        currentBalance: 80000,
+        monthlyCapacity: 5000,
+        availableGoalCapacity: 2000,
+        monthlySavings: 5000,
+        currentMonthSavingsRate: 25,
+        savingsRateChange: 0,
+        efIsComplete: true,
+        efTarget: 20000,
+        efMonthlyDrip: 0,
+        efRatio: 0,
+        goalsRatio: 1.0,
+        efStrategy: 'BALANCED',
+      };
+
+      const result = deriveGoalProgress(goals, signals);
+      expect(result).toHaveLength(2);
+
+      const seeded = result.find((g) => g.id === 'seeded-1');
+      const unseeded = result.find((g) => g.id === 'unseeded-2');
+
+      // Seeded gets 10,000
+      expect(seeded?.currentAmount).toBe(10000);
+      // Unseeded gets remaining 50,000 (60,000 - 10,000), not 0!
+      expect(unseeded?.currentAmount).toBe(50000);
+    });
+
+    it('calculates resultant target amount (target - spent) and computes health and progress against it', () => {
+      const goals: GoalProgressSeed[] = [
+        {
+          id: 'goa-trip',
+          title: 'Goa Trip',
+          targetAmount: 50000,
+          spentAmount: 30000, // 30k already spent on flights/hotels
+          currentAmount: 20000, // 20k saved, which satisfies the remaining 20k target!
+          priority: 2,
+        },
+      ];
+
+      const signals: GoalProgressSignals = {
+        currency: 'INR',
+        availableBalance: 40000,
+        currentBalance: 50000,
+        monthlyCapacity: 5000,
+        availableGoalCapacity: 2000,
+        monthlySavings: 5000,
+        currentMonthSavingsRate: 25,
+        savingsRateChange: 0,
+        efIsComplete: true,
+        efTarget: 10000,
+        efMonthlyDrip: 0,
+        efRatio: 0,
+        goalsRatio: 1.0,
+        efStrategy: 'BALANCED',
+      };
+
+      const result = deriveGoalProgress(goals, signals);
+      expect(result).toHaveLength(1);
+      const goal = result[0];
+
+      // Resultant target should be 50,000 - 30,000 = 20,000
+      expect(goal.resultantTargetAmount).toBe(20000);
+      expect(goal.resultantTargetAmountLabel).toBe('₹20,000');
+      // Current amount is 20,000, meeting 100% of the resultant target!
+      expect(goal.currentAmount).toBe(20000);
+      expect(goal.progressPct).toBe(100);
+      // Health is ahead of schedule since it is 100% funded considering spent amount!
+      expect(goal.health).toBe('Ahead of Schedule');
+    });
+
+    it('sets progress to 100% and health to Ahead of Schedule when spentAmount >= targetAmount', () => {
+      const goals: GoalProgressSeed[] = [
+        {
+          id: 'fully-spent-goal',
+          title: 'Fully Spent Goal',
+          targetAmount: 15000,
+          spentAmount: 16000, // Spent more than initial target
+          currentAmount: 0,
+          priority: 3,
+        },
+      ];
+
+      const signals: GoalProgressSignals = {
+        currency: 'INR',
+        availableBalance: 10000,
+        currentBalance: 20000,
+        monthlyCapacity: 3000,
+        availableGoalCapacity: 1000,
+        monthlySavings: 3000,
+        currentMonthSavingsRate: 20,
+        savingsRateChange: 0,
+        efIsComplete: true,
+        efTarget: 10000,
+        efMonthlyDrip: 0,
+        efRatio: 0,
+        goalsRatio: 1.0,
+        efStrategy: 'BALANCED',
+      };
+
+      const result = deriveGoalProgress(goals, signals);
+      const goal = result[0];
+
+      expect(goal.resultantTargetAmount).toBe(0);
+      expect(goal.progressPct).toBe(100);
+      expect(goal.health).toBe('Ahead of Schedule');
+    });
+
     it('handles empty goals array', () => {
       const signals: GoalProgressSignals = {
         currency: 'USD',

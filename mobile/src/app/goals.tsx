@@ -295,8 +295,10 @@ function etaLabel(goal: Goal) {
 
 function progressOf(goal: Goal) {
   if (typeof goal.progressPct === "number") return Math.max(0, Math.min(100, goal.progressPct));
-  if (!goal.targetAmount) return 0;
-  return Math.max(0, Math.min(100, (goal.currentAmount / goal.targetAmount) * 100));
+  const spent = Math.max(0, goal.spentAmount || 0);
+  const resultantTarget = Math.max(0, (goal.targetAmount || 0) - spent);
+  if (resultantTarget <= 0) return 100;
+  return Math.max(0, Math.min(100, ((goal.currentAmount || 0) / resultantTarget) * 100));
 }
 
 function healthTone(goal: Goal) {
@@ -1109,6 +1111,9 @@ function GoalDetailView({ goal, onBack, onEdit, onViewTransactions }: { goal: Go
             <View style={styles.detailTitleBlock}>
               <Text style={styles.detailGoalTitle}>{goal.title}</Text>
               <Text style={styles.detailMetaLine}>Target: <Text style={styles.detailMetaStrong}>{goal.targetAmountLabel ?? formatCurrency(goal.targetAmount)}</Text></Text>
+              {(goal.spentAmount ?? 0) > 0 && (
+                <Text style={styles.detailMetaLine}>Remaining: <Text style={styles.detailMetaStrong}>{goal.resultantTargetAmountLabel ?? formatCurrency(Math.max(0, goal.targetAmount - (goal.spentAmount || 0)))}</Text></Text>
+              )}
               <Text style={styles.detailMetaLine}>Current: <Text style={styles.detailMetaStrong}>{goal.currentAmountLabel ?? formatCurrency(goal.currentAmount)}</Text></Text>
               <Text style={styles.detailMetaLine}>Spent: <Text style={styles.detailMetaSpent}>{goal.spentAmountLabel ?? formatCurrency(goal.spentAmount || 0)}</Text></Text>
             </View>
@@ -1196,6 +1201,9 @@ function GoalCard({ goal, onPress, onViewTransactions }: { goal: Goal; onPress: 
       </View>
       <View style={styles.goalFactsGrid}>
         <GoalFact label="Target:" value={goal.targetAmountLabel ?? formatCurrency(goal.targetAmount)} />
+        {(goal.spentAmount ?? 0) > 0 && (
+          <GoalFact label="Remaining:" value={goal.resultantTargetAmountLabel ?? formatCurrency(Math.max(0, goal.targetAmount - (goal.spentAmount || 0)))} />
+        )}
         <GoalFact label="Current:" value={goal.currentAmountLabel ?? formatCurrency(goal.currentAmount)} />
         <GoalFact label="Spent:" value={goal.spentAmountLabel ?? formatCurrency(goal.spentAmount || 0)} />
         <GoalFact label="Required / month:" value={goal.requiredMonthlyLabel ?? formatCurrency(goal.requiredMonthly)} />

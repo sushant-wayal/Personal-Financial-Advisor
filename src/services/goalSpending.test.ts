@@ -29,7 +29,7 @@ describe("goalSpending Service", () => {
     });
 
     describe("applyGoalSpending", () => {
-        it("deducts amount from currentAmount and targetAmount, and increments spentAmount", async () => {
+        it("increments spentAmount without mutating currentAmount or targetAmount", async () => {
             const mockGoal = {
                 id: "goal-1",
                 currentAmount: 5000,
@@ -38,7 +38,7 @@ describe("goalSpending Service", () => {
             };
 
             const mockFindUnique = vi.fn().mockResolvedValue(mockGoal);
-            const mockUpdate = vi.fn().mockResolvedValue({ ...mockGoal, spentAmount: 3000, currentAmount: 3000, targetAmount: 18000 });
+            const mockUpdate = vi.fn().mockResolvedValue({ ...mockGoal, spentAmount: 3000 });
 
             const mockClient: any = {
                 goal: {
@@ -51,51 +51,19 @@ describe("goalSpending Service", () => {
 
             expect(mockFindUnique).toHaveBeenCalledWith({
                 where: { id: "goal-1" },
-                select: { id: true, currentAmount: true, targetAmount: true, spentAmount: true },
+                select: { id: true, spentAmount: true },
             });
             expect(mockUpdate).toHaveBeenCalledWith({
                 where: { id: "goal-1" },
                 data: {
                     spentAmount: 3000,
-                    currentAmount: 3000,
-                    targetAmount: 18000,
-                },
-            });
-        });
-
-        it("clamps currentAmount and targetAmount to 0 if spent exceeds them", async () => {
-            const mockGoal = {
-                id: "goal-1",
-                currentAmount: 1000,
-                targetAmount: 1500,
-                spentAmount: 500,
-            };
-
-            const mockFindUnique = vi.fn().mockResolvedValue(mockGoal);
-            const mockUpdate = vi.fn().mockResolvedValue(mockGoal);
-
-            const mockClient: any = {
-                goal: {
-                    findUnique: mockFindUnique,
-                    update: mockUpdate,
-                },
-            };
-
-            await applyGoalSpending("goal-1", 3000, mockClient);
-
-            expect(mockUpdate).toHaveBeenCalledWith({
-                where: { id: "goal-1" },
-                data: {
-                    spentAmount: 3500,
-                    currentAmount: 0,
-                    targetAmount: 0,
                 },
             });
         });
     });
 
     describe("revertGoalSpending", () => {
-        it("restores amount to currentAmount and targetAmount, and decrements spentAmount", async () => {
+        it("decrements spentAmount without mutating currentAmount or targetAmount", async () => {
             const mockGoal = {
                 id: "goal-1",
                 currentAmount: 3000,
@@ -104,7 +72,7 @@ describe("goalSpending Service", () => {
             };
 
             const mockFindUnique = vi.fn().mockResolvedValue(mockGoal);
-            const mockUpdate = vi.fn().mockResolvedValue(mockGoal);
+            const mockUpdate = vi.fn().mockResolvedValue({ ...mockGoal, spentAmount: 1000 });
 
             const mockClient: any = {
                 goal: {
@@ -119,8 +87,32 @@ describe("goalSpending Service", () => {
                 where: { id: "goal-1" },
                 data: {
                     spentAmount: 1000,
-                    currentAmount: 5000,
-                    targetAmount: 20000,
+                },
+            });
+        });
+
+        it("clamps spentAmount to 0 if reverted amount exceeds spentAmount", async () => {
+            const mockGoal = {
+                id: "goal-1",
+                spentAmount: 100,
+            };
+
+            const mockFindUnique = vi.fn().mockResolvedValue(mockGoal);
+            const mockUpdate = vi.fn().mockResolvedValue({ ...mockGoal, spentAmount: 0 });
+
+            const mockClient: any = {
+                goal: {
+                    findUnique: mockFindUnique,
+                    update: mockUpdate,
+                },
+            };
+
+            await revertGoalSpending("goal-1", 500, mockClient);
+
+            expect(mockUpdate).toHaveBeenCalledWith({
+                where: { id: "goal-1" },
+                data: {
+                    spentAmount: 0,
                 },
             });
         });
@@ -166,7 +158,7 @@ describe("goalSpending Service", () => {
             expect(mockClient.goal.update).not.toHaveBeenCalled();
         });
 
-        it("applies spending when goal is newly added", async () => {
+        it("applies spending when goal is newly added, preserving currentAmount and targetAmount", async () => {
             await handleGoalSpendingTransition({
                 oldGoalId: null,
                 newGoalId: "goal-1",
@@ -178,11 +170,11 @@ describe("goalSpending Service", () => {
             });
 
             expect(mockGoals["goal-1"].spentAmount).toBe(3500);
-            expect(mockGoals["goal-1"].currentAmount).toBe(8500);
-            expect(mockGoals["goal-1"].targetAmount).toBe(48500);
+            expect(mockGoals["goal-1"].currentAmount).toBe(10000);
+            expect(mockGoals["goal-1"].targetAmount).toBe(50000);
         });
 
-        it("reverts spending when goal is removed", async () => {
+        it("reverts spending when goal is removed, preserving currentAmount and targetAmount", async () => {
             await handleGoalSpendingTransition({
                 oldGoalId: "goal-1",
                 newGoalId: null,
@@ -194,11 +186,11 @@ describe("goalSpending Service", () => {
             });
 
             expect(mockGoals["goal-1"].spentAmount).toBe(500);
-            expect(mockGoals["goal-1"].currentAmount).toBe(11500);
-            expect(mockGoals["goal-1"].targetAmount).toBe(51500);
+            expect(mockGoals["goal-1"].currentAmount).toBe(10000);
+            expect(mockGoals["goal-1"].targetAmount).toBe(50000);
         });
 
-        it("reverts spending on old goal and applies on new goal when switched", async () => {
+        it("reverts spending on old goal and applies on new goal when switched, preserving amounts", async () => {
             await handleGoalSpendingTransition({
                 oldGoalId: "goal-1",
                 newGoalId: "goal-2",
@@ -211,13 +203,13 @@ describe("goalSpending Service", () => {
 
             // goal-1 reverted by 2000
             expect(mockGoals["goal-1"].spentAmount).toBe(0);
-            expect(mockGoals["goal-1"].currentAmount).toBe(12000);
-            expect(mockGoals["goal-1"].targetAmount).toBe(52000);
+            expect(mockGoals["goal-1"].currentAmount).toBe(10000);
+            expect(mockGoals["goal-1"].targetAmount).toBe(50000);
 
             // goal-2 applied by 2500
             expect(mockGoals["goal-2"].spentAmount).toBe(2500);
-            expect(mockGoals["goal-2"].currentAmount).toBe(5500);
-            expect(mockGoals["goal-2"].targetAmount).toBe(27500);
+            expect(mockGoals["goal-2"].currentAmount).toBe(8000);
+            expect(mockGoals["goal-2"].targetAmount).toBe(30000);
         });
 
         it("adjusts delta on same goal when amount is increased", async () => {
@@ -233,8 +225,8 @@ describe("goalSpending Service", () => {
 
             // Delta +500
             expect(mockGoals["goal-1"].spentAmount).toBe(2500);
-            expect(mockGoals["goal-1"].currentAmount).toBe(9500);
-            expect(mockGoals["goal-1"].targetAmount).toBe(49500);
+            expect(mockGoals["goal-1"].currentAmount).toBe(10000);
+            expect(mockGoals["goal-1"].targetAmount).toBe(50000);
         });
 
         it("adjusts delta on same goal when amount is decreased", async () => {
@@ -250,8 +242,8 @@ describe("goalSpending Service", () => {
 
             // Delta -400
             expect(mockGoals["goal-1"].spentAmount).toBe(1600);
-            expect(mockGoals["goal-1"].currentAmount).toBe(10400);
-            expect(mockGoals["goal-1"].targetAmount).toBe(50400);
+            expect(mockGoals["goal-1"].currentAmount).toBe(10000);
+            expect(mockGoals["goal-1"].targetAmount).toBe(50000);
         });
 
         it("reverts goal when transaction type changes from expense to income", async () => {
@@ -266,9 +258,8 @@ describe("goalSpending Service", () => {
             });
 
             expect(mockGoals["goal-1"].spentAmount).toBe(1000);
-            expect(mockGoals["goal-1"].currentAmount).toBe(11000);
-            expect(mockGoals["goal-1"].targetAmount).toBe(51000);
+            expect(mockGoals["goal-1"].currentAmount).toBe(10000);
+            expect(mockGoals["goal-1"].targetAmount).toBe(50000);
         });
     });
 });
-

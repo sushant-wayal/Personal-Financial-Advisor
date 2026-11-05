@@ -30,6 +30,9 @@ export type Goal = {
     currentAmount: number;
     spentAmount?: number;
     spentAmountLabel?: string | null;
+    resultantTargetAmount?: number;
+    resultantTargetAmountLabel?: string | null;
+    progressPct?: number;
     monthlyTarget?: number | null;
     priority: number;
     currency?: string | null;

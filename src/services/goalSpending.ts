@@ -15,7 +15,8 @@ export function isEligibleGoalTransaction(type?: string | null, transactionType?
 }
 
 /**
- * Deducts spent amount from the goal's currentAmount and targetAmount, and tracks spentAmount.
+ * Tracks spent amount for a goal.
+ * Goal targetAmount and currentAmount are preserved; spentAmount is incremented.
  */
 export async function applyGoalSpending(
     goalId: string,
@@ -27,26 +28,23 @@ export async function applyGoalSpending(
 
     const goal = await client.goal.findUnique({
         where: { id: goalId },
-        select: { id: true, currentAmount: true, targetAmount: true, spentAmount: true },
+        select: { id: true, spentAmount: true },
     });
     if (!goal) return;
 
     const newSpent = Number(((goal.spentAmount || 0) + cleanAmount).toFixed(2));
-    const newCurrent = Math.max(0, Number((goal.currentAmount - cleanAmount).toFixed(2)));
-    const newTarget = Math.max(0, Number((goal.targetAmount - cleanAmount).toFixed(2)));
 
     await client.goal.update({
         where: { id: goalId },
         data: {
             spentAmount: newSpent,
-            currentAmount: newCurrent,
-            targetAmount: newTarget,
         },
     });
 }
 
 /**
- * Reverts spent amount from the goal's currentAmount and targetAmount (e.g. on tx delete or goal detachment).
+ * Reverts spent amount from the goal (e.g. on tx delete or goal detachment).
+ * Goal targetAmount and currentAmount are preserved; spentAmount is decremented.
  */
 export async function revertGoalSpending(
     goalId: string,
@@ -58,20 +56,16 @@ export async function revertGoalSpending(
 
     const goal = await client.goal.findUnique({
         where: { id: goalId },
-        select: { id: true, currentAmount: true, targetAmount: true, spentAmount: true },
+        select: { id: true, spentAmount: true },
     });
     if (!goal) return;
 
     const newSpent = Math.max(0, Number(((goal.spentAmount || 0) - cleanAmount).toFixed(2)));
-    const newCurrent = Number((goal.currentAmount + cleanAmount).toFixed(2));
-    const newTarget = Number((goal.targetAmount + cleanAmount).toFixed(2));
 
     await client.goal.update({
         where: { id: goalId },
         data: {
             spentAmount: newSpent,
-            currentAmount: newCurrent,
-            targetAmount: newTarget,
         },
     });
 }
@@ -115,20 +109,16 @@ export async function handleGoalSpendingTransition({
 
         const goal = await client.goal.findUnique({
             where: { id: effectiveOldGoalId },
-            select: { id: true, currentAmount: true, targetAmount: true, spentAmount: true },
+            select: { id: true, spentAmount: true },
         });
         if (!goal) return;
 
         const newSpent = Math.max(0, Number(((goal.spentAmount || 0) + delta).toFixed(2)));
-        const newCurrent = Math.max(0, Number((goal.currentAmount - delta).toFixed(2)));
-        const newTarget = Math.max(0, Number((goal.targetAmount - delta).toFixed(2)));
 
         await client.goal.update({
             where: { id: effectiveOldGoalId },
             data: {
                 spentAmount: newSpent,
-                currentAmount: newCurrent,
-                targetAmount: newTarget,
             },
         });
         return;

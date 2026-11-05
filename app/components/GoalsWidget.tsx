@@ -6,10 +6,11 @@ function formatCurrency(amount: number, currency = "INR") {
     return new Intl.NumberFormat("en-IN", { style: "currency", currency, maximumFractionDigits: 0 }).format(amount || 0);
 }
 
-function getDisplayProgress(currentAmount: number, targetAmount: number) {
-    if (targetAmount <= 0) return 0;
-    if (currentAmount >= targetAmount) return 100;
-    const pct = (currentAmount / targetAmount) * 100;
+function getDisplayProgress(currentAmount: number, targetAmount: number, spentAmount = 0) {
+    const resultantTarget = Math.max(0, targetAmount - (spentAmount || 0));
+    if (resultantTarget <= 0) return 100;
+    if (currentAmount >= resultantTarget) return 100;
+    const pct = (currentAmount / resultantTarget) * 100;
     return Math.max(0, Math.min(99.9, Math.round(pct * 10) / 10));
 }
 
@@ -38,7 +39,9 @@ export default function GoalsWidget() {
                 <div className="space-y-3">
                     {goals.length === 0 && <div className="text-sm text-muted-foreground">No goals yet.</div>}
                     {goals.map((g) => {
-                        const progress = getDisplayProgress(g.currentAmount || 0, g.targetAmount || 0);
+                        const progress = typeof g.progressPct === "number"
+                            ? g.progressPct
+                            : getDisplayProgress(g.currentAmount || 0, g.targetAmount || 0, g.spentAmount || 0);
                         const clamped = Math.min(progress, 100);
                         return (
                             <Card key={g.id} size="sm" className="bg-muted/40">

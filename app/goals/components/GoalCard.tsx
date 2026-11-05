@@ -29,10 +29,11 @@ function Input({ label, id, className, ...props }: LabeledInputProps) {
     );
 }
 
-function getDisplayProgress(currentAmount: number, targetAmount: number) {
-    if (targetAmount <= 0) return 0;
-    if (currentAmount >= targetAmount) return 100;
-    const pct = (currentAmount / targetAmount) * 100;
+function getDisplayProgress(currentAmount: number, targetAmount: number, spentAmount = 0) {
+    const resultantTarget = Math.max(0, targetAmount - (spentAmount || 0));
+    if (resultantTarget <= 0) return 100;
+    if (currentAmount >= resultantTarget) return 100;
+    const pct = (currentAmount / resultantTarget) * 100;
     return Math.max(0, Math.min(99.9, Math.round(pct * 10) / 10));
 }
 
@@ -58,7 +59,9 @@ export function GoalCard({ goal, onUpdate, onDelete, isUpdating, isDeleting }: G
     const router = useRouter();
     const [edit, setEdit] = useState<Partial<Goal>>({});
 
-    const progress = getDisplayProgress(goal.currentAmount || 0, goal.targetAmount || 0);
+    const progress = typeof goal.progressPct === "number"
+        ? goal.progressPct
+        : getDisplayProgress(goal.currentAmount || 0, goal.targetAmount || 0, goal.spentAmount || 0);
     const clamped = Math.min(progress, 100);
     const patch = buildPatch(edit);
     const hasChanges = Object.keys(patch).length > 0;
@@ -79,6 +82,9 @@ export function GoalCard({ goal, onUpdate, onDelete, isUpdating, isDeleting }: G
                             </div>
                             <div className="text-xs text-slate-400 mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
                                 <span>Target: <strong className="text-slate-200">{formatCurrency(goal.targetAmount, goal.currency || "INR")}</strong></span>
+                                {(goal.spentAmount ?? 0) > 0 && (
+                                    <span>Remaining Target: <strong className="text-emerald-400">{goal.resultantTargetAmountLabel ?? formatCurrency(Math.max(0, goal.targetAmount - (goal.spentAmount || 0)), goal.currency || "INR")}</strong></span>
+                                )}
                                 <span>Current: <strong className="text-slate-200">{formatCurrency(goal.currentAmount, goal.currency || "INR")}</strong></span>
                                 <span>Spent: <strong className="text-amber-300">{formatCurrency(goal.spentAmount || 0, goal.currency || "INR")}</strong></span>
                             </div>

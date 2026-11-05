@@ -30,6 +30,7 @@ type GoalRecord = {
     targetAmount: number;
     currentAmount: number;
     spentAmount?: number;
+    resultantTargetAmount?: number;
     monthlyTarget?: number | null;
     priority: number;
     currency?: string | null;
@@ -59,11 +60,15 @@ export function predictETA(currentAmount: number, monthlyContribution: number, t
 
 export function buildGoalMilestones(goal: GoalRecord, fallbackCurrency = "INR"): GoalMilestone[] {
     const currency = resolvedCurrency(goal, fallbackCurrency);
-    const progressPct = goal.targetAmount > 0 ? Math.min(100, (goal.currentAmount / goal.targetAmount) * 100) : 0;
+    const spentAmount = goal.spentAmount || 0;
+    const resultantTarget = Math.max(0, Number((goal.targetAmount - spentAmount).toFixed(2)));
+    const progressPct = resultantTarget <= 0
+        ? 100
+        : Math.min(100, (goal.currentAmount / resultantTarget) * 100);
     const thresholds = [25, 50, 75, 100];
 
     return thresholds.map((thresholdPct) => {
-        const amount = (goal.targetAmount * thresholdPct) / 100;
+        const amount = (resultantTarget * thresholdPct) / 100;
         return {
             label: `${thresholdPct}% milestone`,
             thresholdPct,
@@ -85,23 +90,28 @@ export function analyzeGoalConflicts(goals: GoalRecord[], monthlyCapacity: numbe
     const goalSummaries = goals.map((goal) => {
         const currency = resolvedCurrency(goal, fallbackCurrency);
         const monthsLeft = monthsUntil(goal.targetDate) ?? null;
+        const spentAmount = goal.spentAmount || 0;
+        const resultantTarget = Math.max(0, Number((goal.targetAmount - spentAmount).toFixed(2)));
 
         // estimate forecast using observed monthly capacity as a proxy for savings velocity
         const forecast = estimateForecast({
             currentAmount: goal.currentAmount,
-            targetAmount: goal.targetAmount,
+            targetAmount: resultantTarget,
             monthsLeft,
             currentSavingsVelocity: monthlyCapacity,
         });
 
-        const rawProgressPct = goal.targetAmount > 0 ? (goal.currentAmount / goal.targetAmount) * 100 : 0;
-        const progressPct = goal.targetAmount > 0
-            ? (goal.currentAmount >= goal.targetAmount
-                ? 100
-                : Math.max(0, Math.min(99.9, Math.round(rawProgressPct * 10) / 10)))
-            : 0;
-        const health = computeHealthStatus(forecast.requiredMonthly, monthlyCapacity);
-        const confidence = computeConfidenceScore(forecast.requiredMonthly, monthlyCapacity, 0.25);
+        const isFunded = resultantTarget <= 0 || goal.currentAmount >= resultantTarget;
+        const rawProgressPct = resultantTarget > 0 ? (goal.currentAmount / resultantTarget) * 100 : 100;
+        const progressPct = isFunded
+            ? 100
+            : Math.max(0, Math.min(99.9, Math.round(rawProgressPct * 10) / 10));
+        const health = isFunded
+            ? "Ahead of Schedule"
+            : computeHealthStatus(forecast.requiredMonthly, monthlyCapacity);
+        const confidence = isFunded
+            ? 100
+            : computeConfidenceScore(forecast.requiredMonthly, monthlyCapacity, 0.25);
 
         const recommendations: string[] = [];
         if (forecast.requiredMonthly > monthlyCapacity) {
@@ -110,13 +120,17 @@ export function analyzeGoalConflicts(goals: GoalRecord[], monthlyCapacity: numbe
             recommendations.push(`Extend target date or lower target by ${formatCurrency(deficit * 3, currency)} (example)`);
         } else if (forecast.requiredMonthly > 0) {
             recommendations.push(`You are on pace — consider allocating surplus to accelerate this goal`);
+        } else {
+            recommendations.push("Goal target satisfied considering current progress and spending.");
         }
 
         return {
             ...goal,
             currency,
-            spentAmount: goal.spentAmount || 0,
-            spentAmountLabel: formatCurrency(goal.spentAmount || 0, currency),
+            spentAmount,
+            spentAmountLabel: formatCurrency(spentAmount, currency),
+            resultantTargetAmount: resultantTarget,
+            resultantTargetAmountLabel: formatCurrency(resultantTarget, currency),
             targetAmountLabel: formatCurrency(goal.targetAmount, currency),
             currentAmountLabel: formatCurrency(goal.currentAmount, currency),
             progressPct,
@@ -324,10 +338,12 @@ export async function createGoal(data: { title: string; targetAmount: number; ta
     return prisma.goal.create({ data: createData });
 }
 
-export async function updateGoal(id: string, patch: Partial<{ title: string; targetAmount: number; monthlyTarget: number; targetDate: string; priority: number; notes: string }>) {
+export async function updateGoal(id: string, patch: Partial<{ title: string; targetAmount: number; currentAmount: number; monthlyTarget: number; targetDate: string; priority: number; notes: string }>) {
     const data: any = { ...patch };
     if (patch.targetDate) data.targetDate = new Date(patch.targetDate as string);
-    delete data.currentAmount;
+    if ("currentAmount" in patch) {
+        data.currentAmount = Math.max(0, Number(patch.currentAmount || 0));
+    }
     delete data.currency;
     return prisma.goal.update({ where: { id }, data });
 }
