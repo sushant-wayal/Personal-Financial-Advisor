@@ -854,16 +854,30 @@ export default function StockIntelligenceClient() {
                         <span className="text-muted-foreground">Quantity:</span>
                         <span className="font-medium text-foreground">{hold.quantity} shares</span>
                       </div>
+                      {hold.averageCost != null && hold.averageCost > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Avg Buy Price:</span>
+                          <span className="font-medium text-foreground">₹{formatDecimal(hold.averageCost)}</span>
+                        </div>
+                      )}
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Latest Price:</span>
                         <span className="font-medium text-foreground">₹{formatDecimal(hold.latestPrice)}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Unrealized P&L:</span>
+                        <span className="text-muted-foreground">Total Returns:</span>
                         <span className={`font-semibold ${hold.unrealizedPnl >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                          {hold.unrealizedPnl >= 0 ? "+" : ""}{formatInr(hold.unrealizedPnl)} ({hold.unrealizedPnlPct}%)
+                          {hold.unrealizedPnl >= 0 ? "+" : ""}{formatInr(hold.unrealizedPnl)} ({hold.unrealizedPnlPct > 0 ? "+" : ""}{hold.unrealizedPnlPct}%)
                         </span>
                       </div>
+                      {hold.dayChangePnl != null && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">1-Day Change:</span>
+                          <span className={`font-medium ${hold.dayChangePnl >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                            {hold.dayChangePnl >= 0 ? "+" : ""}{formatInr(hold.dayChangePnl)} ({hold.dayChangePct != null && hold.dayChangePct >= 0 ? "+" : ""}{formatDecimal(hold.dayChangePct)}%)
+                          </span>
+                        </div>
+                      )}
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Updated Stop:</span>
                         <span className="font-medium text-rose-400">₹{formatDecimal(hold.updatedStopLoss)}</span>

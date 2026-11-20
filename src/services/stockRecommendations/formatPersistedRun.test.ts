@@ -264,4 +264,71 @@ describe("formatPersistedRun — Stock Recommendation Serialization", () => {
     expect(run.capitalAllocation.remainingCycleStockBalance).toBe(454);
     expect(run.capitalAllocation.cycleStockTradingPool).toBe(1147);
   });
+
+  it("unpacks HOLD recommendation with total returns and day change fields", () => {
+    const rawRecord = {
+      id: "run-hold-test",
+      marketSessionDate: new Date("2026-11-20T00:00:00.000Z"),
+      marketRegime: "BULLISH",
+      financialPhase: "WEALTH_BUILDING",
+      capitalAllocation: "{}",
+      dataQuality: "VALID",
+      strategyVersions: "{}",
+      candidateCount: 1,
+      eligibleCount: 1,
+      rejections: "[]",
+      warnings: "[]",
+      aiExplanation: "Hold test",
+      status: "COMPLETE",
+      pipelineDurationMs: 150,
+      createdAt: new Date("2026-11-20T04:14:52.943Z"),
+      items: [
+        {
+          id: "item-hold-1",
+          symbol: "INFY",
+          exchange: "NSE",
+          type: "HOLD",
+          status: "PENDING",
+          investedAt: null,
+          investedAmount: null,
+          detail: JSON.stringify({
+            type: "HOLD",
+            symbol: "INFY",
+            exchange: "NSE",
+            quantity: 1,
+            averageCost: 1400,
+            investedAmount: 1400,
+            latestPrice: 1440,
+            marketValue: 1440,
+            unrealizedPnl: 40,
+            unrealizedPnlPct: 2.86,
+            dayChange: 2,
+            dayChangePnl: 2,
+            dayChangePct: 0.14,
+            portfolioAllocation: 10,
+            originalThesis: "Swing trading holding thesis intact",
+            currentSignal: "HOLD",
+            updatedStopLoss: 1316,
+            exitConditions: ["Stop hit"],
+            reasonsToHold: ["Solid momentum"],
+            conditionsToChange: ["Target hit"],
+          }),
+        },
+      ],
+    };
+
+    const run = formatPersistedRun(rawRecord);
+    expect(run.recommendations).toHaveLength(1);
+    const hold = run.recommendations[0] as any;
+    expect(hold.type).toBe("HOLD");
+    expect(hold.symbol).toBe("INFY");
+    expect(hold.averageCost).toBe(1400);
+    expect(hold.investedAmount).toBe(1400);
+    expect(hold.latestPrice).toBe(1440);
+    expect(hold.unrealizedPnl).toBe(40);
+    expect(hold.unrealizedPnlPct).toBe(2.86);
+    expect(hold.dayChange).toBe(2);
+    expect(hold.dayChangePnl).toBe(2);
+    expect(hold.dayChangePct).toBe(0.14);
+  });
 });

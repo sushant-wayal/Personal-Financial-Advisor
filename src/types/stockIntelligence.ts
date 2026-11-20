@@ -329,6 +329,9 @@ export type HoldRecommendation = {
   marketValue: number;
   unrealizedPnl: number;
   unrealizedPnlPct: number;
+  dayChange?: number | null;
+  dayChangePnl?: number | null;
+  dayChangePct?: number | null;
   portfolioAllocation: number;
   originalThesis: string;
   currentSignal: string;

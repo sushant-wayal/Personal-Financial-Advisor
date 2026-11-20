@@ -698,10 +698,32 @@ export default function StockIntelligenceScreen() {
                     </View>
                     <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 4 }}>
                       <Text style={styles.detailText}>Qty: {hold.quantity} shares</Text>
-                      <Text style={[styles.detailText, { color: hold.unrealizedPnl >= 0 ? "#10b981" : "#f43f5e", fontWeight: "bold" }]}>
-                        {hold.unrealizedPnl >= 0 ? "+" : ""}{formatCurrencyAmount(hold.unrealizedPnl, "INR")} ({hold.unrealizedPnlPct}%)
+                      <Text style={styles.detailText}>
+                        LTP: {formatCurrencyAmount(hold.latestPrice, "INR")}
                       </Text>
                     </View>
+                    {hold.averageCost != null && hold.averageCost > 0 && (
+                      <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 2 }}>
+                        <Text style={[styles.detailText, { color: "#9ca3af" }]}>Avg Buy: {formatCurrencyAmount(hold.averageCost, "INR")}</Text>
+                        {hold.updatedStopLoss != null && (
+                          <Text style={[styles.detailText, { color: "#f87171" }]}>Stop: {formatCurrencyAmount(hold.updatedStopLoss, "INR")}</Text>
+                        )}
+                      </View>
+                    )}
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 4 }}>
+                      <Text style={[styles.detailText, { color: "#9ca3af" }]}>Total Returns:</Text>
+                      <Text style={[styles.detailText, { color: hold.unrealizedPnl >= 0 ? "#10b981" : "#f43f5e", fontWeight: "bold" }]}>
+                        {hold.unrealizedPnl >= 0 ? "+" : ""}{formatCurrencyAmount(hold.unrealizedPnl, "INR")} ({hold.unrealizedPnlPct > 0 ? "+" : ""}{hold.unrealizedPnlPct}%)
+                      </Text>
+                    </View>
+                    {hold.dayChangePnl != null && (
+                      <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 2 }}>
+                        <Text style={[styles.detailText, { color: "#9ca3af" }]}>1-Day Change:</Text>
+                        <Text style={[styles.detailText, { color: hold.dayChangePnl >= 0 ? "#10b981" : "#f43f5e" }]}>
+                          {hold.dayChangePnl >= 0 ? "+" : ""}{formatCurrencyAmount(hold.dayChangePnl, "INR")} ({hold.dayChangePct != null && hold.dayChangePct >= 0 ? "+" : ""}{Number(hold.dayChangePct).toFixed(2)}%)
+                        </Text>
+                      </View>
+                    )}
                   </View>
                 ))}
               </>

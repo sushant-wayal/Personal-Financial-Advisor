@@ -120,13 +120,24 @@ export async function POST(req: NextRequest) {
 
       if (existingStock) {
         const newQty = existingStock.currentQuantity + quantity;
-        const newWorth = (existingStock.currentWorth ?? 0) + tradeValue;
+        const currentMktPrice = executedPrice > 0 ? executedPrice : (existingStock.currentPrice ?? executedPrice);
+        const newWorth = currentMktPrice * newQty;
+        const prevInvested = existingStock.investedAmount ?? (
+          existingStock.avgBuyPrice != null
+            ? existingStock.avgBuyPrice * existingStock.currentQuantity
+            : (existingStock.currentQuantity > 0 ? (existingStock.currentPrice ?? executedPrice) * existingStock.currentQuantity : 0)
+        );
+        const newInvestedAmount = Number((prevInvested + tradeValue).toFixed(2));
+        const newAvgBuyPrice = newQty > 0 ? Number((newInvestedAmount / newQty).toFixed(2)) : executedPrice;
+
         await prisma.stock.update({
           where: { id: existingStock.id },
           data: {
             currentQuantity: newQty,
-            currentPrice: executedPrice > 0 ? executedPrice : existingStock.currentPrice,
+            currentPrice: currentMktPrice,
             currentWorth: newWorth,
+            avgBuyPrice: newAvgBuyPrice,
+            investedAmount: newInvestedAmount,
           },
         });
       } else {
@@ -137,6 +148,8 @@ export async function POST(req: NextRequest) {
             currentQuantity: quantity,
             currentPrice: executedPrice,
             currentWorth: tradeValue,
+            avgBuyPrice: executedPrice,
+            investedAmount: tradeValue,
           },
         });
       }

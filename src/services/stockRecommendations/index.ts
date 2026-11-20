@@ -438,17 +438,78 @@ export async function generateDailyRecommendations(options?: {
     if (st.currentQuantity <= 0) continue;
     if (todayBoughtSymbols.has(st.symbol.toUpperCase())) continue;
 
-    // Load recent bar
-    const latestBar = await prisma.stockMarketBar.findFirst({
+    // Load recent bars to get current price and previous session close (for 1-day change)
+    const recentBars = await prisma.stockMarketBar.findMany({
       where: { symbol: st.symbol },
       orderBy: { date: "desc" },
+      take: 2,
     });
+    const latestBar = recentBars[0] ?? null;
+    const previousBar = recentBars[1] ?? null;
 
     const currentPrice = latestBar ? latestBar.close : (st.currentPrice ?? 100);
-    const avgCost = st.currentPrice ?? currentPrice;
+
+    // Resolve true cost basis (average buy price and invested capital):
+    // 1. Direct field on Stock model
+    // 2. Historical INVESTED recommendation items for this symbol
+    // 3. Fallback to currentPrice if unrecorded
+    let avgCost = st.avgBuyPrice != null && st.avgBuyPrice > 0 ? st.avgBuyPrice : 0;
+    let totalInvested = st.investedAmount != null && st.investedAmount > 0 ? st.investedAmount : 0;
+
+    if (avgCost <= 0) {
+      const historicalInvestments = await prisma.stockRecommendationItem.findMany({
+        where: {
+          symbol: { equals: st.symbol, mode: "insensitive" },
+          status: "INVESTED",
+        },
+      });
+
+      if (historicalInvestments.length > 0) {
+        let totalQtyInvested = 0;
+        let totalCostInvested = 0;
+        for (const item of historicalInvestments) {
+          try {
+            const detail = JSON.parse(item.detail || "{}");
+            const q = Number(detail.quantity || 0);
+            const val = Number(item.investedAmount || detail.investedAmount || detail.tradeValue || 0);
+            if (q > 0 && val > 0) {
+              totalQtyInvested += q;
+              totalCostInvested += val;
+            }
+          } catch {
+            // ignore malformed JSON
+          }
+        }
+        if (totalQtyInvested > 0 && totalCostInvested > 0) {
+          avgCost = Number((totalCostInvested / totalQtyInvested).toFixed(2));
+          totalInvested = Number((avgCost * st.currentQuantity).toFixed(2));
+          // Backfill stock record so subsequent lookups are fast
+          prisma.stock.update({
+            where: { id: st.id },
+            data: { avgBuyPrice: avgCost, investedAmount: totalInvested },
+          }).catch(() => {});
+        }
+      }
+    }
+
+    if (avgCost <= 0) {
+      avgCost = st.currentPrice ?? currentPrice;
+      totalInvested = avgCost * st.currentQuantity;
+    }
+
+    if (totalInvested <= 0) {
+      totalInvested = avgCost * st.currentQuantity;
+    }
+
     const marketVal = currentPrice * st.currentQuantity;
-    const unrealizedPnl = (currentPrice - avgCost) * st.currentQuantity;
-    const unrealizedPct = avgCost > 0 ? ((currentPrice - avgCost) / avgCost) * 100 : 0;
+    const unrealizedPnl = marketVal - totalInvested;
+    const unrealizedPct = totalInvested > 0 ? (unrealizedPnl / totalInvested) * 100 : 0;
+
+    // 1-Day change against previous session close
+    const prevClose = previousBar ? previousBar.close : currentPrice;
+    const dayChange = currentPrice - prevClose;
+    const dayChangePnl = dayChange * st.currentQuantity;
+    const dayChangePct = prevClose > 0 ? (dayChange / prevClose) * 100 : 0;
 
     // Evaluate exit rules
     const exitEval = evaluateExitRules(
@@ -474,7 +535,7 @@ export async function generateDailyRecommendations(options?: {
         isFullExit: true,
         latestPrice: currentPrice,
         latestPriceTimestamp: latestBar?.retrievedAt ?? now,
-        averageCost: avgCost,
+        averageCost: Number(avgCost.toFixed(2)),
         realizedPnlEstimate: Number(unrealizedPnl.toFixed(2)),
         reason: exitEval.reason,
         trigger: exitEval.trigger,
@@ -488,12 +549,16 @@ export async function generateDailyRecommendations(options?: {
         exchange: st.exchange,
         timestamp: now,
         quantity: Math.floor(st.currentQuantity),
-        averageCost: avgCost,
+        averageCost: Number(avgCost.toFixed(2)),
+        investedAmount: Number(totalInvested.toFixed(2)),
         latestPrice: currentPrice,
         latestPriceTimestamp: latestBar?.retrievedAt ?? now,
         marketValue: Number(marketVal.toFixed(2)),
         unrealizedPnl: Number(unrealizedPnl.toFixed(2)),
         unrealizedPnlPct: Number(unrealizedPct.toFixed(2)),
+        dayChange: Number(dayChange.toFixed(2)),
+        dayChangePnl: Number(dayChangePnl.toFixed(2)),
+        dayChangePct: Number(dayChangePct.toFixed(2)),
         portfolioAllocation: riskSnapshot.currentEquity > 0
           ? Number(((marketVal / riskSnapshot.currentEquity) * 100).toFixed(1))
           : 0,
