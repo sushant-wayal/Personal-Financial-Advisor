@@ -246,49 +246,52 @@ export async function fetchLiveQuotes(
   }
 
   // 3. Fallback for any symbols that failed the batch quote query
-  for (const sym of uncachedSymbols) {
-    if (results[sym]) continue;
+  const missingSymbols = uncachedSymbols.filter((sym) => !results[sym]);
+  if (missingSymbols.length > 0) {
+    await Promise.allSettled(
+      missingSymbols.map(async (sym) => {
+        try {
+          const querySym = toYahooQuoteSymbol(sym, exchange);
+          const chartUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(
+            querySym
+          )}?interval=1d&range=1d`;
+          const fallbackRes = await fetch(chartUrl, {
+            headers: {
+              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            },
+            signal: AbortSignal.timeout(5000),
+          });
 
-    try {
-      const querySym = toYahooQuoteSymbol(sym, exchange);
-      const chartUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(
-        querySym
-      )}?interval=1d&range=1d`;
-      const fallbackRes = await fetch(chartUrl, {
-        headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        },
-        signal: AbortSignal.timeout(5000),
-      });
+          if (fallbackRes.ok) {
+            const chartData = await fallbackRes.json();
+            const meta = chartData?.chart?.result?.[0]?.meta;
+            if (meta?.regularMarketPrice != null) {
+              const price = Number(meta.regularMarketPrice);
+              const prevClose = meta.chartPreviousClose != null ? Number(meta.chartPreviousClose) : price;
+              const change = price - prevClose;
+              const changePercent = prevClose > 0 ? (change / prevClose) * 100 : 0;
 
-      if (fallbackRes.ok) {
-        const chartData = await fallbackRes.json();
-        const meta = chartData?.chart?.result?.[0]?.meta;
-        if (meta?.regularMarketPrice != null) {
-          const price = Number(meta.regularMarketPrice);
-          const prevClose = meta.chartPreviousClose != null ? Number(meta.chartPreviousClose) : price;
-          const change = price - prevClose;
-          const changePercent = prevClose > 0 ? (change / prevClose) * 100 : 0;
+              const quoteObj: LiveStockQuote = {
+                symbol: sym,
+                exchange,
+                price: Math.round(price * 100) / 100,
+                change: Math.round(change * 100) / 100,
+                changePercent: Math.round(changePercent * 100) / 100,
+                dayHigh: meta.regularMarketDayHigh != null ? Math.round(Number(meta.regularMarketDayHigh) * 100) / 100 : undefined,
+                dayLow: meta.regularMarketDayLow != null ? Math.round(Number(meta.regularMarketDayLow) * 100) / 100 : undefined,
+                previousClose: Math.round(prevClose * 100) / 100,
+                lastUpdated: new Date().toISOString(),
+              };
 
-          const quoteObj: LiveStockQuote = {
-            symbol: sym,
-            exchange,
-            price: Math.round(price * 100) / 100,
-            change: Math.round(change * 100) / 100,
-            changePercent: Math.round(changePercent * 100) / 100,
-            dayHigh: meta.regularMarketDayHigh != null ? Math.round(Number(meta.regularMarketDayHigh) * 100) / 100 : undefined,
-            dayLow: meta.regularMarketDayLow != null ? Math.round(Number(meta.regularMarketDayLow) * 100) / 100 : undefined,
-            previousClose: Math.round(prevClose * 100) / 100,
-            lastUpdated: new Date().toISOString(),
-          };
-
-          quoteCache.set(sym, { quote: quoteObj, expiresAt: now + CACHE_TTL_MS });
-          results[sym] = quoteObj;
+              quoteCache.set(sym, { quote: quoteObj, expiresAt: now + CACHE_TTL_MS });
+              results[sym] = quoteObj;
+            }
+          }
+        } catch (fallbackErr) {
+          console.error(`[liveQuotes] Fallback chart fetch failed for ${sym}:`, fallbackErr);
         }
-      }
-    } catch (fallbackErr) {
-      console.error(`[liveQuotes] Fallback chart fetch failed for ${sym}:`, fallbackErr);
-    }
+      })
+    );
   }
 
   return results;

@@ -32,6 +32,75 @@ export async function executeAdvisorTool(
                 data = { rows, total: rows.length };
                 break;
             }
+            case "aggregateTransactions": {
+                const typeFilter = resolveTypeFilter(args.type);
+                const dateBounds = resolveDateBounds(args);
+                const andConditions: Record<string, unknown>[] = [];
+                if (dateBounds.gte || dateBounds.lt) andConditions.push({ timestamp: dateBounds });
+                if (typeFilter) andConditions.push({ OR: [{ transactionType: { in: typeFilter } }, { type: { in: typeFilter } }] });
+                const where = andConditions.length > 0 ? { AND: andConditions } : {};
+                const limit = clamp(args.limit, 1, 50, 15);
+                const groupByField = typeof args.groupBy === "string" ? args.groupBy : "category";
+
+                if (groupByField === "category") {
+                    const groups = await prisma.transaction.groupBy({
+                        by: ["categoryId"],
+                        where,
+                        _sum: { amount: true },
+                        _count: { id: true },
+                        _avg: { amount: true },
+                        orderBy: { _sum: { amount: "desc" } },
+                        take: limit,
+                    });
+                    const catIds = groups.map((g) => g.categoryId).filter(Boolean) as string[];
+                    const categories = catIds.length > 0
+                        ? await prisma.category.findMany({ where: { id: { in: catIds } } })
+                        : [];
+                    const catMap = new Map(categories.map((c) => [c.id, c.name]));
+                    data = {
+                        groupBy: "category",
+                        groups: groups.map((g) => ({
+                            category: g.categoryId ? catMap.get(g.categoryId) || "Uncategorized" : "Uncategorized",
+                            totalAmount: g._sum.amount ?? 0,
+                            count: g._count.id,
+                            avgAmount: g._avg.amount ?? 0,
+                        })),
+                    };
+                } else if (groupByField === "merchant") {
+                    const groups = await prisma.transaction.groupBy({
+                        by: ["merchant"],
+                        where,
+                        _sum: { amount: true },
+                        _count: { id: true },
+                        _avg: { amount: true },
+                        orderBy: { _sum: { amount: "desc" } },
+                        take: limit,
+                    });
+                    data = {
+                        groupBy: "merchant",
+                        groups: groups.map((g) => ({
+                            merchant: g.merchant,
+                            totalAmount: g._sum.amount ?? 0,
+                            count: g._count.id,
+                            avgAmount: g._avg.amount ?? 0,
+                        })),
+                    };
+                } else {
+                    const total = await prisma.transaction.aggregate({
+                        where,
+                        _sum: { amount: true },
+                        _count: { id: true },
+                        _avg: { amount: true },
+                    });
+                    data = {
+                        groupBy: groupByField,
+                        totalAmount: total._sum.amount ?? 0,
+                        count: total._count.id,
+                        avgAmount: total._avg.amount ?? 0,
+                    };
+                }
+                break;
+            }
             case "queryGoals": {
                 const goals = await prisma.goal.findMany({ orderBy: [{ priority: "asc" }, { createdAt: "desc" }] });
                 data = { goals, total: goals.length };

@@ -1,13 +1,7 @@
 import { prisma } from "../lib/prisma";
 import { getGoalOverview } from "./goals";
 import { impactMessageForChange } from "./GoalInsightService";
-
-function daysBetween(a?: Date | string | null, b?: Date | string | null) {
-    if (!a || !b) return 0;
-    const da = new Date(a).getTime();
-    const db = new Date(b).getTime();
-    return Math.round((da - db) / (1000 * 60 * 60 * 24));
-}
+import { signedDaysBetween } from "./shared/dates";
 
 export async function adviseGoals({ persist = true } = {}) {
     const overview = await getGoalOverview();
@@ -40,7 +34,7 @@ export async function adviseGoals({ persist = true } = {}) {
         const curEta = g.eta?.eta ? new Date(g.eta.eta).toISOString() : null;
         const prev = lastByGoal.get(g.id);
         const prevEta = prev?.eta ?? null;
-        const daysDelta = daysBetween(curEta, prevEta);
+        const daysDelta = signedDaysBetween(curEta, prevEta);
         if (prevEta && curEta && daysDelta !== 0) {
             const message = impactMessageForChange(g.title, daysDelta);
             insights.push({ goalId: g.id, message, daysDelta });

@@ -40,6 +40,17 @@ export function monthsSince(date?: string | Date | null): number {
 }
 
 /**
+ * Returns the signed number of days between two dates (positive if d1 > d2, negative if d1 < d2).
+ * Returns 0 if either date is missing.
+ */
+export function signedDaysBetween(d1?: Date | string | null, d2?: Date | string | null): number {
+    if (!d1 || !d2) return 0;
+    const t1 = new Date(d1).getTime();
+    const t2 = new Date(d2).getTime();
+    return Math.round((t1 - t2) / (1000 * 60 * 60 * 24));
+}
+
+/**
  * Returns the absolute number of days between two dates (always positive).
  *
  * @param d1 - First date

@@ -11,8 +11,13 @@ function getYahooFinanceSymbol(symbol: string, exchange: string): string {
     return symbol;
 }
 
-export async function GET(_req: Request) {
+export async function GET(request: Request) {
     try {
+        const authHeader = request.headers.get("authorization");
+        if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
         console.info("[cron] Starting daily Stock price update");
 
         // 1. Fetch all stocks with quantity > 0

@@ -1,8 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/src/lib/prisma";
 
-export async function GET(_req: Request) {
+export async function GET(request: Request) {
     try {
+        const authHeader = request.headers.get("authorization");
+        if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
         console.info("[cron] Starting daily PPF update");
 
         const accounts = await prisma.pPFAccount.findMany();
@@ -114,16 +119,42 @@ export async function GET(_req: Request) {
 
             // 3. End of Month Interest Calculation
             if (isLastDayOfMonth) {
-                const monthlyInterest = newMonthlyMin * (newInterestRate / 100) / 12;
-                newAccruedInterest += monthlyInterest;
-                console.info(`[cron-ppf] End of Month Calculation for ${account.id}: added interest ${monthlyInterest} at rate ${newInterestRate}%`);
+                const accrualKey = `cron:ppf:accrual:${account.id}:${year}-${month + 1}`;
+                const alreadyAccrued = await prisma.aIMemory.findFirst({ where: { key: accrualKey } });
+                if (!alreadyAccrued) {
+                    const monthlyInterest = newMonthlyMin * (newInterestRate / 100) / 12;
+                    newAccruedInterest += monthlyInterest;
+                    await prisma.aIMemory.create({
+                        data: {
+                            key: accrualKey,
+                            name: "PPF Monthly Accrual Check",
+                            value: JSON.stringify({ monthlyInterest, date: now.toISOString() }),
+                        },
+                    });
+                    console.info(`[cron-ppf] End of Month Calculation for ${account.id}: added interest ${monthlyInterest} at rate ${newInterestRate}%`);
+                } else {
+                    console.info(`[cron-ppf] End of Month Calculation for ${account.id} already performed for ${year}-${month + 1}`);
+                }
             }
 
             // 4. Annual Compounding on March 31st
             if (isMarch31) {
-                newBalance += newAccruedInterest;
-                console.info(`[cron-ppf] March 31st Compounding for ${account.id}: newBalance = ${newBalance}`);
-                newAccruedInterest = 0;
+                const compoundKey = `cron:ppf:compounding:${account.id}:${year}`;
+                const alreadyCompounded = await prisma.aIMemory.findFirst({ where: { key: compoundKey } });
+                if (!alreadyCompounded) {
+                    newBalance += newAccruedInterest;
+                    await prisma.aIMemory.create({
+                        data: {
+                            key: compoundKey,
+                            name: "PPF Annual Compounding Check",
+                            value: JSON.stringify({ compoundedInterest: newAccruedInterest, date: now.toISOString() }),
+                        },
+                    });
+                    console.info(`[cron-ppf] March 31st Compounding for ${account.id}: newBalance = ${newBalance}`);
+                    newAccruedInterest = 0;
+                } else {
+                    console.info(`[cron-ppf] March 31st Compounding for ${account.id} already performed for FY ending ${year}`);
+                }
             }
 
             // Perform Update

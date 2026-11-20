@@ -197,6 +197,9 @@ model AIMemory {
   expiresAt DateTime?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
+
+  @@index([key])
+  @@index([expiresAt])
 }
 
 model Subscription {

@@ -5,7 +5,7 @@ import { cookies } from 'next/headers';
 const SESSION_DURATION_MS = 10 * 365 * 24 * 60 * 60 * 1000; // 10 years
 
 function getSigningKey(): Uint8Array {
-  const secretKey = process.env.AUTH_SECRET || 'dev-fallback-secret-key-change-in-production';
+  const secretKey = process.env.AUTH_SECRET || process.env.ADMIN_PASSWORD || 'dev-fallback-secret-key-change-in-production';
   return new TextEncoder().encode(secretKey);
 }
 

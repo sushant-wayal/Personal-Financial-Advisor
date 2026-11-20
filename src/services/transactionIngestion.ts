@@ -187,7 +187,7 @@ async function applyTransactionSideEffects(amount: number, transactionType: stri
             
             const txDate = timestamp ? timestamp.getDate() : new Date().getDate();
             
-            if (txDate >= 1 && txDate <= 4) {
+            if (txDate >= 1 && txDate <= 5) {
                 newMmb = newBalance;
             } else {
                 newMmb = Math.min(newMmb, newBalance);
@@ -416,23 +416,18 @@ export async function ingestTransaction(input: TransactionIngestionInput) {
                 timestamp,
                 source,
                 sourceMessageId: sourceMessageId || undefined,
+                paymentMethod: input.paymentMethod || null,
+                bankName: input.bankName || null,
+                transactionType,
                 type: transactionType,
                 notes: input.notes || null,
                 confidence: typeof input.confidence === "number" ? Math.min(input.confidence, 1) : 1,
                 goalId: isEligibleGoalTransaction(input.type, transactionType) && input.goalId ? input.goalId.trim() : null,
+                rawText: input.rawText || raw,
                 raw,
             } as any,
             include: { category: true },
         });
-
-        await prisma.$executeRaw`
-            UPDATE "Transaction"
-            SET "paymentMethod" = ${input.paymentMethod || null},
-                "bankName" = ${input.bankName || null},
-                "transactionType" = ${transactionType},
-                "rawText" = ${input.rawText || raw}
-            WHERE "id" = ${tx.id}
-        `;
 
         console.info("[transaction-ingestion] created structured transaction", { transactionId: tx.id, merchant: tx.merchant });
 
@@ -532,9 +527,13 @@ export async function ingestTransaction(input: TransactionIngestionInput) {
             source,
             sourceMessageId: sourceMessageId || undefined,
             account: parsed.account || null,
+            paymentMethod: parsed.paymentMethod || null,
+            bankName: parsed.bankName || null,
+            transactionType: parsed.transactionType || parsed.type || "OTHER",
             type: parsed.type || "OTHER",
             notes: parsed.notes || null,
             confidence: Math.min(parsed.confidence ?? 0.6, catInfo.confidence),
+            rawText: parsed.rawText || raw,
             raw: parsed.raw || raw,
         } as any,
         include: { category: true },
@@ -546,15 +545,6 @@ export async function ingestTransaction(input: TransactionIngestionInput) {
         amount: tx.amount,
         sourceMessageId,
     });
-
-    await prisma.$executeRaw`
-        UPDATE "Transaction"
-        SET "paymentMethod" = ${parsed.paymentMethod || null},
-            "bankName" = ${parsed.bankName || null},
-            "transactionType" = ${parsed.transactionType || parsed.type || "OTHER"},
-            "rawText" = ${parsed.rawText || raw}
-        WHERE "id" = ${tx.id}
-    `;
 
     await recordIngestionKeys({
         keys: ingestionKeys,
