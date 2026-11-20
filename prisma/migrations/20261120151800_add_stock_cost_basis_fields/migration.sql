@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Stock" ADD COLUMN "avgBuyPrice" DOUBLE PRECISION;
+ALTER TABLE "Stock" ADD COLUMN "investedAmount" DOUBLE PRECISION;
