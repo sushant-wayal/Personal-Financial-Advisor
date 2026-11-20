@@ -1,7 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useLiveStockQuotes } from "@/src/hooks/useLiveStockQuotes";
+import { LiveStockTicker, LiveMarketBadge } from "@/components/LiveStockTicker";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -187,6 +189,26 @@ export default function StockIntelligenceClient() {
       return res.json();
     },
   });
+
+  // Extract all active stock symbols for real-time quotation
+  const activeSymbols = useMemo(() => {
+    const syms = new Set<string>();
+    const recs = recData?.run?.recommendations;
+    if (Array.isArray(recs)) {
+      for (const r of recs) {
+        if (r.symbol) syms.add(r.symbol.toUpperCase());
+      }
+    }
+    const positions = paperData?.portfolio?.positions;
+    if (Array.isArray(positions)) {
+      for (const p of positions) {
+        if (p.symbol) syms.add(p.symbol.toUpperCase());
+      }
+    }
+    return Array.from(syms);
+  }, [recData, paperData]);
+
+  const { getQuote, marketStatus } = useLiveStockQuotes(activeSymbols);
 
   // 4. Trigger Pipeline Run Mutation
   const runPipelineMutation = useMutation({
@@ -414,13 +436,18 @@ export default function StockIntelligenceClient() {
       {/* Header Area */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="rounded-full bg-cyan-500/10 px-3 py-0.5 text-xs font-semibold uppercase tracking-wider text-cyan-400 border border-cyan-500/20">
               Indian Cash Equity (NSE)
             </span>
             <span className={`rounded-full px-3 py-0.5 text-xs font-semibold uppercase tracking-wider border ${regimeColor}`}>
               Regime: {regime}
             </span>
+            <LiveMarketBadge
+              isOpen={marketStatus?.isOpen}
+              session={marketStatus?.session}
+              message={marketStatus?.message}
+            />
           </div>
           <h1 className="mt-2 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
             North Stock Intelligence
@@ -697,11 +724,13 @@ export default function StockIntelligenceClient() {
                           </p>
                         </div>
                         <div className="text-right">
-                          <div className="text-lg font-bold text-foreground">
-                            ₹{formatDecimal(buy.entryPrice)}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            Est: {formatInr(buy.estimatedCapital)}
+                          <LiveStockTicker
+                            quote={getQuote(buy.symbol)}
+                            fallbackPrice={buy.entryPrice}
+                            size="md"
+                          />
+                          <div className="text-xs text-muted-foreground mt-0.5">
+                            Est: {formatInr((getQuote(buy.symbol)?.price ?? buy.entryPrice) * buy.quantity)}
                           </div>
                         </div>
                       </div>
@@ -839,52 +868,60 @@ export default function StockIntelligenceClient() {
               </h2>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {holds.map((hold) => (
-                  <Card key={hold.symbol} className="border-border bg-card/60 backdrop-blur">
-                    <CardHeader className="pb-2">
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-foreground">{hold.symbol}</span>
-                        <span className="rounded bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-400 border border-amber-500/20">
-                          HOLD
-                        </span>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-2 text-xs">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Quantity:</span>
-                        <span className="font-medium text-foreground">{hold.quantity} shares</span>
-                      </div>
-                      {hold.averageCost != null && hold.averageCost > 0 && (
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Avg Buy Price:</span>
-                          <span className="font-medium text-foreground">₹{formatDecimal(hold.averageCost)}</span>
-                        </div>
-                      )}
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Latest Price:</span>
-                        <span className="font-medium text-foreground">₹{formatDecimal(hold.latestPrice)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Total Returns:</span>
-                        <span className={`font-semibold ${hold.unrealizedPnl >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                          {hold.unrealizedPnl >= 0 ? "+" : ""}{formatInr(hold.unrealizedPnl)} ({hold.unrealizedPnlPct > 0 ? "+" : ""}{hold.unrealizedPnlPct}%)
-                        </span>
-                      </div>
-                      {hold.dayChangePnl != null && (
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">1-Day Change:</span>
-                          <span className={`font-medium ${hold.dayChangePnl >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                            {hold.dayChangePnl >= 0 ? "+" : ""}{formatInr(hold.dayChangePnl)} ({hold.dayChangePct != null && hold.dayChangePct >= 0 ? "+" : ""}{formatDecimal(hold.dayChangePct)}%)
+                {holds.map((hold) => {
+                  const liveQuote = getQuote(hold.symbol);
+                  const currentPrice = liveQuote?.price ?? hold.latestPrice;
+                  const avgCost = hold.averageCost != null && hold.averageCost > 0 ? hold.averageCost : currentPrice;
+                  const livePnl = (currentPrice - avgCost) * hold.quantity;
+                  const livePnlPct = avgCost > 0 ? ((currentPrice - avgCost) / avgCost) * 100 : 0;
+
+                  return (
+                    <Card key={hold.symbol} className="border-border bg-card/60 backdrop-blur">
+                      <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-foreground">{hold.symbol}</span>
+                          <span className="rounded bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-400 border border-amber-500/20">
+                            HOLD
                           </span>
                         </div>
-                      )}
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Updated Stop:</span>
-                        <span className="font-medium text-rose-400">₹{formatDecimal(hold.updatedStopLoss)}</span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                      </CardHeader>
+                      <CardContent className="space-y-2 text-xs">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Quantity:</span>
+                          <span className="font-medium text-foreground">{hold.quantity} shares</span>
+                        </div>
+                        {hold.averageCost != null && hold.averageCost > 0 && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Avg Buy Price:</span>
+                            <span className="font-medium text-foreground">₹{formatDecimal(hold.averageCost)}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between items-center">
+                          <span className="text-muted-foreground">Live Price:</span>
+                          <LiveStockTicker quote={liveQuote} fallbackPrice={hold.latestPrice} size="sm" showChange={true} />
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Live Returns:</span>
+                          <span className={`font-semibold ${livePnl >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                            {livePnl >= 0 ? "+" : ""}{formatInr(livePnl)} ({livePnlPct >= 0 ? "+" : ""}{formatDecimal(livePnlPct)}%)
+                          </span>
+                        </div>
+                        {hold.dayChangePnl != null && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">1-Day Change:</span>
+                            <span className={`font-medium ${hold.dayChangePnl >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                              {hold.dayChangePnl >= 0 ? "+" : ""}{formatInr(hold.dayChangePnl)} ({hold.dayChangePct != null && hold.dayChangePct >= 0 ? "+" : ""}{formatDecimal(hold.dayChangePct)}%)
+                            </span>
+                          </div>
+                        )}
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Updated Stop:</span>
+                          <span className="font-medium text-rose-400">₹{formatDecimal(hold.updatedStopLoss)}</span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -912,6 +949,10 @@ export default function StockIntelligenceClient() {
                     </CardHeader>
                     <CardContent className="space-y-2 text-xs">
                       <div className="text-rose-300 font-medium">{sell.reason}</div>
+                      <div className="flex justify-between items-center text-muted-foreground">
+                        <span>Live Exit Price:</span>
+                        <LiveStockTicker quote={getQuote(sell.symbol)} fallbackPrice={null} size="sm" />
+                      </div>
                       <div className="flex justify-between text-muted-foreground">
                         <span>Trigger:</span>
                         <span className="font-medium text-foreground">{sell.trigger}</span>
@@ -1316,37 +1357,46 @@ export default function StockIntelligenceClient() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
-                      {paper?.positions?.map((pos) => (
-                        <tr key={pos.id} className="hover:bg-muted/30">
-                          <td className="py-2.5 font-bold text-foreground">{pos.symbol}</td>
-                          <td className="py-2.5 text-muted-foreground">{pos.strategy}</td>
-                          <td className="py-2.5 font-medium">{pos.quantity}</td>
-                          <td className="py-2.5">₹{formatDecimal(pos.entryPrice)}</td>
-                          <td className="py-2.5 text-rose-400">₹{formatDecimal(pos.stopLoss)}</td>
-                          <td className="py-2.5 text-emerald-400">₹{formatDecimal(pos.targetPrice)}</td>
-                          <td className={`py-2.5 font-semibold ${pos.pnl >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                            {pos.pnl >= 0 ? "+" : ""}{formatInr(pos.pnl)} ({pos.pnlPct}%)
-                          </td>
-                          <td className="py-2.5 text-right">
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              className="h-7 text-xs"
-                              onClick={() => {
-                                paperOrderMutation.mutate({
-                                  action: "SELL",
-                                  tradeId: pos.id,
-                                  exitPrice: pos.entryPrice * (1 + (pos.pnlPct / 100)),
-                                  exitReason: "MANUAL_CLOSE",
-                                });
-                              }}
-                              disabled={paperOrderMutation.isPending}
-                            >
-                              Close
-                            </Button>
-                          </td>
-                        </tr>
-                      ))}
+                      {paper?.positions?.map((pos) => {
+                        const livePrice = getQuote(pos.symbol)?.price ?? pos.entryPrice;
+                        const livePnl = (livePrice - pos.entryPrice) * pos.quantity;
+                        const livePnlPct = pos.entryPrice > 0 ? Number((((livePrice - pos.entryPrice) / pos.entryPrice) * 100).toFixed(2)) : 0;
+
+                        return (
+                          <tr key={pos.id} className="hover:bg-muted/30">
+                            <td className="py-2.5 font-bold text-foreground">
+                              <div>{pos.symbol}</div>
+                              <LiveStockTicker quote={getQuote(pos.symbol)} fallbackPrice={pos.entryPrice} size="sm" showChange={false} />
+                            </td>
+                            <td className="py-2.5 text-muted-foreground">{pos.strategy}</td>
+                            <td className="py-2.5 font-medium">{pos.quantity}</td>
+                            <td className="py-2.5">₹{formatDecimal(pos.entryPrice)}</td>
+                            <td className="py-2.5 text-rose-400">₹{formatDecimal(pos.stopLoss)}</td>
+                            <td className="py-2.5 text-emerald-400">₹{formatDecimal(pos.targetPrice)}</td>
+                            <td className={`py-2.5 font-semibold ${livePnl >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                              {livePnl >= 0 ? "+" : ""}{formatInr(livePnl)} ({livePnlPct >= 0 ? "+" : ""}{livePnlPct}%)
+                            </td>
+                            <td className="py-2.5 text-right">
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                className="h-7 text-xs"
+                                onClick={() => {
+                                  paperOrderMutation.mutate({
+                                    action: "SELL",
+                                    tradeId: pos.id,
+                                    exitPrice: livePrice,
+                                    exitReason: "MANUAL_CLOSE",
+                                  });
+                                }}
+                                disabled={paperOrderMutation.isPending}
+                              >
+                                Close
+                              </Button>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

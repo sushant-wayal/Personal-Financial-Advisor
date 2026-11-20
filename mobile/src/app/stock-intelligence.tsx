@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Modal,
   Pressable,
@@ -16,6 +16,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { API_BASE_URL } from "../lib/apiBaseUrl";
 import { formatCurrencyAmount, useCurrency } from "../providers/CurrencyProvider";
 import { useAlert } from "../providers/AlertProvider";
+import { useLiveStockQuotes } from "../hooks/useLiveStockQuotes";
+import { LiveStockTicker, LiveMarketBadge } from "../components/LiveStockTicker";
 
 import { InvestmentsSkeleton } from "../components/LoadingSkeleton";
 import Markdown from "react-native-markdown-display";
@@ -171,6 +173,27 @@ export default function StockIntelligenceScreen() {
   const [executedPriceText, setExecutedPriceText] = useState<string>("");
   const [executedQtyText, setExecutedQtyText] = useState<string>("");
   const [brokerageText, setBrokerageText] = useState<string>("20");
+
+  // Extract all active stock symbols for live real-time quotation
+  const activeSymbols = useMemo(() => {
+    const syms = new Set<string>();
+    const recs = recData?.recommendations;
+    if (recs?.buy) {
+      for (const b of recs.buy) if (b?.symbol) syms.add(b.symbol.toUpperCase());
+    }
+    if (recs?.hold) {
+      for (const h of recs.hold) if (h?.symbol) syms.add(h.symbol.toUpperCase());
+    }
+    if (recs?.sell) {
+      for (const s of recs.sell) if (s?.symbol) syms.add(s.symbol.toUpperCase());
+    }
+    if (paperData?.positions) {
+      for (const p of paperData.positions) if (p?.symbol) syms.add(p.symbol.toUpperCase());
+    }
+    return Array.from(syms);
+  }, [recData, paperData]);
+
+  const { getQuote, marketStatus } = useLiveStockQuotes(activeSymbols);
 
   const loadData = useCallback(async () => {
     try {
@@ -441,6 +464,7 @@ export default function StockIntelligenceScreen() {
             <View style={styles.nseBadge}>
               <Text style={styles.nseBadgeText}>NSE Delivery</Text>
             </View>
+            <LiveMarketBadge isOpen={marketStatus?.isOpen} session={marketStatus?.session} />
           </View>
           <Text style={styles.screenTitle}>Stock Intelligence</Text>
           <Text style={styles.screenSub}>
@@ -587,8 +611,14 @@ export default function StockIntelligenceScreen() {
                       <Text style={styles.stockSub}>Strategy: {buy.strategy} · ~{buy.expectedHoldingDays}d</Text>
                     </View>
                     <View style={{ alignItems: "flex-end" }}>
-                      <Text style={styles.stockPrice}>₹{buy.entryPrice.toFixed(2)}</Text>
-                      <Text style={styles.stockCapEst}>{formatCurrencyAmount(buy.estimatedCapital, "INR")}</Text>
+                      <LiveStockTicker
+                        quote={getQuote(buy.symbol)}
+                        fallbackPrice={buy.entryPrice}
+                        size="md"
+                      />
+                      <Text style={styles.stockCapEst}>
+                        Est: {formatCurrencyAmount((getQuote(buy.symbol)?.price ?? buy.entryPrice) * buy.quantity, "INR")}
+                      </Text>
                     </View>
                   </View>
 
@@ -688,44 +718,53 @@ export default function StockIntelligenceScreen() {
             {holds.length > 0 && (
               <>
                 <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Hold Positions ({holds.length})</Text>
-                {holds.map((hold: any) => (
-                  <View key={hold.symbol} style={styles.card}>
-                    <View style={styles.cardHeader}>
-                      <Text style={styles.stockSymbol}>{hold.symbol}</Text>
-                      <View style={styles.holdBadge}>
-                        <Text style={styles.holdBadgeText}>HOLD</Text>
+                {holds.map((hold: any) => {
+                  const liveQuote = getQuote(hold.symbol);
+                  const currentPrice = liveQuote?.price ?? hold.latestPrice;
+                  const avgCost = hold.averageCost != null && hold.averageCost > 0 ? hold.averageCost : currentPrice;
+                  const livePnl = (currentPrice - avgCost) * hold.quantity;
+                  const livePnlPct = avgCost > 0 ? ((currentPrice - avgCost) / avgCost) * 100 : 0;
+
+                  return (
+                    <View key={hold.symbol} style={styles.card}>
+                      <View style={styles.cardHeader}>
+                        <Text style={styles.stockSymbol}>{hold.symbol}</Text>
+                        <View style={styles.holdBadge}>
+                          <Text style={styles.holdBadgeText}>HOLD</Text>
+                        </View>
                       </View>
-                    </View>
-                    <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 4 }}>
-                      <Text style={styles.detailText}>Qty: {hold.quantity} shares</Text>
-                      <Text style={styles.detailText}>
-                        LTP: {formatCurrencyAmount(hold.latestPrice, "INR")}
-                      </Text>
-                    </View>
-                    {hold.averageCost != null && hold.averageCost > 0 && (
-                      <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 2 }}>
-                        <Text style={[styles.detailText, { color: "#9ca3af" }]}>Avg Buy: {formatCurrencyAmount(hold.averageCost, "INR")}</Text>
-                        {hold.updatedStopLoss != null && (
-                          <Text style={[styles.detailText, { color: "#f87171" }]}>Stop: {formatCurrencyAmount(hold.updatedStopLoss, "INR")}</Text>
-                        )}
+                      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
+                        <Text style={styles.detailText}>Qty: {hold.quantity} shares</Text>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                          <Text style={[styles.detailText, { color: "#9ca3af" }]}>Live:</Text>
+                          <LiveStockTicker quote={liveQuote} fallbackPrice={hold.latestPrice} size="sm" showChange={true} />
+                        </View>
                       </View>
-                    )}
-                    <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 4 }}>
-                      <Text style={[styles.detailText, { color: "#9ca3af" }]}>Total Returns:</Text>
-                      <Text style={[styles.detailText, { color: hold.unrealizedPnl >= 0 ? "#10b981" : "#f43f5e", fontWeight: "bold" }]}>
-                        {hold.unrealizedPnl >= 0 ? "+" : ""}{formatCurrencyAmount(hold.unrealizedPnl, "INR")} ({hold.unrealizedPnlPct > 0 ? "+" : ""}{hold.unrealizedPnlPct}%)
-                      </Text>
-                    </View>
-                    {hold.dayChangePnl != null && (
-                      <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 2 }}>
-                        <Text style={[styles.detailText, { color: "#9ca3af" }]}>1-Day Change:</Text>
-                        <Text style={[styles.detailText, { color: hold.dayChangePnl >= 0 ? "#10b981" : "#f43f5e" }]}>
-                          {hold.dayChangePnl >= 0 ? "+" : ""}{formatCurrencyAmount(hold.dayChangePnl, "INR")} ({hold.dayChangePct != null && hold.dayChangePct >= 0 ? "+" : ""}{Number(hold.dayChangePct).toFixed(2)}%)
+                      {hold.averageCost != null && hold.averageCost > 0 && (
+                        <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 2 }}>
+                          <Text style={[styles.detailText, { color: "#9ca3af" }]}>Avg Buy: {formatCurrencyAmount(hold.averageCost, "INR")}</Text>
+                          {hold.updatedStopLoss != null && (
+                            <Text style={[styles.detailText, { color: "#f87171" }]}>Stop: {formatCurrencyAmount(hold.updatedStopLoss, "INR")}</Text>
+                          )}
+                        </View>
+                      )}
+                      <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 4 }}>
+                        <Text style={[styles.detailText, { color: "#9ca3af" }]}>Live Returns:</Text>
+                        <Text style={[styles.detailText, { color: livePnl >= 0 ? "#10b981" : "#f43f5e", fontWeight: "bold" }]}>
+                          {livePnl >= 0 ? "+" : ""}{formatCurrencyAmount(livePnl, "INR")} ({livePnlPct >= 0 ? "+" : ""}{livePnlPct.toFixed(2)}%)
                         </Text>
                       </View>
-                    )}
-                  </View>
-                ))}
+                      {hold.dayChangePnl != null && (
+                        <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 2 }}>
+                          <Text style={[styles.detailText, { color: "#9ca3af" }]}>1-Day Change:</Text>
+                          <Text style={[styles.detailText, { color: hold.dayChangePnl >= 0 ? "#10b981" : "#f43f5e" }]}>
+                            {hold.dayChangePnl >= 0 ? "+" : ""}{formatCurrencyAmount(hold.dayChangePnl, "INR")} ({hold.dayChangePct != null && hold.dayChangePct >= 0 ? "+" : ""}{Number(hold.dayChangePct).toFixed(2)}%)
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  );
+                })}
               </>
             )}
 
@@ -737,8 +776,11 @@ export default function StockIntelligenceScreen() {
                   <View key={sell.symbol} style={[styles.card, { borderColor: "rgba(244,63,94,0.3)" }]}>
                     <View style={styles.cardHeader}>
                       <Text style={styles.stockSymbol}>{sell.symbol}</Text>
-                      <View style={[styles.holdBadge, { backgroundColor: "rgba(244,63,94,0.15)" }]}>
-                        <Text style={[styles.holdBadgeText, { color: "#f43f5e" }]}>SELL ({sell.urgency})</Text>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                        <LiveStockTicker quote={getQuote(sell.symbol)} fallbackPrice={null} size="sm" />
+                        <View style={[styles.holdBadge, { backgroundColor: "rgba(244,63,94,0.15)" }]}>
+                          <Text style={[styles.holdBadgeText, { color: "#f43f5e" }]}>SELL ({sell.urgency})</Text>
+                        </View>
                       </View>
                     </View>
                     <Text style={[styles.detailText, { color: "#fca5a5", marginTop: 4 }]}>{sell.reason}</Text>

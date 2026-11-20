@@ -452,6 +452,7 @@ export async function getHistoryCount(symbol: string): Promise<number> {
 
 export { getProviderHealth as getDataProviderStatus, assessFreshness as checkDataFreshness };
 export * from "./exchangeCalendar";
+export * from "./liveQuotes";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 

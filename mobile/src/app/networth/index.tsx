@@ -9,6 +9,8 @@ import { NETWORTH_CONFIG } from "../../lib/networthConfig";
 import { getClientCache, setClientCache } from "../../lib/clientCache";
 import { NetWorthSkeleton } from "../../components/LoadingSkeleton";
 import { beginHorizontalScroll, endHorizontalScroll, updateHorizontalScroll } from "../../lib/horizontalScrollPriority";
+import { useLiveStockQuotes } from "../../hooks/useLiveStockQuotes";
+import { LiveMarketBadge } from "../../components/LiveStockTicker";
 
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -185,6 +187,24 @@ export default function NetWorthScreen() {
   // All accordions collapsed by default
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
 
+  // Extract stock items and subscribe to real-time quotes before any early return
+  const stockItems = useMemo(() => (data?.assets?.stock || []) as any[], [data?.assets?.stock]);
+  const stockSymbols = useMemo(() => stockItems.map((s: any) => s.symbol).filter(Boolean), [stockItems]);
+  const { getQuote, marketStatus } = useLiveStockQuotes(stockSymbols);
+
+  const stockDelta = useMemo(() => {
+    let delta = 0;
+    for (const item of stockItems) {
+      const live = getQuote(item.symbol);
+      if (live && item.currentQuantity) {
+        const liveVal = live.price * item.currentQuantity;
+        const savedVal = Number(item.currentWorth ?? (item.currentQuantity * (item.currentPrice || 0)));
+        delta += (liveVal - savedVal);
+      }
+    }
+    return delta;
+  }, [stockItems, getQuote]);
+
   useFocusEffect(
     useCallback(() => {
       let active = true;
@@ -238,6 +258,9 @@ export default function NetWorthScreen() {
 
   const { assets, liabilities, totals } = data;
 
+  const displayTotalAssets = (totals.assets || 0) + stockDelta;
+  const displayNetWorth = (totals.netWorth || 0) + stockDelta;
+
   // Extract Bank Balance as a clean minimal pill
   const bankBalanceItem = assets["Bank Balance"]?.[0];
   const bankBalanceValue = Number(bankBalanceItem?.currentWorth ?? 0);
@@ -258,7 +281,13 @@ export default function NetWorthScreen() {
           filter: "INVESTMENTS" as FilterTab
         },
         items: (items || []) as any[],
-        total: (items || []).reduce((sum, item) => sum + getItemValue(item, "asset"), 0)
+        total: type === "stock"
+          ? (items || []).reduce((sum: number, item: any) => {
+              const live = getQuote(item.symbol);
+              const price = live?.price ?? item.currentPrice ?? 0;
+              return sum + (item.currentQuantity ? price * item.currentQuantity : Number(item.currentWorth || 0));
+            }, 0)
+          : (items || []).reduce((sum: number, item: any) => sum + getItemValue(item, "asset"), 0)
       })),
     ...Object.entries(liabilities).map(([type, items]) => ({
       type,
@@ -283,8 +312,8 @@ export default function NetWorthScreen() {
     return g.meta.filter === activeFilter;
   });
 
-  const assetPercentage = totals.assets + totals.liabilities > 0 
-    ? Math.round((totals.assets / (totals.assets + totals.liabilities)) * 100) 
+  const assetPercentage = displayTotalAssets + totals.liabilities > 0 
+    ? Math.round((displayTotalAssets / (displayTotalAssets + totals.liabilities)) * 100) 
     : 100;
 
   return (
@@ -294,7 +323,10 @@ export default function NetWorthScreen() {
         <Pressable onPress={() => router.back()} style={styles.backButton}>
           <MaterialIcons name="arrow-back" size={24} color="#fff" />
         </Pressable>
-        <Text style={styles.headerTitle}>Net Worth Portfolio</Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          <Text style={styles.headerTitle}>Net Worth Portfolio</Text>
+          <LiveMarketBadge isOpen={marketStatus?.isOpen} session={marketStatus?.session} />
+        </View>
         <Pressable 
           onPress={() => router.push({ pathname: "/networth/add", params: {} } as any)} 
           style={styles.headerAddBtn}
@@ -307,7 +339,7 @@ export default function NetWorthScreen() {
         {/* Total Net Worth Hero Card */}
         <View style={styles.heroCard}>
           <Text style={styles.heroEyebrow}>TOTAL NET WORTH</Text>
-          <Text style={styles.heroValue}>{formatCurrency(totals.netWorth)}</Text>
+          <Text style={styles.heroValue}>{formatCurrency(displayNetWorth)}</Text>
           
           {/* Visual Allocation Bar */}
           <View style={styles.allocationBarContainer}>
@@ -321,7 +353,7 @@ export default function NetWorthScreen() {
                 <View style={[styles.dotIndicator, { backgroundColor: "#7dffa2" }]} />
                 <Text style={styles.heroStatLabel}>Total Assets</Text>
               </View>
-              <Text style={styles.heroAssetValue}>{formatCurrency(totals.assets)}</Text>
+              <Text style={styles.heroAssetValue}>{formatCurrency(displayTotalAssets)}</Text>
             </View>
             <View style={styles.heroDivider} />
             <View style={styles.heroStatCol}>
@@ -433,9 +465,16 @@ export default function NetWorthScreen() {
                   {isExpanded && (
                     <View style={styles.groupItemsList}>
                       {group.items.map((item, idx) => {
+                        const isStock = group.type === "stock";
+                        const liveQuote = isStock ? getQuote(item.symbol) : undefined;
+                        const livePrice = liveQuote?.price ?? item.currentPrice;
+                        const value = isStock && item.currentQuantity && livePrice
+                          ? livePrice * item.currentQuantity
+                          : getItemValue(item, group.category);
                         const title = getItemTitle(item, group.type);
-                        const subtitle = getItemSubtitle(item, group.type);
-                        const value = getItemValue(item, group.category);
+                        const subtitle = isStock && livePrice
+                          ? `${item.currentQuantity || 0} shares @ ₹${livePrice.toFixed(2)}`
+                          : getItemSubtitle(item, group.type);
 
                         return (
                           <Pressable

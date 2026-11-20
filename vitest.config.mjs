@@ -9,7 +9,11 @@ const __dirname = dirname(__filename);
 export default defineConfig({
   plugins: [react()],
   test: {
-    environment: 'jsdom',
+    environment: 'node',
+    environmentMatchGlobs: [
+      ['**/*.tsx', 'jsdom'],
+      ['src/services/**', 'node'],
+    ],
     setupFiles: ['./test/setup.ts'],
     globals: true,
     exclude: [...configDefaults.exclude, 'mobile/**'],
