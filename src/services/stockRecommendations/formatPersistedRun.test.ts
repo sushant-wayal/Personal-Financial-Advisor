@@ -331,4 +331,64 @@ describe("formatPersistedRun — Stock Recommendation Serialization", () => {
     expect(hold.dayChangePnl).toBe(2);
     expect(hold.dayChangePct).toBe(0.14);
   });
+
+  it("dynamically synchronizes stale HOLD item cost basis using liveStocks", () => {
+    const rawRecord = {
+      id: "run-hold-stale",
+      marketSessionDate: new Date("2026-11-20T00:00:00.000Z"),
+      marketRegime: "BULLISH",
+      financialPhase: "WEALTH_BUILDING",
+      capitalAllocation: "{}",
+      dataQuality: "VALID",
+      strategyVersions: "{}",
+      candidateCount: 1,
+      eligibleCount: 1,
+      rejections: "[]",
+      warnings: "[]",
+      aiExplanation: "Stale hold test",
+      status: "COMPLETE",
+      pipelineDurationMs: 150,
+      createdAt: new Date("2026-11-20T04:14:52.943Z"),
+      items: [
+        {
+          id: "item-hold-stale-1",
+          symbol: "ETERNAL",
+          exchange: "NSE",
+          type: "HOLD",
+          status: "PENDING",
+          investedAt: null,
+          investedAmount: null,
+          detail: JSON.stringify({
+            type: "HOLD",
+            symbol: "ETERNAL",
+            exchange: "NSE",
+            quantity: 2,
+            averageCost: 366.85, // Old stale price from daily cron
+            latestPrice: 362.75,
+            marketValue: 725.5,
+            unrealizedPnl: -8.2, // Old stale day fluctuation
+            unrealizedPnlPct: -1.12,
+          }),
+        },
+      ],
+    };
+
+    const liveStocks = [
+      {
+        symbol: "ETERNAL",
+        currentQuantity: 2,
+        currentPrice: 366.85,
+        avgBuyPrice: 343,
+        investedAmount: 686,
+      },
+    ];
+
+    const run = formatPersistedRun(rawRecord, undefined, liveStocks);
+    expect(run.recommendations).toHaveLength(1);
+    const hold = run.recommendations[0] as any;
+    expect(hold.averageCost).toBe(343);
+    expect(hold.investedAmount).toBe(686);
+    expect(hold.unrealizedPnl).toBe(39.5);
+    expect(hold.unrealizedPnlPct).toBe(5.76);
+  });
 });

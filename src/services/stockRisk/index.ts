@@ -165,7 +165,7 @@ export async function calculateCapitalAllocation(
     );
     const cycleStockOutflow = cycleStocks.reduce(
       (sum: number, s: any) => {
-        const tradeVal = s.currentWorth ?? 0;
+        const tradeVal = s.investedAmount ?? (s.avgBuyPrice ? s.avgBuyPrice * s.currentQuantity : (s.currentWorth ?? 0));
         return sum + tradeVal + calculateStockBrokerage(tradeVal);
       },
       0,

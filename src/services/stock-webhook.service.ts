@@ -46,7 +46,12 @@ export async function handleStockWebhookPush(rawBody: any) {
                         const qty = parseFloat(qtyMatch[1]);
                         if (isNaN(qty) || qty <= 0) continue;
 
-                        const updatedQty = typeMatch === 'Buy' ? stock.currentQuantity + qty : stock.currentQuantity - qty;
+                        const isSell = typeMatch === 'Sell';
+                        const updatedQty = isSell ? Math.max(0, stock.currentQuantity - qty) : stock.currentQuantity + qty;
+                        const avgBuy = stock.avgBuyPrice ?? null;
+                        const updatedInvested = avgBuy != null && avgBuy > 0
+                            ? Number((updatedQty * avgBuy).toFixed(2))
+                            : stock.investedAmount;
                         
                         console.info(`[stock-webhook] Updating quantity for ${stock.symbol}: ${stock.currentQuantity} -> ${updatedQty} (${typeMatch} ${qty})`);
                         
@@ -56,7 +61,8 @@ export async function handleStockWebhookPush(rawBody: any) {
                             where: { id: stock.id },
                             data: {
                                 currentQuantity: updatedQty,
-                                currentWorth: stock.currentPrice ? updatedQty * stock.currentPrice : null,
+                                currentWorth: stock.currentPrice ? Number((updatedQty * stock.currentPrice).toFixed(2)) : null,
+                                investedAmount: updatedInvested,
                                 processedMessageIds: updatedMessageIds
                             }
                         });

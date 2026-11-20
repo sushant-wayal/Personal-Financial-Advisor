@@ -16,6 +16,10 @@ export async function POST(req: NextRequest) {
       // Default to empty body if no json passed
     }
 
+    const liveStocks = await prisma.stock.findMany({
+      where: { currentQuantity: { gt: 0 } },
+    });
+
     const sessionDateStr = new Date().toLocaleDateString("en-CA", {
       timeZone: DATA_FRESHNESS_CONFIG.exchangeTimezone,
     });
@@ -30,7 +34,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         ok: true,
         message: "Today's recommendation plan is active with executed trades. Daily session plan is locked to prevent overtrading.",
-        run: formatPersistedRun(existingRun),
+        run: formatPersistedRun(existingRun, undefined, liveStocks),
         isSessionLocked: true,
       });
     }
@@ -46,7 +50,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         ok: true,
         message: `Stock exchange (NSE) is closed today (${tradingDayCheck.reason}). Daily recommendations only run on trading days.`,
-        run: latestRun ? formatPersistedRun(latestRun) : null,
+        run: latestRun ? formatPersistedRun(latestRun, undefined, liveStocks) : null,
         isMarketClosed: true,
         reason: tradingDayCheck.reason,
       });

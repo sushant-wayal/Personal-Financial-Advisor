@@ -39,6 +39,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: "Symbol or recommendation item ID is required" }, { status: 400 });
     }
 
+    // Idempotency: prevent double-investing the same recommendation item
+    if (item && item.status === "INVESTED") {
+      return NextResponse.json({
+        ok: true,
+        symbol,
+        alreadyInvested: true,
+        message: `Recommendation item for ${symbol} has already been executed and invested.`,
+      });
+    }
+
     // Sized quantity
     const quantity = Number(rawQuantity || body.quantity || detail.quantity || 1);
 

@@ -13,6 +13,10 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const dateParam = searchParams.get("date");
 
+    const liveStocks = await prisma.stock.findMany({
+      where: { currentQuantity: { gt: 0 } },
+    });
+
     if (dateParam) {
       const targetDate = new Date(dateParam);
       const run = await prisma.stockRecommendationRun.findUnique({
@@ -27,7 +31,7 @@ export async function GET(req: NextRequest) {
         );
       }
 
-      return NextResponse.json({ ok: true, run: formatPersistedRun(run) });
+      return NextResponse.json({ ok: true, run: formatPersistedRun(run, undefined, liveStocks) });
     }
 
     // Otherwise fetch the latest run
@@ -53,7 +57,7 @@ export async function GET(req: NextRequest) {
 
       return NextResponse.json({
         ok: true,
-        run: formatPersistedRun(latestRun, liveCapitalAllocation),
+        run: formatPersistedRun(latestRun, liveCapitalAllocation, liveStocks),
       });
     }
 

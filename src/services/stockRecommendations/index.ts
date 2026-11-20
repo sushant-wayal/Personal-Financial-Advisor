@@ -727,16 +727,51 @@ export function formatPersistedRun(
     }>;
   },
   liveCapitalAllocation?: CapitalAllocation,
+  liveStocks?: Array<{
+    symbol: string;
+    currentQuantity: number;
+    currentPrice: number | null;
+    avgBuyPrice?: number | null;
+    investedAmount?: number | null;
+  }>,
 ): RecommendationRun {
   const recommendations: Recommendation[] = (record.items || []).map((item) => {
     try {
       const parsed = JSON.parse(item.detail) as Recommendation;
+      let holdUpdates = {};
+      if (parsed.type === "HOLD" && liveStocks && liveStocks.length > 0) {
+        const st = liveStocks.find((s) => s.symbol.toUpperCase() === item.symbol.toUpperCase());
+        if (st) {
+          const avgCost = (st.avgBuyPrice != null && st.avgBuyPrice > 0)
+            ? st.avgBuyPrice
+            : (parsed.averageCost ?? (st.currentPrice ?? 100));
+          const totalInvested = (st.investedAmount != null && st.investedAmount > 0)
+            ? st.investedAmount
+            : (avgCost * st.currentQuantity);
+          const currentPrice = parsed.latestPrice || (st.currentPrice ?? avgCost);
+          const marketVal = currentPrice * st.currentQuantity;
+          const unrealizedPnl = Number((marketVal - totalInvested).toFixed(2));
+          const unrealizedPnlPct = totalInvested > 0 ? Number(((unrealizedPnl / totalInvested) * 100).toFixed(2)) : 0;
+
+          holdUpdates = {
+            quantity: Math.floor(st.currentQuantity),
+            averageCost: Number(avgCost.toFixed(2)),
+            investedAmount: Number(totalInvested.toFixed(2)),
+            marketValue: Number(marketVal.toFixed(2)),
+            unrealizedPnl,
+            unrealizedPnlPct,
+          };
+        }
+      }
+
       return {
         ...parsed,
+        ...holdUpdates,
         id: item.id,
         status: (item.status as "PENDING" | "INVESTED" | "SKIPPED") || parsed.status || "PENDING",
         investedAt: item.investedAt != null ? item.investedAt : parsed.investedAt,
-        investedAmount: item.investedAmount != null ? item.investedAmount : parsed.investedAmount,
+        investedAmount: (holdUpdates as { investedAmount?: number }).investedAmount
+          ?? (item.investedAmount != null ? item.investedAmount : parsed.investedAmount),
       };
     } catch {
       return {
