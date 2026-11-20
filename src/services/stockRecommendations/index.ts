@@ -438,16 +438,32 @@ export async function generateDailyRecommendations(options?: {
     if (st.currentQuantity <= 0) continue;
     if (todayBoughtSymbols.has(st.symbol.toUpperCase())) continue;
 
-    // Load recent bars to get current price and previous session close (for 1-day change)
-    const recentBars = await prisma.stockMarketBar.findMany({
+    // Load historical bars for this held stock to compute technical indicators (ATR14 for trailing stop, SMA50)
+    const allBars = await prisma.stockMarketBar.findMany({
       where: { symbol: st.symbol },
-      orderBy: { date: "desc" },
-      take: 2,
+      orderBy: { date: "asc" },
     });
-    const latestBar = recentBars[0] ?? null;
-    const previousBar = recentBars[1] ?? null;
+    const latestBar = allBars.length > 0 ? allBars[allBars.length - 1] : null;
+    const previousBar = allBars.length > 1 ? allBars[allBars.length - 2] : null;
 
     const currentPrice = latestBar ? latestBar.close : (st.currentPrice ?? 100);
+
+    const marketBars: MarketBar[] = allBars.map((b) => ({
+      symbol: b.symbol,
+      exchange: b.exchange,
+      date: b.date.toISOString().slice(0, 10),
+      open: b.open,
+      high: b.high,
+      low: b.low,
+      close: b.close,
+      adjustedClose: b.adjustedClose,
+      volume: b.volume,
+      provider: b.provider,
+      retrievedAt: b.retrievedAt,
+      quality: b.quality as MarketBar["quality"],
+    }));
+
+    const indicators = allBars.length >= 14 ? computeIndicators(st.symbol, marketBars) : null;
 
     // Resolve true cost basis (average buy price and invested capital):
     // 1. Direct field on Stock model
@@ -511,18 +527,44 @@ export async function generateDailyRecommendations(options?: {
     const dayChangePnl = dayChange * st.currentQuantity;
     const dayChangePct = prevClose > 0 ? (dayChange / prevClose) * 100 : 0;
 
-    // Evaluate exit rules
+    // Determine actual holding duration
+    const holdingDays = (st.setupDate || st.createdAt)
+      ? Math.max(1, Math.round((now.getTime() - new Date(st.setupDate ?? st.createdAt).getTime()) / (1000 * 60 * 60 * 24)))
+      : 5;
+
+    // Determine previous established stop loss (ratchet rule: stop loss only moves UP, never down)
+    const initialStop = Number((avgCost * 0.94).toFixed(2));
+    let establishedStop = initialStop;
+    const lastHoldItem = await prisma.stockRecommendationItem.findFirst({
+      where: {
+        symbol: { equals: st.symbol, mode: "insensitive" },
+        type: "HOLD",
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    if (lastHoldItem?.detail) {
+      try {
+        const parsedHold = JSON.parse(lastHoldItem.detail);
+        if (parsedHold.updatedStopLoss && parsedHold.updatedStopLoss > initialStop) {
+          establishedStop = parsedHold.updatedStopLoss;
+        }
+      } catch {}
+    }
+
+    // Evaluate exit rules with real technical indicators
     const exitEval = evaluateExitRules(
       st.symbol,
       avgCost,
       currentPrice,
-      avgCost * 0.94, // 6% initial stop proxy
+      establishedStop,
       avgCost * 1.08, // 8% initial target proxy
-      5, // approximate holding days
+      holdingDays,
       STRATEGY_CONFIGS.TREND_PULLBACK.maxHoldingDays,
-      null,
+      indicators,
       marketRegime,
     );
+
+    const finalStopLoss = Math.max(establishedStop, exitEval.updatedStopLoss ?? establishedStop, initialStop);
 
     if (exitEval.action === "SELL") {
       sellRecommendations.push({
@@ -564,9 +606,9 @@ export async function generateDailyRecommendations(options?: {
           : 0,
         originalThesis: "Swing trading holding thesis intact",
         currentSignal: exitEval.trigger,
-        updatedStopLoss: exitEval.updatedStopLoss ?? (avgCost * 0.94),
+        updatedStopLoss: finalStopLoss,
         exitConditions: [
-          `Breach of stop level ₹${(exitEval.updatedStopLoss ?? avgCost * 0.94).toFixed(2)}`,
+          `Breach of stop level ₹${finalStopLoss.toFixed(2)}`,
           `Macro market regime deterioration to BEARISH`,
         ],
         reasonsToHold: [exitEval.reason],
