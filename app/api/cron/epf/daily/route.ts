@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/src/lib/prisma';
+import { calculateMonthlyEpfInterest } from '@/src/services/epf';
 
 export const maxDuration = 300;
 
@@ -20,7 +21,6 @@ export async function GET(request: Request) {
         const month = now.getMonth(); 
         const date = now.getDate();
         
-        const isEndOfMonth = new Date(year, month + 1, 0).getDate() === date;
         const currentQuarter = Math.floor(month / 3);
         const isQuarterStartMonth = month % 3 === 0;
 
@@ -32,42 +32,56 @@ export async function GET(request: Request) {
             let newInterestRate = account.currentInterestRate;
             let newFetchDate = account.lastInterestRateFetchDate;
 
-            // --- 1. Monthly Contribution Credit ---
-            if (date === account.epfCreditDay) {
+            // Fold any legacy accrued interest from previous annual model into the balance
+            if (newAccruedInterest > 0) {
+                newBalance += newAccruedInterest;
+                newAccruedInterest = 0;
+            }
+
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const effectiveCreditDay = Math.min(account.epfCreditDay, daysInMonth);
+
+            // --- Monthly Processing on Credit Day ---
+            if (date === effectiveCreditDay) {
+                // 1. Monthly Interest Credit (credited based on balance BEFORE that month's contribution credit)
+                const interestKey = `cron:epf:interest:${account.id}:${year}-${month + 1}`;
+                const alreadyInterestCredited = await prisma.aIMemory.findFirst({ where: { key: interestKey } });
+                if (!alreadyInterestCredited) {
+                    const monthlyInterest = calculateMonthlyEpfInterest(newBalance, newInterestRate);
+                    newBalance += monthlyInterest;
+                    await prisma.aIMemory.create({
+                        data: {
+                            key: interestKey,
+                            name: "EPF Monthly Interest Credit",
+                            value: JSON.stringify({
+                                monthlyInterest,
+                                balanceBeforeInterest: newBalance - monthlyInterest,
+                                rate: newInterestRate,
+                                date: now.toISOString(),
+                            }),
+                        },
+                    });
+                    console.info(`[cron-epf] Credited monthly interest for account ${account.id}: ${monthlyInterest}. Balance before contribution: ${newBalance}`);
+                } else {
+                    console.info(`[cron-epf] Monthly interest for account ${account.id} already credited for ${year}-${month + 1}`);
+                }
+
+                // 2. Monthly Contribution Credit
                 const contribKey = `cron:epf:contrib:${account.id}:${year}-${month + 1}`;
                 const alreadyCredited = await prisma.aIMemory.findFirst({ where: { key: contribKey } });
                 if (!alreadyCredited) {
-                    newBalance += account.monthlyEmployeeContribution + account.monthlyEmployerContribution;
+                    const totalContribution = account.monthlyEmployeeContribution + account.monthlyEmployerContribution;
+                    newBalance += totalContribution;
                     await prisma.aIMemory.create({
                         data: {
                             key: contribKey,
                             name: "EPF Monthly Contribution Credit",
-                            value: JSON.stringify({ amount: account.monthlyEmployeeContribution + account.monthlyEmployerContribution, date: now.toISOString() }),
+                            value: JSON.stringify({ amount: totalContribution, date: now.toISOString() }),
                         },
                     });
                     console.info(`[cron-epf] Credited monthly contribution for account ${account.id}. New Balance: ${newBalance}`);
                 } else {
                     console.info(`[cron-epf] Monthly contribution for account ${account.id} already credited for ${year}-${month + 1}`);
-                }
-            }
-
-            // --- 2. End of Month Interest Accrual ---
-            if (isEndOfMonth) {
-                const accrualKey = `cron:epf:accrual:${account.id}:${year}-${month + 1}`;
-                const alreadyAccrued = await prisma.aIMemory.findFirst({ where: { key: accrualKey } });
-                if (!alreadyAccrued) {
-                    const monthlyInterest = newBalance * (newInterestRate / 100) / 12;
-                    newAccruedInterest += monthlyInterest;
-                    await prisma.aIMemory.create({
-                        data: {
-                            key: accrualKey,
-                            name: "EPF Monthly Accrual Check",
-                            value: JSON.stringify({ monthlyInterest, date: now.toISOString() }),
-                        },
-                    });
-                    console.info(`[cron-epf] Accrued monthly interest for account ${account.id}: ${monthlyInterest}. Total Accrued: ${newAccruedInterest}`);
-                } else {
-                    console.info(`[cron-epf] Monthly interest for account ${account.id} already accrued for ${year}-${month + 1}`);
                 }
             }
 
@@ -123,28 +137,6 @@ export async function GET(request: Request) {
                     } catch (error: any) {
                         console.error(`[cron-epf] Failed to fetch EPF interest rate from Gemini:`, error.message);
                     }
-                }
-            }
-
-            // --- 4. Annual Compounding ---
-            // Format today's date as MM-DD (e.g., "03-31")
-            const todayStr = `${String(month + 1).padStart(2, '0')}-${String(date).padStart(2, '0')}`;
-            if (todayStr === account.annualInterestCreditDate) {
-                const compoundKey = `cron:epf:compounding:${account.id}:${year}`;
-                const alreadyCompounded = await prisma.aIMemory.findFirst({ where: { key: compoundKey } });
-                if (!alreadyCompounded) {
-                    newBalance += newAccruedInterest;
-                    await prisma.aIMemory.create({
-                        data: {
-                            key: compoundKey,
-                            name: "EPF Annual Compounding Check",
-                            value: JSON.stringify({ compoundedInterest: newAccruedInterest, date: now.toISOString() }),
-                        },
-                    });
-                    console.info(`[cron-epf] Annual compounding for account ${account.id}. Added ${newAccruedInterest} to balance. New Balance: ${newBalance}`);
-                    newAccruedInterest = 0;
-                } else {
-                    console.info(`[cron-epf] Annual compounding for account ${account.id} already performed for FY ending ${year}`);
                 }
             }
 

@@ -72,7 +72,7 @@ export const NETWORTH_CONFIG: Record<string, NetWorthConstructConfig> = {
       { name: "monthlyEmployerContribution", label: "Monthly Employer Contribution", type: "number", required: true },
       { name: "setupDate", label: "Setup Date", type: "date" },
       { name: "epfCreditDay", label: "EPF Credit Day (1-31)", type: "number", required: true },
-      { name: "annualInterestCreditDate", label: "Annual Interest Credit Date (MM-DD)", type: "text", required: true, description: "The date each year when interest is credited (e.g. 03-31)" },
+      { name: "currentInterestRate", label: "Current Interest Rate (%)", type: "number" },
     ],
   },
   fDAccount: {
